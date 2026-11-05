@@ -1,6 +1,6 @@
 # BioBes — Blloku ditor në cloud
 
-Ky është projekti **i përgatitur, por i papublikuar**. Nuk janë krijuar tabela, llogari apo deploy në shërbimet e tua. Versioni HTML lokal zhvillohet më vete; kjo paketë nuk e publikon aplikacionin.
+Ky është projekti **i përgatitur, i pakonfiguruar dhe i papublikuar**. Nuk janë krijuar tabela, llogari apo deploy në shërbimet e tua. `web/cloud-config.js` është bosh qëllimisht dhe aplikacioni cloud nuk do të lidhet derisa ta plotësosh me URL-në dhe çelësin publik të projektit që ke zgjedhur. Versioni HTML lokal zhvillohet më vete. Workflow-i i GitHub Pages është vetëm manual; ky kontroll nuk ka bërë deploy.
 
 ## Çfarë përmban
 
@@ -58,7 +58,7 @@ Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose orig
    };
    ```
 
-   URL-ja dhe çelësi `publishable`/`anon` janë publikë. **Mos përdor `service_role`, `sb_secret_` ose çelësin Gemini në faqe.**
+   URL-ja dhe çelësi `publishable`/`anon` janë publikë. **Mos përdor `service_role`, `sb_secret_` ose çelësin Gemini në faqe.** Konfigurimi i paketës është bosh qëllimisht; mos e lidh me një projekt pa e zgjedhur dhe verifikuar. Kontrollo hash-et me `sha256sum -c SHA256SUMS.txt` nga rrënja e paketës para se të ndryshosh konfigurimin; pas plotësimit të `cloud-config.js`, vetëm hash-i i atij skedari pritet të mos përputhet.
 6. **Hostimi më vonë.** Publiko përmbajtjen e dosjes `web/` në një host statik me HTTPS, si aplikacion i veçantë; mos zëvendëso `bio-bes-warehouse` pa vendim të veçantë. `web/vercel.json` vendos header-a sigurie për Vercel; në host tjetër vendosi në atë host. Nëse përdor domain të personalizuar për Supabase, shtoje te `connect-src` në CSP. Plani aktual Vercel Hobby është për përdorim personal jokomercial; për përdorim biznesi kontrollo një plan të përshtatshëm ose një host tjetër.
 7. **Kontroll real.** Hyr me llogarinë e autorizuar, provo një llogari tjetër që duhet të refuzohet, testo grupet me dy hapa, ruajtjen/shkarkimin privat, konfliktin nga dy skeda, PDF/Excel dhe dy faqet A4. Provo Gemini me një dokument sintetik ose vërtet të anonimizuar dhe një çelës të vlefshëm. Mos ngarko dokumente reale në Storage derisa këto kontrolle dhe lejet të kalojnë. Dokumentet reale me të dhëna personale nuk dërgohen te Gemini.
 8. **Migrimi.** Në versionin e ri zgjidh **Importo backup / draft** dhe ngarko JSON-in nga aplikacioni i vjetër. Regjistrimet e reja shtohen pa zëvendësuar ato ekzistuese. Nëse një ID ose numër bie ndesh, importi ndalet pa ndryshuar të dhënat; zgjidhe konfliktin para se të vazhdosh.
@@ -78,6 +78,6 @@ Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose orig
 
 ## Gjendja e testimit
 
-Janë testuar ndërfaqja, grupet me dy hapa, konfliktet dhe arkivimi privat me një shërbim Supabase të simuluar; funksionet SQL janë testuar në PostgreSQL lokal dhe Gemini me përgjigje të simuluara. Nuk është bërë ende deploy apo testim me një projekt të konfiguruar Supabase dhe një çelës Gemini të vlefshëm; saktësia reale e leximit nuk është verifikuar. Printimi në Excel Microsoft dhe në printerin tënd duhet kontrolluar veçmas.
+Testimet e mëparshme të projektit kanë përdorur shërbime të simuluara: ato nuk provojnë Supabase/Gemini real. Në këtë paketë u shtuan edhe kontrolle lokale për logjikën numerike dhe strukturën e modelit; nga rrënja e paketës ekzekuto `node tests/core_checks.js`. Nuk është bërë deploy apo testim këtu me një projekt Supabase të konfiguruar dhe çelës Gemini të vlefshëm; saktësia reale e leximit nuk është verifikuar. Ndërveprimet e shfletuesit, printimi në Excel Microsoft dhe printimi në printerin tënd duhet kontrolluar veçmas. Shih `RAPORT_AUDITIMI.md` për fushat e patestuara.
 
 Dokumentacion: [Supabase Storage dhe RLS](https://supabase.com/docs/guides/storage/security/access-control), [sekretet e Edge Functions](https://supabase.com/docs/guides/functions/secrets), [Vercel Hobby](https://vercel.com/docs/plans/hobby).

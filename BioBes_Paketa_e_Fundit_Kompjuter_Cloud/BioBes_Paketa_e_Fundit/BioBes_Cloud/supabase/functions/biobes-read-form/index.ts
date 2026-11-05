@@ -100,8 +100,24 @@ Deno.serve(async req => {
         signal:abort.signal
       });
     } finally { clearTimeout(timer); }
-    if(upstream.status===429) return reply(429,'Gemini ka arritur kufirin ose kuotën.');
-    if(!upstream.ok) return reply(502,'Gemini refuzoi kërkesën. Kontrollo konfigurimin, modelin dhe dokumentin.');
+    if(!upstream.ok) {
+      // Keep provider diagnostics useful without logging secrets, prompts, or document contents.
+      const providerError=await upstream.json().catch(()=>null);
+      const error=providerError?.error || {};
+      const providerStatus=typeof error.status==='string' ? error.status.slice(0,80) : '';
+      const providerCode=Number.isInteger(error.code) ? error.code : null;
+      console.error('[biobes-read-form] Gemini upstream rejected request', {
+        httpStatus:upstream.status, providerStatus, providerCode
+      });
+      if(upstream.status===429) return reply(429,'Gemini ka arritur kufirin ose kuotën.');
+      if(upstream.status===401 || upstream.status===403)
+        return reply(502,'Gemini nuk autorizoi kërkesën. Kontrollo çelësin API, projektin dhe lejet e Gemini API.');
+      if(upstream.status===404)
+        return reply(502,'Modeli ose endpoint-i Gemini nuk u gjet. Kontrollo emrin e modelit në konfigurimin e funksionit.');
+      if(upstream.status===400)
+        return reply(502,'Gemini nuk pranoi kërkesën. Kontrollo formatin e dokumentit dhe përputhshmërinë e modelit.');
+      return reply(502,'Gemini refuzoi kërkesën. Kontrollo logun e funksionit për statusin teknik të Gemini.');
+    }
     const data=await upstream.json();
     return new Response(JSON.stringify(data),{status:200,headers:{...CORS,'Content-Type':'application/json; charset=utf-8'}});
   } catch(e) {
