@@ -12,6 +12,7 @@
 | A-02 | E lartë | Workflow-i i GitHub Pages nisej automatikisht pas push-it në `main`, në kundërshtim me deklaratën se paketa është e papublikuar. | U hoq aktivizimi në `push`; publikimi mund të nisë vetëm me `workflow_dispatch`. Asnjë workflow nuk u nis gjatë auditimit. |
 | A-03 | Mesatare | Manifesti SHA-256 përmendte një `.gitignore` që mungonte dhe hash-i i konfigurimit cloud nuk përputhej. | U shtua `.gitignore` për sekretet/skedarët lokalë dhe u rigjenerua manifesti për skedarët e paketës. Kontrolli i hash-eve kalon mbi paketën e dorëzuar. |
 | A-04 | E ulët | Nuk kishte test regresioni të ekzekutueshëm për disa rregulla të rëndësishme numerike dhe për modelin bosh. | U shtua `tests/core_checks.js`, i ekzekutueshëm lokalisht pa rrjet me `node tests/core_checks.js`. |
+| A-05 | Mesatare | Screenshot-i i prodhimit tregoi përgjigje `POST 502`; Edge Function kthente të njëjtin mesazh për çdo refuzim të Gemini, pa status diagnostik në log. | Shtova logim të kufizuar vetëm me HTTP status, provider status dhe provider code; përgjigjja dallon 401/403, 404, 400 dhe 429. Nuk regjistron çelës, prompt apo përmbajtje dokumenti. Duhet deploy i veçantë për ta parë në projektin live. |
 
 ## Fusha të shqyrtuara
 
@@ -24,7 +25,7 @@
 ## Testet e kryera
 
 1. `node --check` për `web/app.js`, `web/cloud.js`, `web/cloud-config.js` dhe `web/notification-sw.js` — kaluan.
-2. `node tests/core_checks.js` — kontrollon presjen/pikën dhjetore, kohët e vlefshme dhe ndërrimin e ditës, shumën e minutave para rrumbullakosjes, rrumbullakosjen gjysmë ore lart, interpretimin e orëve Excel dhe strukturën e modelit XLSX (25 rreshta për secilën nga dy faqet e printimit). Kaloi.
+2. `node tests/core_checks.js` — kontrollon presjen/pikën dhjetore, kohët e vlefshme dhe ndërrimin e ditës, shumën e minutave para rrumbullakosjes, rrumbullakosjen gjysmë ore lart, interpretimin e orëve Excel, strukturën e modelit XLSX (25 rreshta për secilën nga dy faqet e printimit) dhe kontrollet statike për diagnostikimin pa rrjedhje të payload-it. Kaloi.
 3. `sha256sum -c SHA256SUMS.txt` nga rrënja e paketës — kaloi për skedarët e paketës, përfshirë skedarët e rinj.
 4. Syntax check dhe provat e mësipërme janë testime lokale; nuk dërguan dokumente ose të dhëna te shërbime të jashtme.
 
