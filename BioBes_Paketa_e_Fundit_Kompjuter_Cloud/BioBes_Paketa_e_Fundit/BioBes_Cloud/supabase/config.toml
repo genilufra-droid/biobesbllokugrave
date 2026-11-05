@@ -1,0 +1,3 @@
+# Do not use `supabase db reset` on a project with other data.
+[functions.biobes-read-form]
+verify_jwt = true
