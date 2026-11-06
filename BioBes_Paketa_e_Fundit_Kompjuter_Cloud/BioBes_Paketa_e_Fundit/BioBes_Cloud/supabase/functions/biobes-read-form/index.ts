@@ -119,6 +119,8 @@ Deno.serve(async req => {
         return reply(502,'Modeli ose endpoint-i Gemini nuk u gjet. Kontrollo emrin e modelit në konfigurimin e funksionit.', providerInfo);
       if(upstream.status===400)
         return reply(502,'Gemini nuk pranoi kërkesën. Kontrollo formatin e dokumentit dhe përputhshmërinë e modelit.', providerInfo);
+      if(upstream.status===503)
+        return reply(503,'Gemini është i përkohshëm i padisponueshëm. Provo përsëri pas pak sekondash.', providerInfo);
       return reply(502,'Gemini refuzoi kërkesën. Kontrollo logun e funksionit për statusin teknik të Gemini.', providerInfo);
     }
     const data=await upstream.json();
