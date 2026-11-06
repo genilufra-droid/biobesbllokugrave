@@ -111,14 +111,15 @@ Deno.serve(async req => {
       console.error('[biobes-read-form] Gemini upstream rejected request', {
         httpStatus:upstream.status, providerStatus, providerCode
       });
-      if(upstream.status===429) return reply(429,'Gemini ka arritur kufirin ose kuotën.');
+      const providerInfo={httpStatus:upstream.status, providerStatus, providerCode};
+      if(upstream.status===429) return reply(429,'Gemini ka arritur kufirin ose kuotën.', providerInfo);
       if(upstream.status===401 || upstream.status===403)
-        return reply(502,'Gemini nuk autorizoi kërkesën. Kontrollo çelësin API, projektin dhe lejet e Gemini API.');
+        return reply(502,'Gemini nuk autorizoi kërkesën. Kontrollo çelësin API, projektin dhe lejet e Gemini API.', providerInfo);
       if(upstream.status===404)
-        return reply(502,'Modeli ose endpoint-i Gemini nuk u gjet. Kontrollo emrin e modelit në konfigurimin e funksionit.');
+        return reply(502,'Modeli ose endpoint-i Gemini nuk u gjet. Kontrollo emrin e modelit në konfigurimin e funksionit.', providerInfo);
       if(upstream.status===400)
-        return reply(502,'Gemini nuk pranoi kërkesën. Kontrollo formatin e dokumentit dhe përputhshmërinë e modelit.');
-      return reply(502,'Gemini refuzoi kërkesën. Kontrollo logun e funksionit për statusin teknik të Gemini.');
+        return reply(502,'Gemini nuk pranoi kërkesën. Kontrollo formatin e dokumentit dhe përputhshmërinë e modelit.', providerInfo);
+      return reply(502,'Gemini refuzoi kërkesën. Kontrollo logun e funksionit për statusin teknik të Gemini.', providerInfo);
     }
     const data=await upstream.json();
     return new Response(JSON.stringify(data),{status:200,headers:{...CORS,'Content-Type':'application/json; charset=utf-8'}});
