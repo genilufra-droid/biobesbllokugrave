@@ -1,7 +1,6 @@
-name: Deploy BioBes
+name: Manual BioBes Pages deployment
 on:
-  push:
-    branches: [main]
+  # Publishing must be an explicit action by an authorized maintainer.
   workflow_dispatch:
 
 permissions:
