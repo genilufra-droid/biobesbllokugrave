@@ -266,7 +266,7 @@ async function cloudGemini(parts,signal){
  const body=JSON.stringify({parts,consent:true,anonymous:true,freeTier:true});if(new Blob([body]).size>19000000)throw new Error('Dokumentet janë shumë të mëdha për lexim në cloud. Ndaji në skedarë më të vegjël.');
  const pause=cloudLastAiStart?Math.max(0,BATCH_AI_GAP_MS-(Date.now()-cloudLastAiStart)):0;if(pause){if(batchState.busy)batchSetBusy(true,'Pauzë për kufirin falas; leximet vazhdojnë së shpejti…');else if(importState.busy)setImportBusy(true,'Pauzë për kufirin falas; leximi vazhdon së shpejti…');await batchWait(pause,signal)}if(signal.aborted)throw new DOMException('aborted','AbortError');cloudLastAiStart=Date.now();
  let lastError=null;
- for(let attempt=0;attempt<3;attempt++){
+ for(let attempt=0;attempt<4;attempt++){
   const response=await fetch(`${cloud.config.url}/functions/v1/biobes-read-form`,{method:'POST',headers:{'Content-Type':'application/json',apikey:cloud.config.key,Authorization:`Bearer ${data.session.access_token}`},body,signal,credentials:'omit',referrerPolicy:'no-referrer'});
   if(response.ok)return await response.json();
   let result={};try{result=await response.json()}catch(_){}
