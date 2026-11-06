@@ -81,6 +81,8 @@ assert.match(edge, /httpStatus:upstream\.status/);
 assert.match(edge, /Gemini upstream rejected request/);
 assert.match(edge, /if\(upstream\.status===404\)/);
 assert.match(edge, /upstream\.status===403/);
+assert.match(edge, /providerInfo/);
+assert.match(edge, /providerStatus/);
 assert.doesNotMatch(edge, /console\.error\([^\n]*(?:secret|parts|body)/i, 'do not log API secrets or document payloads');
 
 console.log('BioBes core checks passed.');

@@ -270,9 +270,10 @@ async function cloudGemini(parts,signal){
   const response=await fetch(`${cloud.config.url}/functions/v1/biobes-read-form`,{method:'POST',headers:{'Content-Type':'application/json',apikey:cloud.config.key,Authorization:`Bearer ${data.session.access_token}`},body,signal,credentials:'omit',referrerPolicy:'no-referrer'});
   if(response.ok)return await response.json();
   let result={};try{result=await response.json()}catch(_){}
-  lastError=new Error(str(result.error||'Shërbimi Gemini nuk u përgjigj.',300));
+  const providerDetail=result.providerStatus?` (${result.providerStatus}${result.providerCode?` #${result.providerCode}`:''})`:'';
+  lastError=new Error(str(result.error||'Shërbimi Gemini nuk u përgjigj.',300)+providerDetail);
   if(response.status!==429&&response.status<500)throw lastError;
-  if(attempt<2){const retryAfter=Number(response.headers.get('retry-after'));const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,30000):5000*(attempt+1);if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);else if(importState.busy)setImportBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);await batchWait(wait,signal)}
+  if(attempt<3){const retryAfter=Number(response.headers.get('retry-after'));const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,30000):5000*(attempt+1);if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);else if(importState.busy)setImportBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);await batchWait(wait,signal)}
  }
  throw lastError;
 }
