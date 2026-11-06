@@ -13,6 +13,7 @@
 | A-03 | Mesatare | Manifesti SHA-256 përmendte një `.gitignore` që mungonte dhe hash-i i konfigurimit cloud nuk përputhej. | U shtua `.gitignore` për sekretet/skedarët lokalë dhe u rigjenerua manifesti për skedarët e paketës. Kontrolli i hash-eve kalon mbi paketën e dorëzuar. |
 | A-04 | E ulët | Nuk kishte test regresioni të ekzekutueshëm për disa rregulla të rëndësishme numerike dhe për modelin bosh. | U shtua `tests/core_checks.js`, i ekzekutueshëm lokalisht pa rrjet me `node tests/core_checks.js`. |
 | A-05 | Mesatare | Screenshot-i i prodhimit tregoi përgjigje `POST 502`; Edge Function kthente të njëjtin mesazh për çdo refuzim të Gemini, pa status diagnostik në log. | Shtova logim të kufizuar vetëm me HTTP status, provider status dhe provider code; përgjigjja dallon 401/403, 404, 400 dhe 429. Nuk regjistron çelës, prompt apo përmbajtje dokumenti. Duhet deploy i veçantë për ta parë në projektin live. |
+| A-06 | Performancë | Leximi i PDF/Excel me Gemini ishte i ngadaltë: pauzë prej 13 sekondash mes kërkesave, procesim sekuencial dhe dublikim i leximit të PDF-ve. | Pauza u ul në 2.5 sekonda, u shtua riprovim automatik për 429/5xx me pritje në rritje dhe PDF-të lexohen një herë me cache. Ndryshimi i Edge Function kërkon deploy manual. |
 
 ## Fusha të shqyrtuara
 

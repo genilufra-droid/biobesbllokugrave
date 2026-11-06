@@ -265,8 +265,15 @@ async function cloudGemini(parts,signal){
  const {data,error}=await cloud.client.auth.getSession();if(error||!data.session?.access_token)throw new Error('Sesioni ka përfunduar. Hyr përsëri.');
  const body=JSON.stringify({parts,consent:true,anonymous:true,freeTier:true});if(new Blob([body]).size>19000000)throw new Error('Dokumentet janë shumë të mëdha për lexim në cloud. Ndaji në skedarë më të vegjël.');
  const pause=cloudLastAiStart?Math.max(0,BATCH_AI_GAP_MS-(Date.now()-cloudLastAiStart)):0;if(pause){if(batchState.busy)batchSetBusy(true,'Pauzë për kufirin falas; leximet vazhdojnë së shpejti…');else if(importState.busy)setImportBusy(true,'Pauzë për kufirin falas; leximi vazhdon së shpejti…');await batchWait(pause,signal)}if(signal.aborted)throw new DOMException('aborted','AbortError');cloudLastAiStart=Date.now();
- const response=await fetch(`${cloud.config.url}/functions/v1/biobes-read-form`,{method:'POST',headers:{'Content-Type':'application/json',apikey:cloud.config.key,Authorization:`Bearer ${data.session.access_token}`},body,signal,credentials:'omit',referrerPolicy:'no-referrer'});
- if(!response.ok){let result={};try{result=await response.json()}catch(_){}throw new Error(str(result.error||'Shërbimi Gemini nuk u përgjigj.',300))}
- return await response.json();
+ let lastError=null;
+ for(let attempt=0;attempt<3;attempt++){
+  const response=await fetch(`${cloud.config.url}/functions/v1/biobes-read-form`,{method:'POST',headers:{'Content-Type':'application/json',apikey:cloud.config.key,Authorization:`Bearer ${data.session.access_token}`},body,signal,credentials:'omit',referrerPolicy:'no-referrer'});
+  if(response.ok)return await response.json();
+  let result={};try{result=await response.json()}catch(_){}
+  lastError=new Error(str(result.error||'Shërbimi Gemini nuk u përgjigj.',300));
+  if(response.status!==429&&response.status<500)throw lastError;
+  if(attempt<2){const retryAfter=Number(response.headers.get('retry-after'));const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,30000):5000*(attempt+1);if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);else if(importState.busy)setImportBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);await batchWait(wait,signal)}
+ }
+ throw lastError;
 }
 cloudStart();
