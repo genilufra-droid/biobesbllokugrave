@@ -67,11 +67,13 @@ const printArea = workbook.Workbook.Names.find((item) => item.Name === '_xlnm.Pr
 assert.ok(printArea, 'approved template defines a print area');
 assert.equal((printArea.Ref.match(/\$A\$\d+:\$AC\$\d+/g) || []).length, 2, 'two A4 page regions');
 
-// Safety checks: the delivered public cloud configuration must be blank, and
-// reading must stay client-side for recognized approved workbooks.
+// Safety checks: the public cloud configuration must be present but must not
+// contain service-role, secret, or Gemini keys.
 const config = fs.readFileSync(path.join(root, 'BioBes_Cloud/web/cloud-config.js'), 'utf8');
-assert.match(config, /supabaseUrl:\s*''/);
-assert.match(config, /supabasePublishableKey:\s*''/);
+assert.match(config, /supabaseUrl:\s*'https:\/\/[^']+'/);
+assert.match(config, /supabasePublishableKey:\s*'[^']+'/);
+assert.doesNotMatch(config, /service_role|sb_secret_/i, 'public config must not contain service or secret keys');
+assert.doesNotMatch(config, /BIOBES_GEMINI_API_KEY|AIza/i, 'public config must not contain the Gemini key');
 assert.match(app, /function batchResultsFromWorkbook\(/);
 assert.match(app, /function looksLikeApproved\(/);
 assert.match(app, /const BATCH_MAX=10/);
