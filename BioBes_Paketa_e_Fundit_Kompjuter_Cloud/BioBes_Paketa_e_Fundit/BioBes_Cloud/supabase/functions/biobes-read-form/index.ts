@@ -15,7 +15,8 @@ const MAX_BODY = 19_000_000;
 const MAX_PARTS = 50;
 const MIME = new Set(['application/pdf','image/jpeg','image/png','image/webp','image/heic','image/heif']);
 // Override with a faster model if the project has access to one; the default stays conservative.
-const GEMINI_MODEL = Deno.env.get('BIOBES_GEMINI_MODEL') || 'gemini-3.8-flash';
+const GEMINI_MODELS = (Deno.env.get('BIOBES_GEMINI_MODEL') || 'gemini-3.8-flash,gemini-2.5-flash,gemini-2.0-flash').split(',').map(s=>s.trim()).filter(Boolean);
+const GEMINI_MODEL_LIST = GEMINI_MODELS.length ? GEMINI_MODELS : ['gemini-3.8-flash'];
 function reply(status: number, message: string, extra: Record<string, unknown> = {}) {
   return new Response(JSON.stringify({error:message, ...extra}), {
     status, headers:{...CORS, 'Content-Type':'application/json; charset=utf-8'}
@@ -95,12 +96,17 @@ Deno.serve(async req => {
     const abort=new AbortController(); const timer=setTimeout(()=>abort.abort(),130_000);
     let upstream;
     try {
-      upstream=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,{
-        method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':secret},
-        body:JSON.stringify({systemInstruction:{parts:[{text:GEMINI_PROMPT}]},contents:[{role:'user',parts}],
-          generationConfig:{responseMimeType:'application/json',responseSchema:GEMINI_SCHEMA,maxOutputTokens:16384}}),
-        signal:abort.signal
-      });
+      for(const model of GEMINI_MODEL_LIST){
+        if(abort.signal.aborted) break;
+        upstream=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
+          method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':secret},
+          body:JSON.stringify({systemInstruction:{parts:[{text:GEMINI_PROMPT}]},contents:[{role:'user',parts}],
+            generationConfig:{responseMimeType:'application/json',responseSchema:GEMINI_SCHEMA,maxOutputTokens:16384}}),
+          signal:abort.signal
+        });
+        if(upstream.ok) break;
+        if(upstream.status!==503 && upstream.status!==404) break;
+      }
     } finally { clearTimeout(timer); }
     if(!upstream.ok) {
       // Keep provider diagnostics useful without logging secrets, prompts, or document contents.
