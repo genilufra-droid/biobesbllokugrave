@@ -14,6 +14,8 @@ const CORS = {
 const MAX_BODY = 19_000_000;
 const MAX_PARTS = 50;
 const MIME = new Set(['application/pdf','image/jpeg','image/png','image/webp','image/heic','image/heif']);
+// Override with a faster model if the project has access to one; the default stays conservative.
+const GEMINI_MODEL = Deno.env.get('BIOBES_GEMINI_MODEL') || 'gemini-3.8-flash';
 function reply(status: number, message: string, extra: Record<string, unknown> = {}) {
   return new Response(JSON.stringify({error:message, ...extra}), {
     status, headers:{...CORS, 'Content-Type':'application/json; charset=utf-8'}
@@ -93,10 +95,10 @@ Deno.serve(async req => {
     const abort=new AbortController(); const timer=setTimeout(()=>abort.abort(),130_000);
     let upstream;
     try {
-      upstream=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',{
+      upstream=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,{
         method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':secret},
         body:JSON.stringify({systemInstruction:{parts:[{text:GEMINI_PROMPT}]},contents:[{role:'user',parts}],
-          generationConfig:{responseMimeType:'application/json',responseSchema:GEMINI_SCHEMA,maxOutputTokens:32768}}),
+          generationConfig:{responseMimeType:'application/json',responseSchema:GEMINI_SCHEMA,maxOutputTokens:16384}}),
         signal:abort.signal
       });
     } finally { clearTimeout(timer); }
