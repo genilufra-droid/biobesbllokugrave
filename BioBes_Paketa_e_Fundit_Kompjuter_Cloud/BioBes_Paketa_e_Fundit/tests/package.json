@@ -1,0 +1,13 @@
+{
+  "name": "biobes-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local regression and audit checks for BioBes",
+  "scripts": {
+    "test": "node core_checks.js && node ai_record.test.js && node parse_ai_json.test.js && node batch_workbook.test.js && node prepare_parts.test.js && node cloud_gemini.test.js && node security_checks.js && node performance_checks.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "jsdom": "^31.0.0"
+  }
+}
