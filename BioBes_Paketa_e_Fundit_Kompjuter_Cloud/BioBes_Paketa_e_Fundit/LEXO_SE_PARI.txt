@@ -1,17 +1,16 @@
-BIOBES — PAKETA E FUNDIT
+BIOBES — PAKETA E FUNDIT (VERSIONI I VETËM)
 
-Përmban të dy versionet e përditësuara, udhëzimet dhe raportin e auditimit (`RAPORT_AUDITIMI.md`). Testet lokale pa rrjet ekzekutohen nga rrënja e paketës me `node tests/core_checks.js`.
+Kjo paketë përmban vetëm versionin e fundit të sistemit dhe modelet e miratuara Excel/PDF. Versioni i vjetër HTML për kompjuter (BioBes_Kompjuter) u hoq nga paketa; ai nuk përditësohej me korrigjimet e fundit dhe mbetet vetëm në historikun e Git për rikthim të mundshëm.
 
-1. BioBes_Kompjuter/index.html — për përdorim në kompjuter. Nxirre ZIP-in dhe hape këtë skedar me Chrome ose Edge. Lexo udhëzuesin në të njëjtën dosje.
-2. BioBes_Cloud/ — projekti cloud i përgatitur, por JO i konfiguruar ose i publikuar. Konfigurimi publik Supabase është bosh. Workflow-i i GitHub Pages është manual dhe nuk u nis. Para çdo vendosjeje lexo BioBes_Cloud/UDHEZUESI.md. Nuk është ndryshuar asnjë projekt Supabase/Vercel.
-3. Modele_Bosh/ — modelet bosh të miratuara në PDF dhe Excel (25 rreshta, dy faqe A4).
+1. BioBes_Cloud/ — sistemi cloud, versioni i fundit. Lexo BioBes_Cloud/UDHEZUESI.md para çdo vendosjeje. Faqja publikohet vetëm me workflow-in manual "Manual BioBes Pages deployment" dhe aktualisht shërbehet në https://genilufra-droid.github.io/biobesbllokugrave/. Konfigurimi publik `web/cloud-config.js` përmban URL-në dhe çelësin publishable të projektit Supabase të zgjedhur; asnjë çelës sekret nuk ndodhet në paketë. Edge Function dhe migrimi SQL nuk janë vendosur nga ky kontroll: kërkojnë identifikim të pronarit me Supabase CLI.
+2. Modele_Bosh/ — modeli bosh i miratuar, një herë në PDF dhe një herë në Excel (25 rreshta, dy faqe A4). Të njëjtat kopje (SHA-256 identik) janë të integruara brenda BioBes_Cloud/web/index.html për gjenerim në shfletues; nuk ka versione të tjera modelesh.
+3. tests/ — teste lokale regresioni dhe auditimi. Nga kjo dosje: `npm install` dhe `npm test`. Kontrolli bazë pa varësi ekzekutohet edhe me `node tests/core_checks.js` nga rrënja e paketës.
+4. RAPORT_AUDITIMI.md — raporti i auditimit dhe i verifikimeve. SHA256SUMS.txt — manifesti i hash-eve; verifikohet nga rrënja e paketës me `sha256sum -c SHA256SUMS.txt`.
 
-Të dy versionet përfshijnë regjistrimin me dy hapa, kontrollin e çdo formulari përpara ruajtjes, eksportin PDF/Excel dhe korrigjimet e bëra. Versionet e kompjuterit dhe cloud-it janë të ndara: nuk sinkronizohen automatikisht.
+PARA PËRDORIMIT: Nxirr një backup JSON nga versioni i vjetër që ke në kompjuter dhe ruaje veçmas. Në shfletues përdor të njëjtin profil, mos i hap paralelisht versionet e vjetra dhe të reja dhe mos i fshi të dhënat e shfletuesit. Nëse të dhënat e vjetra nuk shfaqen, importo backup-in e ruajtur. Origjinalet nuk përfshihen në backup-in JSON.
 
-PARA PËRDORIMIT: Nxirr një backup JSON nga versioni i vjetër dhe ruaje veçmas. Në kompjuter përdor të njëjtin shfletues/profil, mos i hap paralelisht versionet e vjetra dhe të reja dhe mos i fshi të dhënat e shfletuesit. Nëse të dhënat e vjetra nuk shfaqen, importo backup-in e ruajtur. Origjinalet nuk përfshihen në backup-in JSON.
-
-PRIVATËSIA: Gemini lejohet vetëm për kopje vërtet të anonimizuara dhe jokonfidenciale. Aplikacioni nuk i anonimizon vetë dokumentet. Në cloud, origjinalet personale zgjidhen veçmas për Storage privat; mos ia dërgo Gemini-t. Kontrollo saktësinë para ruajtjes.
+PRIVATËSIA: Gemini lejohet vetëm për kopje vërtet të anonimizuara dhe jokonfidenciale. Aplikacioni nuk i anonimizon vetë dokumentet. Origjinalet personale zgjidhen veçmas për Storage privat; mos ia dërgo Gemini-t. Kontrollo saktësinë para ruajtjes.
 
 FALAS: kontrollo që çelësi Gemini është në Free Tier pa faturim. Aplikacioni nuk mund ta verifikojë planin, kuotat, kushtet rajonale ose koston; as shërbimet cloud nuk garantohen falas.
 
-TESTIMI: Cloud dhe përgjigjet Gemini janë testuar me shërbime të simuluara. Ende nuk ka test me Supabase të konfiguruar ose çelës Gemini të vlefshëm; saktësia reale e leximit duhet kontrolluar. Nuk është kryer publikim.
+TESTIMI: Suita lokale (49 test Node) kalon. Leximi me Supabase dhe Gemini real varet nga deploy-i i Edge Function-it, i cili nuk është bërë nga ky kontroll; saktësia reale e leximit duhet kontrolluar.

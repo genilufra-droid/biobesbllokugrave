@@ -1,6 +1,8 @@
 # BioBes — Blloku ditor në cloud
 
-Ky është projekti **i përgatitur, i pakonfiguruar dhe i papublikuar**. Nuk janë krijuar tabela, llogari apo deploy në shërbimet e tua. `web/cloud-config.js` është bosh qëllimisht dhe aplikacioni cloud nuk do të lidhet derisa ta plotësosh me URL-në dhe çelësin publik të projektit që ke zgjedhur. Versioni HTML lokal zhvillohet më vete. Workflow-i i GitHub Pages është vetëm manual; ky kontroll nuk ka bërë deploy.
+Ky është **versioni i vetëm dhe i fundit** i sistemit. Versioni i vjetër HTML për kompjuter (`BioBes_Kompjuter`) u hoq nga paketa sepse nuk merrte korrigjimet e fundit (pauza 13 s, leximi me tabe, pa cache PDF); ai mbetet vetëm në historikun e Git.
+
+Gjendja aktuale: `web/cloud-config.js` përmban URL-në publike dhe çelësin `publishable` të projektit të zgjedhur, dhe faqja është publikuar në GitHub Pages (`https://genilufra-droid.github.io/biobesbllokugrave/`) me workflow-in manual **Manual BioBes Pages deployment**. Publikimi vazhdon të jetë vetëm manual — asnjë deploy automatik në `push`. Ky kontroll **nuk** ka ekzekutuar SQL, nuk ka krijuar llogari dhe **nuk** ka bërë deploy të Edge Function-it; këto kërkojnë identifikim të pronarit me Supabase CLI. Nuk ka asnjë çelës sekret në paketë.
 
 ## Çfarë përmban
 
@@ -36,6 +38,8 @@ Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose orig
 
 **Mos zbato SQL ose deploy në projektin ekzistues pa e zgjedhur dhe pa e verifikuar.** Projektet e reja, Storage, Gemini dhe hostimi mund të kenë kufizime ose kosto sipas planit dhe përdorimit.
 
+**Projekti i zgjedhur nga pronari:** `abbgynbwfnrtemunyfzc`. `web/cloud-config.js` përmban URL-në publike të tij dhe çelësin `publishable` (asnjë sekret). Për hapat e deploy-it më poshtë përdor këtë referencë, derisa të vendosësh ndryshe.
+
 ## Vendosja, kur të jesh gati
 
 1. **Rezervë.** Eksporto nga aplikacioni i vjetër një backup JSON dhe ruaje jashtë projektit. Nëse përdor një projekt Supabase ekzistues, bëj më parë backup dhe kontrollo emrat `biobes_daily_*` dhe bucket-in `biobes-daily-documents-private` që të mos përplasen me objekte ekzistuese.
@@ -45,8 +49,10 @@ Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose orig
 
    ```sh
    npx supabase@3.0.0 login
-   npx supabase@3.0.0 functions deploy biobes-read-form --remote=REFERENCA_E_PROJEKTIT --use-api
+   npx supabase@3.0.0 functions deploy biobes-read-form --remote=abbgynbwfnrtemunyfzc --use-api
    ```
+
+   Ky deploy **nuk është bërë** nga kontrolli i fundit: nuk ka `SUPABASE_ACCESS_TOKEN` në mjedis, prandaj kryhet nga pronari.
 
    Mos përdor `--prune`, sepse do të prekte funksione të tjera. Mbaje `verify_jwt = true`. Në Supabase Dashboard → Edge Functions → Secrets krijo **një herë** sekretin **`BIOBES_GEMINI_API_KEY`** me çelësin tënd Gemini. Serveri e merr automatikisht në çdo lexim; aplikacioni nuk ta kërkon përsëri. Ndrysho sekretin vetëm kur zëvendëson çelësin. Mos e vendos çelësin në HTML, `cloud-config.js`, Git, apo në bisedë. Funksioni përdor `SUPABASE_URL` dhe një çelës publik të ofruar nga mjedisi i Supabase; nuk përdor çelës `service_role`. Ai kontrollon token-in e përdoruesit dhe autorizimin BioBes. Kufiri fillestar është 30 kërkesa/orë dhe 150/ditë për llogarinë; ky nuk është kufi monetar. Për të provuar një model më të shpejtë, vendos një secret opsional **`BIOBES_GEMINI_MODEL`** me emrin e modelit ose një listë me presje (parazgjedhja: `gemini-3.8-flash,gemini-2.5-flash,gemini-2.0-flash`); funksioni provon modelet me radhë nëse kthen 503/404. Redeployo funksionin; mos e vendos çelësin API në këtë secret.
 5. **Konfigurimi publik.** Te `web/cloud-config.js` vendos vetëm:
@@ -58,7 +64,7 @@ Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose orig
    };
    ```
 
-   URL-ja dhe çelësi `publishable`/`anon` janë publikë. **Mos përdor `service_role`, `sb_secret_` ose çelësin Gemini në faqe.** Konfigurimi i paketës është bosh qëllimisht; mos e lidh me një projekt pa e zgjedhur dhe verifikuar. Kontrollo hash-et me `sha256sum -c SHA256SUMS.txt` nga rrënja e paketës para se të ndryshosh konfigurimin; pas plotësimit të `cloud-config.js`, vetëm hash-i i atij skedari pritet të mos përputhet.
+   URL-ja dhe çelësi `publishable`/`anon` janë publikë. **Mos përdor `service_role`, `sb_secret_` ose çelësin Gemini në faqe.** Konfigurimi aktual tashmë përmban projektin `abbgynbwfnrtemunyfzc`; mos e lidh me një projekt tjetër pa e zgjedhur dhe verifikuar. Kontrollo hash-et me `sha256sum -c SHA256SUMS.txt` nga rrënja e paketës; nëse ndryshon `cloud-config.js`, vetëm hash-i i atij skedari pritet të mos përputhet.
 6. **Hostimi më vonë.** Publiko përmbajtjen e dosjes `web/` në një host statik me HTTPS, si aplikacion i veçantë; mos zëvendëso `bio-bes-warehouse` pa vendim të veçantë. `web/vercel.json` vendos header-a sigurie për Vercel; në host tjetër vendosi në atë host. Nëse përdor domain të personalizuar për Supabase, shtoje te `connect-src` në CSP. Plani aktual Vercel Hobby është për përdorim personal jokomercial; për përdorim biznesi kontrollo një plan të përshtatshëm ose një host tjetër.
 7. **Kontroll real.** Hyr me llogarinë e autorizuar, provo një llogari tjetër që duhet të refuzohet, testo grupet me dy hapa, ruajtjen/shkarkimin privat, konfliktin nga dy skeda, PDF/Excel dhe dy faqet A4. Provo Gemini me një dokument sintetik ose vërtet të anonimizuar dhe një çelës të vlefshëm. Mos ngarko dokumente reale në Storage derisa këto kontrolle dhe lejet të kalojnë. Dokumentet reale me të dhëna personale nuk dërgohen te Gemini.
 8. **Migrimi.** Në versionin e ri zgjidh **Importo backup / draft** dhe ngarko JSON-in nga aplikacioni i vjetër. Regjistrimet e reja shtohen pa zëvendësuar ato ekzistuese. Nëse një ID ose numër bie ndesh, importi ndalet pa ndryshuar të dhënat; zgjidhe konfliktin para se të vazhdosh.
@@ -78,6 +84,14 @@ Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose orig
 
 ## Gjendja e testimit
 
-Testimet e mëparshme të projektit kanë përdorur shërbime të simuluara: ato nuk provojnë Supabase/Gemini real. Në këtë paketë u shtuan edhe kontrolle lokale për logjikën numerike dhe strukturën e modelit; nga rrënja e paketës ekzekuto `node tests/core_checks.js`. Nuk është bërë deploy apo testim këtu me një projekt Supabase të konfiguruar dhe çelës Gemini të vlefshëm; saktësia reale e leximit nuk është verifikuar. Ndërveprimet e shfletuesit, printimi në Excel Microsoft dhe printimi në printerin tënd duhet kontrolluar veçmas. Shih `RAPORT_AUDITIMI.md` për fushat e patestuara.
+Testimet e mëparshme të projektit kanë përdorur shërbime të simuluara: ato nuk provojnë Supabase/Gemini real. Nga versionet në `tests/` ekzekutohet suite e plotë lokale pa rrjet:
+
+```sh
+cd ../tests
+npm install
+npm test
+```
+
+Të 49 testet Node kaluan (logjika numerike, leximi i Excel-it të miratuar, pjesët Gemini, retry/backoff, kontrollet e sigurisë dhe të performancës). `sha256sum -c SHA256SUMS.txt` kalon për paketën. Nuk u bënë: testimi Deno i `tests/edge_function.test.ts` (Deno nuk ishte i instaluar), testimet Playwright të `tests/ui.spec.js`, kontrollet SQL të `tests/sql_checks.sql` (kërkojnë një bazë testuesi) dhe deploy-i i Edge Function-it në `abbgynbwfnrtemunyfzc`. Faqja në GitHub Pages është publikuar, por ndryshimet e reja në `web/` kërkojnë një `workflow_dispatch` manual. Ndërveprimet e shfletuesit, printimi në Excel Microsoft dhe printimi në printerin tënd duhet kontrolluar veçmas. Shih `RAPORT_AUDITIMI.md` për fushat e patestuara.
 
 Dokumentacion: [Supabase Storage dhe RLS](https://supabase.com/docs/guides/storage/security/access-control), [sekretet e Edge Functions](https://supabase.com/docs/guides/functions/secrets), [Vercel Hobby](https://vercel.com/docs/plans/hobby).
