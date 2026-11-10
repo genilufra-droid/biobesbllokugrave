@@ -16,4 +16,4 @@ FALAS: kontrollo që çelësi Gemini është në Free Tier pa faturim. Aplikacio
 
 TESTIMI: Suita lokale (49 test Node) kalon. Leximi me Supabase dhe Gemini real varet nga deploy-i i Edge Function-it, i cili nuk është bërë nga ky kontroll; saktësia reale e leximit duhet kontrolluar.
 
-PËR KËTË DEGË OCR P0/P1: Shih RAPORT_OCR_SHQIP.md për rregullat, testet sintetike dhe kufizimet. Ndryshimet lokale nuk janë publikuar dhe nuk janë bashkuar. Ekzekuto testet me Node 24; numrat dhe statuset e testit historik më sipër nuk përshkruajnë këtë degë.
+PËR KËTË DEGË OCR P0/P1: Shih RAPORT_OCR_SHQIP.md për rregullat, testet sintetike dhe kufizimet. Këto ndryshime janë në degën e PR #8 dhe nuk janë bashkuar në `main`; asaj dite `main` nuk i përmban. Ekzekuto testet me Node 24; numrat dhe statuset e testit historik më sipër nuk përshkruajnë këtë degë. Auditimi me prova dhe tabela e prioriteteve është RAPORT_OCR_AUDITIMI.md (§0 tregon çfarë u zbatua).
