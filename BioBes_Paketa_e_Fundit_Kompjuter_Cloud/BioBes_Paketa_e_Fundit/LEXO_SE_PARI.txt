@@ -3,9 +3,10 @@ BIOBES — PAKETA E FUNDIT (VERSIONI I VETËM)
 Kjo paketë përmban vetëm versionin e fundit të sistemit dhe modelet e miratuara Excel/PDF. Versioni i vjetër HTML për kompjuter (BioBes_Kompjuter) u hoq nga paketa; ai nuk përditësohej me korrigjimet e fundit dhe mbetet vetëm në historikun e Git për rikthim të mundshëm.
 
 1. BioBes_Cloud/ — sistemi cloud, versioni i fundit. Lexo BioBes_Cloud/UDHEZUESI.md para çdo vendosjeje. Faqja publikohet vetëm me workflow-in manual "Manual BioBes Pages deployment" dhe aktualisht shërbehet në https://genilufra-droid.github.io/biobesbllokugrave/. Konfigurimi publik `web/cloud-config.js` përmban URL-në dhe çelësin publishable të projektit Supabase të zgjedhur; asnjë çelës sekret nuk ndodhet në paketë. Edge Function dhe migrimi SQL nuk janë vendosur nga ky kontroll: kërkojnë identifikim të pronarit me Supabase CLI.
-2. Modele_Bosh/ — modeli bosh i miratuar, një herë në PDF dhe një herë në Excel (25 rreshta, dy faqe A4). Të njëjtat kopje (SHA-256 identik) janë të integruara brenda BioBes_Cloud/web/index.html për gjenerim në shfletues; nuk ka versione të tjera modelesh.
-3. tests/ — teste lokale regresioni dhe auditimi. Nga kjo dosje: `npm install` dhe `npm test`. Kontrolli bazë pa varësi ekzekutohet edhe me `node tests/core_checks.js` nga rrënja e paketës.
-4. RAPORT_AUDITIMI.md — raporti i auditimit dhe i verifikimeve. SHA256SUMS.txt — manifesti i hash-eve; verifikohet nga rrënja e paketës me `sha256sum -c SHA256SUMS.txt`.
+2. Modele_Bosh/ — modeli bosh i miratuar, një herë në PDF dhe një herë në Excel (tabelë me 12 rreshta punonjësish dhe nga 25 rreshta peshash për faqe, dy faqe A4). Të njëjtat kopje (SHA-256 identik) janë të integruara brenda BioBes_Cloud/web/index.html për gjenerim në shfletues; nuk ka versione të tjera modelesh.
+3. tools/ — skriptet `build_model_pdf.py` dhe `build_model_xlsx.py` që e rindërtojnë modelin nga skeda 8-rreshtore (e ruajtur në historikun e Git); ekzekutohen nga rrënja e paketës dhe rezultati zëvendëson të dyja kopjet njëkohësisht, bashkë me `index.html`.
+4. tests/ — teste lokale regresioni dhe auditimi. Nga kjo dosje: `npm install` dhe `npm test`. Kontrolli bazë pa varësi ekzekutohet edhe me `node tests/core_checks.js` nga rrënja e paketës.
+5. RAPORT_AUDITIMI.md — raporti i auditimit dhe i verifikimeve. SHA256SUMS.txt — manifesti i hash-eve; verifikohet nga rrënja e paketës me `sha256sum -c SHA256SUMS.txt`.
 
 PARA PËRDORIMIT: Nxirr një backup JSON nga versioni i vjetër që ke në kompjuter dhe ruaje veçmas. Në shfletues përdor të njëjtin profil, mos i hap paralelisht versionet e vjetra dhe të reja dhe mos i fshi të dhënat e shfletuesit. Nëse të dhënat e vjetra nuk shfaqen, importo backup-in e ruajtur. Origjinalet nuk përfshihen në backup-in JSON.
 

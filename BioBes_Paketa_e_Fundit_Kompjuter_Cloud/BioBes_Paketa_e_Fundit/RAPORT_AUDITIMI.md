@@ -1,6 +1,7 @@
 # BioBes — raport auditimi dhe verifikimi
 
 **Data:** 5 nëntor 2026; përditësuar 9 nëntor 2026 pas pastrimit të paketës  
+**Modeli:** nga ky version formularin e miratuar e mbushin 12 punonjës (më parë 8); PDF-ja dhe Excel-i i `Modele_Bosh/` u rindërtuan së bashku me gjeometrinë e aplikacionit.
 **Pikënisja:** skedarët e versionuar në depon GitHub `genilufra-droid/biobesbllokugrave`; ZIP-i i përmendur në bisedë nuk ishte i bashkëngjitur.  
 **Kufiri i veprimit:** u ruajt një kopje ZIP e gjendjes fillestare para redaktimeve (`BioBes_original_baseline.zip`, SHA-256 `d76b1649f0fa2e7db962e3df66a75d87a18e31e1314610a097b535d5efad59a6`). Nuk u ekzekutua SQL, nuk u bë migrim/deploy dhe nuk u ndryshua asnjë projekt Supabase/Vercel.
 
@@ -15,6 +16,7 @@
 | A-05 | Mesatare | Screenshot-i i prodhimit tregoi përgjigje `POST 502`; Edge Function kthente të njëjtin mesazh për çdo refuzim të Gemini, pa status diagnostik në log. | Shtova logim të kufizuar vetëm me HTTP status, provider status dhe provider code; përgjigjja dallon 401/403, 404, 400 dhe 429. Nuk regjistron çelës, prompt apo përmbajtje dokumenti. Duhet deploy i veçantë për ta parë në projektin live. |
 | A-06 | Performancë | Leximi i PDF/Excel me Gemini ishte i ngadaltë: pauzë prej 13 sekondash mes kërkesave, procesim sekuencial dhe dublikim i leximit të PDF-ve. | Pauza u ul në 1 sekondë, grupet lexohen me 2 kërkesa njëkohësisht, përgatitja e skedarëve është paralele, PDF-të lexohen një herë me cache dhe Edge Function-i provon fallback modele Gemini në 503/404. Ndryshimi i Edge Function kërkon deploy manual. |
 | A-07 | Pastrim | Paketa përmbante dy gjendje paralele të të njëjtit sistem: `BioBes_Kompjuter/index.html` (4.9 MB, pa korrigjimet e fundit: pauzë 13 s, lexim me tabe, pa cache PDF, pa fallback modele, pa diagnostikim provider) dhe `BioBes_Cloud` (versioni i fundit). Udhëzimet e përshkruan cloud-in si të pakonfiguruar dhe të papublikuar, gjendje e vjetruar që nga konfigurimi dhe publikimi i Pages. | U fshî dosja `BioBes_Kompjuter/` (mbetet e rikthyeshme nga historiku i Git). Paketa përmban vetëm versionin e fundit cloud dhe modelet e miratuara Excel/PDF në `Modele_Bosh/` (PDF-ja 263 974 B / Excel-i 75 934 B, identikë me kopjet e integruara në `web/index.html`). U rishkruan `LEXO_SE_PARI.txt` dhe `UDHEZUESI.md` sipas gjendjes reale, u mbyll PR #6 (dublikat e pasqyruar nga PR #1) dhe u rigjenerua `SHA256SUMS.txt`. Nuk u ndryshua asnjë skedar në `web/`, prandaj nuk duhet deploy i ri i Pages. |
+| A-08 | Mesatare | Modelet e miratuara dhe logjika e aplikacionit ishin të lidhura me 8 rreshta punonjësish, ndërsa formularin e printuar duhej ta plotësonin 12 punonjës; ndryshimi i njërës anë do të prishte leximin/shkrimin e Excel-it dhe vendosjen e tekstit në PDF. | U rindërtuan të dy modelet nga skeda 8-rreshtore me `tools/build_model_pdf.py` (12 rreshta me hap 12 pt; rrjeta e peshave ngushtohet në 12.4902 pt që fundi i faqes të mbetet i pandryshuar) dhe `tools/build_model_xlsx.py` (4 rreshta të rinj pas rreshtit 19, gjithçka nga rreshti 20 e poshtme zhvendoset me +4, rregullat e bashkimit, format e printimit dhe ngjitësit e logos), u përditësuan `EMPLOYEE_ROWS`, `APPROVED_GRID`, indekset Excel dhe shoqërimet e shenjës `A51/A85`, si dhe kopjet base64 në `web/index.html`. Testet u rishkruan për 12 rreshta. |
 
 ## Fusha të shqyrtuara
 
@@ -27,10 +29,11 @@
 ## Testet e kryera
 
 1. `node --check` për `web/app.js`, `web/cloud.js`, `web/cloud-config.js` dhe `web/notification-sw.js` — kaluan.
-2. `node tests/core_checks.js` — kontrollon presjen/pikën dhjetore, kohët e vlefshme dhe ndërrimin e ditës, shumën e minutave para rrumbullakosjes, rrumbullakosjen gjysmë ore lart, interpretimin e orëve Excel, strukturën e modelit XLSX (25 rreshta për secilën nga dy faqet e printimit) dhe kontrollet statike për diagnostikimin pa rrjedhje të payload-it. Kaloi.
-3. Suite e plotë lokale `npm test` nga dosja `tests/` — 49 test Node në 8 skedarë (core, `ai_record`, `parse_ai_json`, `batch_workbook`, `prepare_parts`, `cloud_gemini`, `security_checks`, `performance_checks`) — kaluan të gjitha.
+2. `node tests/core_checks.js` — kontrollon presjen/pikën dhjetore, kohët e vlefshme dhe ndërrimin e ditës, shumën e minutave para rrumbullakosjes, rrumbullakosjen gjysmë ore lart, interpretimin e orëve Excel, strukturën e modelit XLSX (12 rreshta punonjësish dhe 25 rreshta peshash për secilën nga dy faqet e printimit) dhe kontrollet statike për diagnostikimin pa rrjedhje të payload-it. Kaloi.
+3. Suite e plotë lokale `npm test` nga dosja `tests/` — 51 test Node në 8 skedarë (core, `ai_record`, `parse_ai_json`, `batch_workbook`, `prepare_parts`, `cloud_gemini`, `security_checks`, `performance_checks`) — kaluan të gjitha.
 4. `sha256sum -c SHA256SUMS.txt` nga rrënja e paketës — kaloi pas rigjenerimit të manifestit pa `BioBes_Kompjuter/`.
-5. Verifikimi që kopjet e PDF/Excel-it të integruara në `web/index.html` kanë të njëjtat hash me `Modele_Bosh/` (PDF `1799e68c…`, Excel `05d04fcf…`) — pra modeli i miratuar ekziston në një version të vetëm.
+5. Verifikimi që kopjet e PDF/Excel-it të integruara në `web/index.html` pas rindërtimit 9 nëntor 2026 kanë të njëjtat hash me `Modele_Bosh/` (PDF `ec8c7708…`, Excel `55421e54…`) — pra modeli i miratuar ekziston në një version të vetëm.
+7. Pas rindërtimit të modelit, të dyja faqet u krahasuan me pikënisjen 8-rreshtore në nivel bitmeshortësh: të gjitha vijat rreshtore që mbajnë kolonat (25.51, 40.03, 78.38, 123.99, 165.46, 207.97 …) përputhen saktësisht, tabela e punonjësve ka 13 vija me hap 12 pt (12 rreshta) dhe rrjeta e peshave 26 vija me hap 12.4902 pt, me rreshtin Σ të lidhur te 784.1343 (para) / 480.4474 (pas). Një formular i mbushur 12 punonjës u gjenerua me vetë aplikacionin dhe çdo vlerë e vendosur ra brenda qelizës së saj, pa paralajmërime printimi.
 6. Provat e mësipërme janë testime lokale; nuk dërguan dokumente ose të dhëna te shërbime të jashtme.
 
 ## Test coverage (suite të reja)
@@ -38,7 +41,7 @@
 - `tests/core_checks.js` — kontrolli bazë numerik dhe struktura e modelit.
 - `tests/ai_record.test.js` — mapimi i përgjigjes Gemini, refuzimet dhe paralajmërimet.
 - `tests/parse_ai_json.test.js` — parsing i JSON-it, `finishReason` dhe përgjigjet e prishura.
-- `tests/batch_workbook.test.js` — Excel i miratuar, shumë formularë dhe kufiri i 10 grupeve.
+- `tests/batch_workbook.test.js` — Excel i miratuar, shumë formularë, kufiri i 10 grupeve dhe shkrimi/rikthimi i 12 rreshtave të punonjësve në model.
 - `tests/prepare_parts.test.js` — PDF >6 faqe, PDF/Excel inline data dhe udhëzimi i ekstraktimit.
 - `tests/cloud_gemini.test.js` — retry 429/503/5xx, backoff, `Retry-After` dhe abort.
 - `tests/security_checks.js` — asnjë `service_role`/`sb_secret_`/çelës Gemini në paketë; `verify_jwt=true`.

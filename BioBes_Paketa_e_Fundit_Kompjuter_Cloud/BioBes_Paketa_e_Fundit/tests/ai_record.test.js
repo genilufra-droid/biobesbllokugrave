@@ -23,7 +23,7 @@ function baseResponse(overrides = {}) {
       { product: 'P2', status: 'OK', ordered_quantity: '5', produced_quantity: '5', unit: 'kg', packaging: '1kg', client: 'Klienti 2', comment: '' },
       { product: 'P3', status: 'OK', ordered_quantity: '2', produced_quantity: '2', unit: 'kg', packaging: '1kg', client: 'Klienti 3', comment: '' },
     ],
-    employees: Array.from({ length: 8 }, (_, i) => ({ name: `Punonjësi ${i + 1}`, start: '08:00', end: '16:00', comment: '', signature: '' })),
+    employees: Array.from({ length: 12 }, (_, i) => ({ name: `Punonjësi ${i + 1}`, start: '08:00', end: '16:00', comment: '', signature: '' })),
     weighings: [
       { index: 1, product: 'P1', source: 'stock', rows: [{ row: 1, bags: '10', kg: '100', packaging: '1kg', sum: '100' }] },
       { index: 2, product: 'P2', source: 'stock', rows: [{ row: 1, bags: '5', kg: '50', packaging: '1kg', sum: '50' }] },
@@ -40,7 +40,7 @@ test('maps a valid response into a complete record', () => {
   assert.equal(result.record.date, '2026-11-06');
   assert.equal(result.record.room, 'Dhoma 1');
   assert.equal(result.record.plan.length, 3);
-  assert.equal(result.record.employees.length, 8);
+  assert.equal(result.record.employees.length, 12);
   assert.equal(result.record.weighings.length, 6);
   assert.equal(result.record.comments, 'Komente ditore');
   assert.equal(result.record.plan[0].planned, '10');
@@ -56,9 +56,9 @@ test('rejects more than three products with data', () => {
   assert.throws(() => aiRecord(baseResponse({ plan })), /3 produkte/);
 });
 
-test('rejects more than eight employees with data', () => {
-  const employees = baseResponse().employees.concat([{ name: 'I 9', start: '08:00', end: '16:00', comment: '', signature: '' }]);
-  assert.throws(() => aiRecord(baseResponse({ employees })), /8 punonjës/);
+test('rejects more than twelve employees with data', () => {
+  const employees = baseResponse().employees.concat([{ name: 'I 13', start: '08:00', end: '16:00', comment: '', signature: '' }]);
+  assert.throws(() => aiRecord(baseResponse({ employees })), /12 punonjës/);
 });
 
 test('warns when the date is invalid', () => {

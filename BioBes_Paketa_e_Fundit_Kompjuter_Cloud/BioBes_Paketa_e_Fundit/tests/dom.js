@@ -54,7 +54,8 @@ function loadApp() {
 ;globalThis.__BIOBES__ = {
   aiRecord, parseAIJson, batchResultsFromWorkbook, prepareGeminiParts,
   editorHTML, batchEditorHTML, cloudGemini, readApprovedExcel, blankRecord,
-  normalizeRecord, state, db, cloud, batchState, importState,
+  normalizeRecord, generateFormWorkbook, planPrintPages,
+  state, db, cloud, batchState, importState,
 };`;
   window.eval(appCode + '\n' + cloudCode + hook);
   return dom;

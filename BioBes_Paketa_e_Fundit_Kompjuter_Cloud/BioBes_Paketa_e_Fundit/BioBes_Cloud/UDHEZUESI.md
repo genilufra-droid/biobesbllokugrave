@@ -80,7 +80,7 @@ Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose orig
 - Dokumentet janë private, të lidhura me formularin dhe shkarkohen nga seksioni **Dokumentet origjinale**. Fshirja e formularit përpiqet të fshijë edhe skedarët; nëse pastrimi dështon, shfaqet paralajmërim për Storage.
 - **Backup-i JSON dhe Excel-i i eksportuar përmbajnë të dhënat, jo skedarët origjinalë.** Shkarko dokumentet veçmas dhe organizo backup të Storage sipas nevojës. Nëse një JSON rikthehet, lidhjet me skedarët nuk rindërtohen automatikisht. Drafti JSON gjithashtu nuk përfshin dokumentet; rihapja e një drafti të grupit lejon zgjedhjen sërish të origjinaleve private për secilin formular.
 - Sasitë dhe peshimet dhjetore pranojnë presje ose pikë, për shembull `12,5` ose `12.5`. Numri i thasëve dhe i ambalazheve duhet të jetë numër i plotë.
-- Orët individuale ruhen me saktësi në minuta; vetëm totalet përfundimtare rrumbullakosen në orën më të afërt. PDF/Excel përdorin modelin e miratuar me 25 rreshta për tabelë dhe pesë rreshta komentesh në pjesën e pasme.
+- Orët individuale ruhen me saktësi në minuta; vetëm totalet përfundimtare rrumbullakosen në orën më të afërt. PDF/Excel përdorin modelin e miratuar me 12 rreshta punonjësish, nga 25 rreshta peshash për faqe dhe pesë rreshta komentesh në pjesën e pasme.
 
 ## Gjendja e testimit
 
