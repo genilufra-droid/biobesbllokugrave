@@ -22,7 +22,7 @@ test('batch reads two groups concurrently', () => {
 });
 
 test('multi-file preparation is parallelised', () => {
-  assert.match(app, /Promise\.all\(files\.map\(async file=>/);
+  assert.match(app, /Promise\.all\(files\.map\(async \(file,index\)=>/);
 });
 
 test('PDF objects are cached and not parsed twice', () => {
@@ -48,7 +48,7 @@ test('Edge Function handles Gemini 503 explicitly', () => {
 });
 
 test('Edge Function keeps a bounded output token budget', () => {
-  assert.match(edge, /maxOutputTokens:16384/);
+  assert.match(edge, /maxOutputTokens:20480/);
 });
 
 test('editor renders all sections on one screen without tabs', () => {

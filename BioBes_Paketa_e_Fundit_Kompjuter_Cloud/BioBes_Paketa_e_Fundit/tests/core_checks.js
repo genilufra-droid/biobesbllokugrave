@@ -11,12 +11,12 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const appPath = path.join(root, 'BioBes_Cloud/web/app.js');
 const app = fs.readFileSync(appPath, 'utf8');
-const sourceLines = app.split(/\r?\n/);
-const wanted = ['num', 'hoursFor', 'roundHoursTotal', 'timeFromImport', 'importedNumber'];
+const wanted = ['num', 'hoursFor', 'roundHoursTotal', 'timeFromImport', 'parseAlNumber', 'importedNumber'];
 const functions = wanted.map((name) => {
-  const line = sourceLines.find((item) => item.startsWith(`function ${name}(`));
-  assert.ok(line, `Could not find production helper ${name} in app.js`);
-  return line;
+  const start = app.indexOf(`function ${name}(`);
+  assert.ok(start >= 0, `Could not find production helper ${name} in app.js`);
+  const end = app.indexOf('\nfunction ', start + 1);
+  return app.slice(start, end < 0 ? app.length : end);
 });
 const context = {
   str: (value, max = Infinity) => String(value ?? '').slice(0, max),
@@ -59,13 +59,21 @@ const templatePath = path.join(root, 'Modele_Bosh/Model_25_Rreshta_2_Faqe.xlsx')
 const workbook = XLSX.read(fs.readFileSync(templatePath), { type: 'buffer', cellStyles: true });
 assert.deepEqual(workbook.SheetNames, ['FORMULARI']);
 const sheet = workbook.Sheets.FORMULARI;
-assert.equal(String(sheet.A47.v), '25');
-assert.equal(String(sheet.A81.v), '25');
+assert.equal(String(sheet.A51.v), '25');
+assert.equal(String(sheet.A85.v), '25');
+// The staff table lists twelve workers, numbered 1..12 in column A.
+assert.deepEqual(
+  Array.from({ length: 12 }, (_, i) => Number(sheet[`A${12 + i}`] && sheet[`A${12 + i}`].v)),
+  Array.from({ length: 12 }, (_, i) => i + 1),
+  'approved template numbers twelve employee rows'
+);
+assert.match(String(sheet.A24.v), /peshat/i, 'the weighing section starts right after the twelve staff rows');
 assert.match(String(sheet.C6.v).toLocaleLowerCase('sq'), /produkt/);
 assert.match(String(sheet.Q6.v).toLocaleLowerCase('sq'), /klient/);
 const printArea = workbook.Workbook.Names.find((item) => item.Name === '_xlnm.Print_Area');
 assert.ok(printArea, 'approved template defines a print area');
 assert.equal((printArea.Ref.match(/\$A\$\d+:\$AC\$\d+/g) || []).length, 2, 'two A4 page regions');
+assert.equal(printArea.Ref, "'FORMULARI'!$A$1:$AC$53,'FORMULARI'!$A$55:$AC$106", 'print areas cover the 12-row layout');
 
 // Safety checks: the public cloud configuration must be present but must not
 // contain service-role, secret, or Gemini keys.

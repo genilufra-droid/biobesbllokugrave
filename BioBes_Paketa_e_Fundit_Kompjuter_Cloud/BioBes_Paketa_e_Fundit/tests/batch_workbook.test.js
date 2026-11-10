@@ -9,7 +9,7 @@ const { loadApp, root } = require('./dom.js');
 const { test, run } = require('./test_runner.js');
 
 const dom = loadApp();
-const { batchResultsFromWorkbook } = dom.window.__BIOBES__;
+const { batchResultsFromWorkbook, generateFormWorkbook, blankRecord } = dom.window.__BIOBES__;
 const XLSX = dom.window.XLSX;
 
 function approvedWorkbook() {
@@ -22,7 +22,7 @@ test('reads the approved template into one record', () => {
   assert.equal(results.length, 1);
   assert.ok(results[0].record, 'must return a record');
   assert.equal(results[0].record.plan.length, 3);
-  assert.equal(results[0].record.employees.length, 8);
+  assert.equal(results[0].record.employees.length, 12);
   assert.equal(results[0].record.weighings.length, 6);
 });
 
@@ -58,4 +58,59 @@ test('rejects more than ten approved forms', () => {
   assert.throws(() => batchResultsFromWorkbook(many), /më shumë se 10 formularë/);
 });
 
+test('writes twelve staff rows into the shifted grid of the approved model', async () => {
+  const record = blankRecord('007');
+  record.date = '2026-11-09';
+  record.employees = record.employees.map((e, i) => ({
+    ...e, name: `Punonjësi ${i + 1}`, start: '08:00', end: '16:00', comment: `Koment ${i + 1}`, signature: `Firma ${i + 1}`,
+  }));
+  record.weighings[0].product = 'Mollë';
+  record.weighings[0].rows[0] = { row: 1, bags: '10', kg: '100', packaging: '2', sum: '102' };
+  record.weighings[3].product = 'Kajsi';
+  record.weighings[3].rows[24] = { row: 25, bags: '3', kg: '30', packaging: '0', sum: '30' };
+  record.comments = 'Komente për ditën';
+  const { bytes } = await generateFormWorkbook([{ nr: '007', record }]);
+  const out = XLSX.read(bytes, { type: 'buffer' });
+  const sh = out.Sheets.NR_007;
+  assert.equal(sh['!ref'], 'A1:AC106', 'the sheet grew by the four inserted rows');
+  for (let i = 0; i < 12; i += 1) {
+    const row = 12 + i;
+    assert.equal(sh[`C${row}`].v, `Punonjësi ${i + 1}`, `employee ${i + 1} name`);
+    assert.equal(sh[`P${row}`].v, `Koment ${i + 1}`, `employee ${i + 1} comment`);
+    assert.match(sh[`N${row}`].f, new RegExp(`IF\\(OR\\(J${row}=`), `employee ${i + 1} hours formula points at its own row`);
+  }
+  assert.deepEqual(
+    Object.keys(sh).filter((key) => /^C\d+$/.test(key) && typeof sh[key].v === 'string' && sh[key].v.startsWith('Punonjësi ')).length,
+    12, 'no staff row is written outside the twelve-row block');
+  assert.equal(sh.A24.v, '3.   PESHAT', 'the weighing caption moved down with the grid');
+  assert.equal(sh.A51.v, 25, 'front page still ends with weighing row 25');
+  assert.match(sh.H52.f, /SUM\(H27:H51\)/, 'front totals cover the shifted grid');
+  assert.match(sh.B86.f, /SUM\(B61:B85\)/, 'back totals cover the shifted grid');
+  assert.equal(sh.A85.v, 25, 'back page ends with weighing row 25');
+  assert.match(String(sh.E55.v ?? sh.E55.f ?? ''), /007|E2/, 'back page mirrors the form number');
+  const area = out.Workbook.Names.filter((n) => n.Name === '_xlnm.Print_Area');
+  assert.match(area[0].Ref, /\$A\$1:\$AC\$53/, 'front print area');
+  assert.match(area[0].Ref, /\$A\$55:\$AC\$106/, 'back print area');
+});
+
+test('a written form is read back with the same twelve employees', async () => {
+  const record = blankRecord('011');
+  record.date = '2026-11-10';
+  record.employees = record.employees.map((e, i) => ({ ...e, name: `Emri ${i + 1}`, start: '07:30', end: '15:30' }));
+  const { bytes } = await generateFormWorkbook([{ nr: '011', record }]);
+  const found = dom.window.__BIOBES__.readApprovedExcel(XLSX.read(bytes, { type: 'buffer' }));
+  assert.ok(found, 'the written workbook must look like the approved model');
+  assert.equal(found.record.employees.length, 12);
+  assert.deepEqual(found.record.employees.map((e) => e.name), record.employees.map((e) => e.name));
+  assert.deepEqual(found.record.employees.map((e) => e.start), record.employees.map((e) => e.start));
+});
+
+test('both pages 25-row grid, headings and comments round-trip', async () => {
+  const record=blankRecord('027');record.date='2026-11-13';
+  for(let g=0;g<6;g++){record.weighings[g].product=`Sintetik ${g+1}`;for(let j=0;j<25;j++)record.weighings[g].rows[j]={bags:String(j+1),kg:String(g*100+j+.25),packaging:'2',sum:String(g*100+j+2.25)}}
+  record.comments='Komenti sintetik';const {bytes}=await generateFormWorkbook([{nr:'027',record}]);
+  const result=dom.window.__BIOBES__.readApprovedExcel(XLSX.read(bytes,{type:'buffer'}));
+  assert.equal(result.record.comments,record.comments);
+  for(let g=0;g<6;g++){assert.equal(result.record.weighings[g].product,record.weighings[g].product);for(let j=0;j<25;j++)for(const key of ['bags','kg','packaging','sum'])assert.equal(result.record.weighings[g].rows[j][key],record.weighings[g].rows[j][key],`${g+1}/${j+1}/${key}`)}
+});
 run();

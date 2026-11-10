@@ -11,7 +11,7 @@ const { JSDOM } = require('jsdom');
 const root = path.resolve(__dirname, '..');
 const web = path.join(root, 'BioBes_Cloud/web');
 
-function loadApp() {
+function loadApp(appOverride = null, customHook = null) {
   let html = fs.readFileSync(path.join(web, 'index.html'), 'utf8');
   // External scripts are loaded manually below, in the same order as the page.
   html = html.replace(/<script[^>]+src="[^"]+"><\/script>/g, '');
@@ -48,15 +48,17 @@ function loadApp() {
   // app.js and cloud.js share top-level lexical bindings (state, db, batchState,
   // importState). Evaluate them together so the production functions can see
   // their real dependencies, then expose a test hook.
-  const appCode = fs.readFileSync(path.join(web, 'app.js'), 'utf8');
+  const appCode = appOverride || fs.readFileSync(path.join(web, 'app.js'), 'utf8');
   const cloudCode = fs.readFileSync(path.join(web, 'cloud.js'), 'utf8');
   const hook = `
 ;globalThis.__BIOBES__ = {
-  aiRecord, parseAIJson, batchResultsFromWorkbook, prepareGeminiParts,
+  aiRecord, parseAIJson, batchResultsFromWorkbook, prepareGeminiParts, prepareOCRPhoto, optionalCatalog, parseAlNumber, dateFromImport, timeFromImport, fmt,
+  setFastWait: () => { batchWait = async (_ms, signal) => { if(signal.aborted) throw new DOMException('aborted','AbortError'); }; cloudLastAiStart=0; },
   editorHTML, batchEditorHTML, cloudGemini, readApprovedExcel, blankRecord,
-  normalizeRecord, state, db, cloud, batchState, importState,
+  normalizeRecord, generateFormWorkbook, planPrintPages,
+  state, db, cloud, batchState, importState,
 };`;
-  window.eval(appCode + '\n' + cloudCode + hook);
+  window.eval(appCode + '\n' + cloudCode + (customHook || hook));
   return dom;
 }
 

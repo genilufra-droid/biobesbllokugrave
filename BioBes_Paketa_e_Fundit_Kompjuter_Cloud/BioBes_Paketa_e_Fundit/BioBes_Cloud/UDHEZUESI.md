@@ -80,7 +80,7 @@ Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose orig
 - Dokumentet janë private, të lidhura me formularin dhe shkarkohen nga seksioni **Dokumentet origjinale**. Fshirja e formularit përpiqet të fshijë edhe skedarët; nëse pastrimi dështon, shfaqet paralajmërim për Storage.
 - **Backup-i JSON dhe Excel-i i eksportuar përmbajnë të dhënat, jo skedarët origjinalë.** Shkarko dokumentet veçmas dhe organizo backup të Storage sipas nevojës. Nëse një JSON rikthehet, lidhjet me skedarët nuk rindërtohen automatikisht. Drafti JSON gjithashtu nuk përfshin dokumentet; rihapja e një drafti të grupit lejon zgjedhjen sërish të origjinaleve private për secilin formular.
 - Sasitë dhe peshimet dhjetore pranojnë presje ose pikë, për shembull `12,5` ose `12.5`. Numri i thasëve dhe i ambalazheve duhet të jetë numër i plotë.
-- Orët individuale ruhen me saktësi në minuta; vetëm totalet përfundimtare rrumbullakosen në orën më të afërt. PDF/Excel përdorin modelin e miratuar me 25 rreshta për tabelë dhe pesë rreshta komentesh në pjesën e pasme.
+- Orët individuale ruhen me saktësi në minuta; vetëm totalet përfundimtare rrumbullakosen në orën më të afërt. PDF/Excel përdorin modelin e miratuar me 12 rreshta punonjësish, nga 25 rreshta peshash për faqe dhe pesë rreshta komentesh në pjesën e pasme.
 
 ## Gjendja e testimit
 
@@ -95,3 +95,11 @@ npm test
 Të 49 testet Node kaluan (logjika numerike, leximi i Excel-it të miratuar, pjesët Gemini, retry/backoff, kontrollet e sigurisë dhe të performancës). `sha256sum -c SHA256SUMS.txt` kalon për paketën. Nuk u bënë: testimi Deno i `tests/edge_function.test.ts` (Deno nuk ishte i instaluar), testimet Playwright të `tests/ui.spec.js`, kontrollet SQL të `tests/sql_checks.sql` (kërkojnë një bazë testuesi) dhe deploy-i i Edge Function-it në `abbgynbwfnrtemunyfzc`. Faqja në GitHub Pages është publikuar, por ndryshimet e reja në `web/` kërkojnë një `workflow_dispatch` manual. Ndërveprimet e shfletuesit, printimi në Excel Microsoft dhe printimi në printerin tënd duhet kontrolluar veçmas. Shih `RAPORT_AUDITIMI.md` për fushat e patestuara.
 
 Dokumentacion: [Supabase Storage dhe RLS](https://supabase.com/docs/guides/storage/security/access-control), [sekretet e Edge Functions](https://supabase.com/docs/guides/functions/secrets), [Vercel Hobby](https://vercel.com/docs/plans/hobby).
+
+## Ndryshimet OCR P0/P1 në këtë degë
+
+Shih `../RAPORT_OCR_SHQIP.md` për sjelljen, kufijtë dhe rezultatet e simuluara. Për Gemini, fotot përgatiten në pajisje me orientimin e dekoderit, maksimum 2400 px, gri dhe nivele automatike; origjinali nuk ndryshohet. Rezolucioni i ulët paralajmërohet. Nëse HEIC nuk hapet në shfletues, konvertoje në JPEG/PNG. Për dy foto, kontrollo rendin PARA/PAS.
+
+Katalogu i listave bazë nuk dërgohet pa zgjedhjen e checkbox-it të tij të veçantë. Zgjidhe vetëm nëse **të gjitha** listat bazë janë anonime dhe jokonfidenciale; ato mund të përmbajnë emra njerëzish. Aplikacioni nuk i anonimizon. Kufiri është 20 KiB dhe nuk përfshihet historiku i regjistrimeve. Kontrollo të gjitha paralajmërimet dhe vlerat përpara ruajtjes. Datat me ditë/muaj të dyja deri në 12 mbeten bosh në importin me format ditë/muaj; `6.11.26` nuk hamendësohet. Në OCR `1.250` do të thotë një mijë e dyqind e pesëdhjetë, ndërsa `1,250` është 1,25; kjo është një paqartësi që duhet kontrolluar në dokument.
+
+Për testet aktuale përdor Node 24 (`cd tests && npm ci && npm test`) dhe për testet Edge offline `deno test --allow-env --allow-read tests/edge_function.test.ts` nga rrënja e paketës. Pretendimet historike për 49 teste apo mungesën e testit Deno më sipër i referohen auditimit të mëparshëm, jo kësaj dege. Ndryshimet e kësaj dege nuk janë vendosur live; duhen deploy i ndërgjegjshëm i web-it dhe Edge Function-it dhe test integrimi pas bashkimit të varësisë.

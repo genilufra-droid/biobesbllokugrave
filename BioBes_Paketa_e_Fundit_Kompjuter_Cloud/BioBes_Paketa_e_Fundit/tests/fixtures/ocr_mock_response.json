@@ -1,0 +1,11 @@
+{
+  "multiple_forms": false,
+  "record_number": "042",
+  "date": "6.11.26",
+  "record_numbers_seen": ["042", "042"],
+  "dates_seen": ["6.11.26", "6.11.26"],
+  "plan": [],
+  "employees": [],
+  "weighings": [{"index": 4, "product": "", "rows": [{"row": 25, "bags": "", "kg": "1.250,5", "packaging": "1", "sum": "1.251,5"}]}],
+  "warnings": []
+}

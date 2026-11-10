@@ -37,8 +37,8 @@ Deno.test('source does not log secrets, prompts, or document payloads', () => {
 // --- Runtime tests with a mocked Deno.serve and fetch -------------------------
 let handler: ((req: Request) => Response | Promise<Response>) | null = null;
 const originalServe = (Deno as unknown as { serve: unknown }).serve;
-(Deno as unknown as { serve: unknown }).serve = (opts: { fetch: (req: Request) => Response | Promise<Response> }) => {
-  handler = opts.fetch;
+(Deno as unknown as { serve: unknown }).serve = (callback: (req: Request) => Response | Promise<Response>) => {
+  handler = callback;
   return { finished: Promise.resolve() };
 };
 Deno.env.set('SUPABASE_URL', 'https://test.supabase.co');
@@ -54,7 +54,7 @@ const errorLogs: unknown[][] = [];
 const originalError = console.error;
 console.error = (...args: unknown[]) => { errorLogs.push(args); };
 
-function request(body: unknown, authorization = 'Bearer test-access-token'): Request {
+function request(body: unknown, authorization = 'Bearer test-access-token-1234567890'): Request {
   return new Request('https://test.supabase.co/functions/v1/biobes-read-form', {
     method: 'POST',
     headers: { authorization, 'content-type': 'application/json' },
@@ -145,7 +145,4 @@ Deno.test('runtime: error logs contain no secrets, prompts, or documents', () =>
   }
 });
 
-// Restore globals for the rest of the Deno test process.
-globalThis.fetch = originalFetch;
-console.error = originalError;
-(Deno as unknown as { serve: unknown }).serve = originalServe;
+// Tests run after module evaluation; mocks must remain installed until then.
