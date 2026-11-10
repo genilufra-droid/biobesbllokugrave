@@ -15,3 +15,5 @@ PRIVATËSIA: Gemini lejohet vetëm për kopje vërtet të anonimizuara dhe jokon
 FALAS: kontrollo që çelësi Gemini është në Free Tier pa faturim. Aplikacioni nuk mund ta verifikojë planin, kuotat, kushtet rajonale ose koston; as shërbimet cloud nuk garantohen falas.
 
 TESTIMI: Suita lokale (49 test Node) kalon. Leximi me Supabase dhe Gemini real varet nga deploy-i i Edge Function-it, i cili nuk është bërë nga ky kontroll; saktësia reale e leximit duhet kontrolluar.
+
+PËR KËTË DEGË OCR P0/P1: Shih RAPORT_OCR_SHQIP.md për rregullat, testet sintetike dhe kufizimet. Ndryshimet lokale nuk janë publikuar dhe nuk janë bashkuar. Ekzekuto testet me Node 24; numrat dhe statuset e testit historik më sipër nuk përshkruajnë këtë degë.

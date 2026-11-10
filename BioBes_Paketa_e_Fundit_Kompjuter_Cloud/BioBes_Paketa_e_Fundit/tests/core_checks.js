@@ -11,12 +11,12 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const appPath = path.join(root, 'BioBes_Cloud/web/app.js');
 const app = fs.readFileSync(appPath, 'utf8');
-const sourceLines = app.split(/\r?\n/);
-const wanted = ['num', 'hoursFor', 'roundHoursTotal', 'timeFromImport', 'importedNumber'];
+const wanted = ['num', 'hoursFor', 'roundHoursTotal', 'timeFromImport', 'parseAlNumber', 'importedNumber'];
 const functions = wanted.map((name) => {
-  const line = sourceLines.find((item) => item.startsWith(`function ${name}(`));
-  assert.ok(line, `Could not find production helper ${name} in app.js`);
-  return line;
+  const start = app.indexOf(`function ${name}(`);
+  assert.ok(start >= 0, `Could not find production helper ${name} in app.js`);
+  const end = app.indexOf('\nfunction ', start + 1);
+  return app.slice(start, end < 0 ? app.length : end);
 });
 const context = {
   str: (value, max = Infinity) => String(value ?? '').slice(0, max),

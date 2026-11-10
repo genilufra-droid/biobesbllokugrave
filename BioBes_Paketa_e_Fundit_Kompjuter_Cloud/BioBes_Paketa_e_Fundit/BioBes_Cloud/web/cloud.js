@@ -267,13 +267,18 @@ async function cloudGemini(parts,signal){
  const pause=cloudLastAiStart?Math.max(0,BATCH_AI_GAP_MS-(Date.now()-cloudLastAiStart)):0;if(pause){if(batchState.busy)batchSetBusy(true,'Pauzë për kufirin falas; leximet vazhdojnë së shpejti…');else if(importState.busy)setImportBusy(true,'Pauzë për kufirin falas; leximi vazhdon së shpejti…');await batchWait(pause,signal)}if(signal.aborted)throw new DOMException('aborted','AbortError');cloudLastAiStart=Date.now();
  let lastError=null;
  for(let attempt=0;attempt<4;attempt++){
-  const response=await fetch(`${cloud.config.url}/functions/v1/biobes-read-form`,{method:'POST',headers:{'Content-Type':'application/json',apikey:cloud.config.key,Authorization:`Bearer ${data.session.access_token}`},body,signal,credentials:'omit',referrerPolicy:'no-referrer'});
-  if(response.ok)return await response.json();
-  let result={};try{result=await response.json()}catch(_){}
-  const providerDetail=result.providerStatus?` (${result.providerStatus}${result.providerCode?` #${result.providerCode}`:''})`:'';
-  lastError=new Error(str(result.error||'Shërbimi Gemini nuk u përgjigj.',300)+providerDetail);
-  if(response.status!==429&&response.status<500)throw lastError;
-  if(attempt<3){const retryAfter=Number(response.headers.get('retry-after'));const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,30000):5000*(attempt+1);if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);else if(importState.busy)setImportBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);await batchWait(wait,signal)}
+  let response,result={};
+  try{response=await fetch(`${cloud.config.url}/functions/v1/biobes-read-form`,{method:'POST',headers:{'Content-Type':'application/json',apikey:cloud.config.key,Authorization:`Bearer ${data.session.access_token}`},body,signal,credentials:'omit',referrerPolicy:'no-referrer'});}
+  catch(e){if(signal.aborted||e?.name==='AbortError')throw e;if(!(e instanceof TypeError))throw e;lastError=e;}
+  if(response){
+   if(response.ok)return await response.json();
+   try{result=await response.json()}catch(_){}
+   const providerDetail=result.providerStatus?` (${result.providerStatus}${result.providerCode?` #${result.providerCode}`:''})`:'';
+   lastError=new Error(str(result.error||'Shërbimi Gemini nuk u përgjigj.',300)+providerDetail);
+   const upstream=Number(result.httpStatus),status=Number.isInteger(upstream)&&upstream>=400?upstream:response.status;
+   if(status!==408&&status!==429&&(status<500||status>599))throw lastError;
+  }
+  if(attempt<3){const retryAfter=Number(response?.headers?.get('retry-after'));const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,30000):5000*(attempt+1);if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);else if(importState.busy)setImportBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);await batchWait(wait,signal)}
  }
  throw lastError;
 }

@@ -105,4 +105,12 @@ test('a written form is read back with the same twelve employees', async () => {
   assert.deepEqual(found.record.employees.map((e) => e.start), record.employees.map((e) => e.start));
 });
 
+test('both pages 25-row grid, headings and comments round-trip', async () => {
+  const record=blankRecord('027');record.date='2026-11-13';
+  for(let g=0;g<6;g++){record.weighings[g].product=`Sintetik ${g+1}`;for(let j=0;j<25;j++)record.weighings[g].rows[j]={bags:String(j+1),kg:String(g*100+j+.25),packaging:'2',sum:String(g*100+j+2.25)}}
+  record.comments='Komenti sintetik';const {bytes}=await generateFormWorkbook([{nr:'027',record}]);
+  const result=dom.window.__BIOBES__.readApprovedExcel(XLSX.read(bytes,{type:'buffer'}));
+  assert.equal(result.record.comments,record.comments);
+  for(let g=0;g<6;g++){assert.equal(result.record.weighings[g].product,record.weighings[g].product);for(let j=0;j<25;j++)for(const key of ['bags','kg','packaging','sum'])assert.equal(result.record.weighings[g].rows[j][key],record.weighings[g].rows[j][key],`${g+1}/${j+1}/${key}`)}
+});
 run();
