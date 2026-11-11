@@ -36,19 +36,19 @@ test('client retries four times with a bounded wait', () => {
   assert.match(cloud, /if\(attempt<3\)/);
 });
 
-test('Edge Function can fall back across models', () => {
-  assert.match(edge, /GEMINI_MODEL_LIST/);
-  assert.match(edge, /for\(const model of GEMINI_MODEL_LIST\)/);
-  assert.match(edge, /upstream\.status!==503 && upstream\.status!==404/);
+test('Edge Function can fall back across models for transient errors', () => {
+  assert.match(edge, /gemini-3\.6-flash/);
+  assert.match(edge, /gemini-3\.8-flash/);
+  assert.match(edge, /!\[429,500,503\]\.includes\(upstream\.status\)/);
 });
 
 test('Edge Function handles Gemini 503 explicitly', () => {
-  assert.match(edge, /upstream\.status===503/);
-  assert.match(edge, /i përkohshëm i padisponueshëm/);
+  assert.match(edge, /upstream\.status===503\?503/);
 });
 
-test('Edge Function keeps a bounded output token budget', () => {
-  assert.match(edge, /maxOutputTokens:20480/);
+test('Edge Function bounds tokens and uses low thinking for both models', () => {
+  assert.match(edge, /maxOutputTokens:32768/);
+  assert.match(edge, /thinkingConfig:\{thinkingLevel:'low'\}/);
 });
 
 test('editor renders all sections on one screen without tabs', () => {

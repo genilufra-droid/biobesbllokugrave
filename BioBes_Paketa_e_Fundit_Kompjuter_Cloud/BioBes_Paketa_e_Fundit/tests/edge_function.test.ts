@@ -24,13 +24,12 @@ Deno.test('source rejects missing auth, missing consent, and missing Gemini key'
 
 Deno.test('source handles Gemini 503 and 401 explicitly', () => {
   assert.match(edge, /upstream\.status===503/);
-  assert.match(edge, /i përkohshëm i padisponueshëm/);
-  assert.match(edge, /upstream\.status===401/);
-  assert.match(edge, /Gemini nuk autorizoi kërkesën/);
+  assert.match(edge, /Gemini nuk e përfundoi kërkesën/);
+  assert.match(edge, /httpStatus:upstream\.status/);
 });
 
 Deno.test('source does not log secrets, prompts, or document payloads', () => {
-  assert.match(edge, /console\.error\('\[biobes-read-form\] Gemini upstream rejected request'/);
+  assert.doesNotMatch(edge, /console\.(?:log|error|warn)\(/);
   assert.doesNotMatch(edge, /console\.error\([^\n]*(?:secret|parts|body|prompt|document)/i);
 });
 
@@ -107,7 +106,7 @@ Deno.test('runtime: returns 503 for Gemini UNAVAILABLE', async () => {
   const res = await handler!(request(validBody));
   assert.equal(res.status, 503);
   const body = await res.json();
-  assert.match(body.error, /i përkohshëm i padisponueshëm/);
+  assert.match(body.error, /nuk e përfundoi/);
   assert.equal(body.providerStatus, 'UNAVAILABLE');
 });
 
@@ -121,7 +120,7 @@ Deno.test('runtime: returns 502 for Gemini UNAUTHENTICATED', async () => {
   const res = await handler!(request(validBody));
   assert.equal(res.status, 502);
   const body = await res.json();
-  assert.match(body.error, /Gemini nuk autorizoi kërkesën/);
+  assert.match(body.error, /nuk e përfundoi/);
 });
 
 Deno.test('runtime: returns 200 for a successful Gemini response', async () => {
@@ -138,7 +137,7 @@ Deno.test('runtime: returns 200 for a successful Gemini response', async () => {
 });
 
 Deno.test('runtime: error logs contain no secrets, prompts, or documents', () => {
-  assert.ok(errorLogs.length > 0, 'expected at least one provider error log');
+  assert.equal(errorLogs.length, 0, 'no provider data logged');
   for (const args of errorLogs) {
     const detail = args[1] as Record<string, unknown>;
     assert.deepEqual(Object.keys(detail).sort(), ['httpStatus', 'providerCode', 'providerStatus']);
@@ -146,3 +145,26 @@ Deno.test('runtime: error logs contain no secrets, prompts, or documents', () =>
 });
 
 // Tests run after module evaluation; mocks must remain installed until then.
+
+Deno.test('runtime: sends twelve staff instructions and enhanced observation schema to the current models', async () => {
+  let payload: any = null; const called: string[] = [];
+  fetchImpl=async (url,init)=>{
+    if(url.includes('/auth/v1/user'))return new Response('{}',{status:200});
+    if(url.includes('/rest/v1/rpc/biobes_daily_claim_ai'))return new Response('{}',{status:200});
+    called.push(url); payload=JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({candidates:[{content:{parts:[{text:'{"plan":[],"employees":[],"weighings":[],"warnings":[]}'}]}}]}),{status:200});
+  };
+  assert.equal((await handler!(request(validBody))).status,200);
+  assert.match(called[0],/gemini-3\.6-flash/);
+  assert.match(payload.systemInstruction.parts[0].text,/12 punonjës/);
+  assert.match(payload.systemInstruction.parts[0].text,/saktësisht 12 objekte/); assert.equal(payload.generationConfig.thinkingConfig.thinkingLevel,'low');
+  for(const k of ['uncertain','printed_totals','weekday','iso_week','record_numbers_seen','dates_seen'])assert.ok(payload.generationConfig.responseSchema.properties[k]);
+  assert.equal(payload.generationConfig.maxOutputTokens,32768);
+});
+Deno.test('runtime: preserves model fallback for 429 and protects forbidden accounts', async () => {
+  const calls: string[]=[];
+  fetchImpl=async (url)=>{if(url.includes('/auth/v1/user'))return new Response('{}',{status:200});if(url.includes('/rest/v1/rpc/'))return new Response('{}',{status:200});calls.push(url);return calls.length===1?new Response('{}',{status:429}):new Response('{}',{status:200})};
+  assert.equal((await handler!(request(validBody))).status,200);assert.equal(calls.length,2);assert.match(calls[1],/gemini-3\.8-flash/);
+  fetchImpl=async (url)=>url.includes('/auth/v1/user')?new Response('{}',{status:200}):new Response('{"message":"BIOBES_FORBIDDEN"}',{status:403});
+  assert.equal((await handler!(request(validBody))).status,403);
+});

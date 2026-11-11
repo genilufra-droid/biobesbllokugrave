@@ -57,7 +57,7 @@ test('SHA-256 manifest does not include node_modules', () => {
 });
 
 test('Edge Function error log excludes secrets, prompts, and document payloads', () => {
-  assert.match(edge, /console\.error\('\[biobes-read-form\] Gemini upstream rejected request'/);
+  assert.doesNotMatch(edge, /console\.(?:log|error|warn)\(/, 'OCR edge does not log upstream or document content');
   assert.doesNotMatch(edge, /console\.error\([^\n]*(?:secret|parts|body|prompt|document)/i);
 });
 

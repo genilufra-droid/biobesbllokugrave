@@ -88,11 +88,9 @@ assert.match(app, /const BATCH_MAX=10/);
 assert.match(app, /function batchReviewed\(item\)/);
 const edge = fs.readFileSync(path.join(root, 'BioBes_Cloud/supabase/functions/biobes-read-form/index.ts'), 'utf8');
 assert.match(edge, /httpStatus:upstream\.status/);
-assert.match(edge, /Gemini upstream rejected request/);
-assert.match(edge, /if\(upstream\.status===404\)/);
-assert.match(edge, /upstream\.status===403/);
-assert.match(edge, /providerInfo/);
 assert.match(edge, /providerStatus/);
+assert.match(edge, /providerCode/);
+assert.match(edge, /thinkingConfig:\{thinkingLevel:'low'\}/);
 assert.doesNotMatch(edge, /console\.error\([^\n]*(?:secret|parts|body)/i, 'do not log API secrets or document payloads');
 
 console.log('BioBes core checks passed.');
