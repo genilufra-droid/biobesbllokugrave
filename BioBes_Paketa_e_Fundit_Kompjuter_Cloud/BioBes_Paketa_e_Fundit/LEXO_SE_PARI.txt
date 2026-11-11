@@ -1,19 +1,19 @@
-BIOBES — PAKETA E FUNDIT (VERSIONI I VETËM)
+BIOBES — BLLOKU DITOR (VERSIONI I VETËM)
 
-Kjo paketë përmban vetëm versionin e fundit të sistemit dhe modelet e miratuara Excel/PDF. Versioni i vjetër HTML për kompjuter (BioBes_Kompjuter) u hoq nga paketa; ai nuk përditësohej me korrigjimet e fundit dhe mbetet vetëm në historikun e Git për rikthim të mundshëm.
+1. BioBes_Cloud/web/ — faqja. Ky është i vetmi kod që publikohet (GitHub Pages, workflow manual "Manual BioBes Pages deployment"): https://genilufra-droid.github.io/biobesbllokugrave/
+2. BioBes_Cloud/supabase/ — Edge Function "biobes-read-form" (leximi me Gemini) dhe SQL-ja e bazës. Ndryshimet këtu hyjnë në fuqi vetëm pas deploy-it në Supabase.
+3. BioBes_Cloud/UDHEZUESI.md — udhëzuesi i plotë i përdorimit dhe i vendosjes.
+4. Modele_Bosh/ — modeli bosh i miratuar (PDF dhe Excel). Të njëjtat kopje janë brenda web/index.html.
+5. tools/ — skriptet që rindërtojnë modelin. tests/ — testet (nga dosja tests: npm ci, pastaj npm test).
+6. AUDITIM.md — auditimi i fundit: çfarë u fshi, çfarë u ndryshua, çfarë mbetet për t'u bërë.
+7. SHA256SUMS.txt — verifikohet nga kjo dosje me: sha256sum -c SHA256SUMS.txt
 
-1. BioBes_Cloud/ — sistemi cloud, versioni i fundit. Lexo BioBes_Cloud/UDHEZUESI.md para çdo vendosjeje. Faqja publikohet vetëm me workflow-in manual "Manual BioBes Pages deployment" dhe aktualisht shërbehet në https://genilufra-droid.github.io/biobesbllokugrave/. Konfigurimi publik `web/cloud-config.js` përmban URL-në dhe çelësin publishable të projektit Supabase të zgjedhur; asnjë çelës sekret nuk ndodhet në paketë. Edge Function dhe migrimi SQL nuk janë vendosur nga ky kontroll: kërkojnë identifikim të pronarit me Supabase CLI.
-2. Modele_Bosh/ — modeli bosh i miratuar, një herë në PDF dhe një herë në Excel (tabelë me 12 rreshta punonjësish dhe nga 25 rreshta peshash për faqe, dy faqe A4). Të njëjtat kopje (SHA-256 identik) janë të integruara brenda BioBes_Cloud/web/index.html për gjenerim në shfletues; nuk ka versione të tjera modelesh.
-3. tools/ — skriptet `build_model_pdf.py` dhe `build_model_xlsx.py` që e rindërtojnë modelin nga skeda 8-rreshtore (e ruajtur në historikun e Git); ekzekutohen nga rrënja e paketës dhe rezultati zëvendëson të dyja kopjet njëkohësisht, bashkë me `index.html`.
-4. tests/ — teste lokale regresioni dhe auditimi. Nga kjo dosje: `npm install` dhe `npm test`. Kontrolli bazë pa varësi ekzekutohet edhe me `node tests/core_checks.js` nga rrënja e paketës.
-5. RAPORT_AUDITIMI.md — raporti i auditimit dhe i verifikimeve. SHA256SUMS.txt — manifesti i hash-eve; verifikohet nga rrënja e paketës me `sha256sum -c SHA256SUMS.txt`.
+SI REGJISTROHET NJË FORMULAR
+Hyr → "Lexo formularë" → zgjidh foto, PDF, Excel ose Word (.docx) → "Lexo formularët" → kontrollo çdo fushë → ruaj.
+Excel-i i modelit të BioBes lexohet në pajisje, pa Gemini. Gjithçka tjetër lexohet nga Gemini dhe duhet kontrolluar nga njeriu para ruajtjes.
 
-PARA PËRDORIMIT: Nxirr një backup JSON nga versioni i vjetër që ke në kompjuter dhe ruaje veçmas. Në shfletues përdor të njëjtin profil, mos i hap paralelisht versionet e vjetra dhe të reja dhe mos i fshi të dhënat e shfletuesit. Nëse të dhënat e vjetra nuk shfaqen, importo backup-in e ruajtur. Origjinalet nuk përfshihen në backup-in JSON.
+PRIVATËSIA: Gemini lejohet vetëm për kopje të anonimizuara dhe jokonfidenciale. Aplikacioni nuk i anonimizon vetë dokumentet. Origjinalet me të dhëna reale zgjidhen veçmas ("Zgjidh origjinale private") dhe nuk i dërgohen Gemini.
 
-PRIVATËSIA: Gemini lejohet vetëm për kopje vërtet të anonimizuara dhe jokonfidenciale. Aplikacioni nuk i anonimizon vetë dokumentet. Origjinalet personale zgjidhen veçmas për Storage privat; mos ia dërgo Gemini-t. Kontrollo saktësinë para ruajtjes.
+KOSTOJA: kontrollo që çelësi Gemini është në Free Tier pa faturim. Aplikacioni nuk mund ta verifikojë planin ose kuotat.
 
-FALAS: kontrollo që çelësi Gemini është në Free Tier pa faturim. Aplikacioni nuk mund ta verifikojë planin, kuotat, kushtet rajonale ose koston; as shërbimet cloud nuk garantohen falas.
-
-TESTIMI: Suita lokale (49 test Node) kalon. Leximi me Supabase dhe Gemini real varet nga deploy-i i Edge Function-it, i cili nuk është bërë nga ky kontroll; saktësia reale e leximit duhet kontrolluar.
-
-PËR KËTË DEGË OCR P0/P1: Shih RAPORT_OCR_SHQIP.md për rregullat, testet sintetike dhe kufizimet. Këto ndryshime janë në degën e PR #8 dhe nuk janë bashkuar në `main`; asaj dite `main` nuk i përmban. Ekzekuto testet me Node 24; numrat dhe statuset e testit historik më sipër nuk përshkruajnë këtë degë. Auditimi me prova dhe tabela e prioriteteve është RAPORT_OCR_AUDITIMI.md (§0 tregon çfarë u zbatua).
+BACKUP: "Shkarko backup" jep një JSON me regjistrimet. Dokumentet origjinale nuk përfshihen në të.
