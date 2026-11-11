@@ -90,6 +90,29 @@ async function cloudLogin(e){
  }finally{cloudBusy(false)}
 }
 document.getElementById('cloud-login').addEventListener('submit',cloudLogin);
+// A fixed, project-allowlisted HTTPS target prevents arbitrary redirects.
+const CLOUD_PASSWORD_RESET_URL='https://genilufra-droid.github.io/biobesbllokugrave/reset-password.html';
+function cloudForgotShow(show){
+ document.getElementById('cloud-login').hidden=show;document.getElementById('cloud-forgot-show').hidden=show;document.getElementById('cloud-forgot-form').hidden=!show;
+ const msg=document.getElementById('cloud-forgot-message');msg.hidden=true;msg.textContent='';
+ if(show){document.getElementById('cloud-forgot-email').value=document.getElementById('cloud-login-email').value.trim();document.getElementById('cloud-forgot-email').focus()}
+}
+async function cloudForgotRequest(e){
+ e.preventDefault();if(cloud.busy)return;
+ const email=document.getElementById('cloud-forgot-email').value.trim(),msg=document.getElementById('cloud-forgot-message');if(!email)return;
+ if(!cloud.client){msg.textContent='Lidhja me cloud nuk është konfiguruar. Kontakto administratorin.';msg.hidden=false;return}
+ msg.hidden=true;cloudBusy(true,'Po kërkohet lidhja e rikuperimit…');
+ try{
+  const {error}=await cloud.client.auth.resetPasswordForEmail(email,{redirectTo:CLOUD_PASSWORD_RESET_URL});
+  if(error)throw error;
+  msg.textContent='Nëse llogaria është e regjistruar dhe dërgimi lejohet, do të marrësh një email. Kontrollo edhe dosjen Spam.';
+ }catch(_){msg.textContent='Kërkesa nuk u përfundua. Kontrollo lidhjen ose prit pak para se të provosh përsëri.'}
+ finally{cloudBusy(false);msg.hidden=false}
+}
+document.getElementById('cloud-forgot-show').addEventListener('click',()=>cloudForgotShow(true));
+document.getElementById('cloud-forgot-cancel').addEventListener('click',()=>cloudForgotShow(false));
+document.getElementById('cloud-forgot-form').addEventListener('submit',cloudForgotRequest);
+
 async function cloudLogout(){
  if(cloud.busy||cloud.uncertain||cloud.conflict)return;
  if(!await canLeave())return;
