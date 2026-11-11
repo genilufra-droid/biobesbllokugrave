@@ -54,7 +54,7 @@ function loadApp(appOverride = null, customHook = null) {
 ;globalThis.__BIOBES__ = {
   aiRecord, parseAIJson, batchResultsFromWorkbook, prepareGeminiParts, prepareOCRPhoto, optionalCatalog, parseAlNumber, dateFromImport, timeFromImport, fmt,
   setFastWait: () => { batchWait = async (_ms, signal) => { if(signal.aborted) throw new DOMException('aborted','AbortError'); }; cloudLastAiStart=0; },
-  editorHTML, batchEditorHTML, cloudGemini, readApprovedExcel, blankRecord,
+  cloudForgotShow, cloudForgotRequest, generatePrintablePDF, editorHTML, batchEditorHTML, cloudGemini, readApprovedExcel, blankRecord,
   normalizeRecord, generateFormWorkbook, planPrintPages,
   state, db, cloud, batchState, importState,
 };`;
