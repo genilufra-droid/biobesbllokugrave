@@ -37,6 +37,8 @@ Ky dokument zëvendëson tre raportet e vjetra (`RAPORT_AUDITIMI.md`, `RAPORT_OC
 
 **Çfarë nuk u ndryshua me qëllim.** Modelet (`gemini-3.6-flash`, pastaj `gemini-3.8-flash`), `temperature: 0` dhe `thinkingLevel: 'low'` mbetën si ishin. Niveli më i lartë i arsyetimit mund të rrisë saktësinë, por edhe kohën e përgjigjes brenda kufirit 130 s; pa matje me formularë realë nuk ka bazë për ta ndryshuar.
 
+**Shtesë, 11 nëntor (dega e dytë): “Lexim i thelluar”.** Parazgjedhja mbetet `thinkingLevel: 'low'`. Një kuti e re te “Leximi me Gemini” e kërkon leximin me `high` vetëm për atë përpunim; Edge Function i jep modelit të parë 80 s (në vend të 55 s) dhe të dytit 45 s, brenda të njëjtit kufi 130 s. Koha e çdo leximi shfaqet te paralajmërimet e formularit dhe ruhet te “Shkarko leximin JSON” (`seconds`, `thinking`), që i njëjti formular të krahasohet në të dyja mënyrat. Nuk është provuar me Gemini real: nuk dihet ende sa fiton në saktësi dhe sa shpesh e kalon kohën. Kërkon deploy të ri të Edge Function; me funksionin e vjetër kutia nuk ka efekt.
+
 ## 4. Çfarë u testua dhe çfarë jo
 
 - `cd tests && npm ci && npm test` (Node 22.22): 74 teste plus kontrolli bazë, të gjitha kalojnë. 6 janë të reja (`word_import.test.js`).

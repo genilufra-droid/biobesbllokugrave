@@ -284,9 +284,9 @@ async function cloudOpenOriginal(index){
  catch(e){toast('Dokumenti nuk u gjet ose nuk mund të shkarkohet.','error')}
  finally{cloudBusy(false)}
 }
-async function cloudGemini(parts,signal){
+async function cloudGemini(parts,signal,deep=false){
  const {data,error}=await cloud.client.auth.getSession();if(error||!data.session?.access_token)throw new Error('Sesioni ka përfunduar. Hyr përsëri.');
- const body=JSON.stringify({parts,consent:true,anonymous:true,freeTier:true});if(new Blob([body]).size>19000000)throw new Error('Dokumentet janë shumë të mëdha për lexim në cloud. Ndaji në skedarë më të vegjël.');
+ const body=JSON.stringify(deep?{parts,consent:true,anonymous:true,freeTier:true,thinking:'high'}:{parts,consent:true,anonymous:true,freeTier:true});if(new Blob([body]).size>19000000)throw new Error('Dokumentet janë shumë të mëdha për lexim në cloud. Ndaji në skedarë më të vegjël.');
  const pause=cloudLastAiStart?Math.max(0,BATCH_AI_GAP_MS-(Date.now()-cloudLastAiStart)):0;if(pause){if(batchState.busy)batchSetBusy(true,'Pauzë për kufirin falas; leximet vazhdojnë së shpejti…');await batchWait(pause,signal)}if(signal.aborted)throw new DOMException('aborted','AbortError');cloudLastAiStart=Date.now();
  let lastError=null;
  for(let attempt=0;attempt<4;attempt++){

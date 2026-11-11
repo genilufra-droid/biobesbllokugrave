@@ -46,9 +46,13 @@ test('Edge Function handles Gemini 503 explicitly', () => {
   assert.match(edge, /upstream\.status===503\?503/);
 });
 
-test('Edge Function bounds tokens and uses low thinking for both models', () => {
+test('Edge Function bounds tokens and uses low thinking unless careful mode is requested', () => {
   assert.match(edge, /maxOutputTokens:32768/);
-  assert.match(edge, /thinkingConfig:\{thinkingLevel:'low'\}/);
+  assert.match(edge, /const deep=body\?\.thinking==='high'/);
+  assert.match(edge, /thinkingConfig:\{thinkingLevel:deep\?'high':'low'\}/);
+  // Both attempts must fit inside the 130 s budget in either mode.
+  assert.match(edge, /ms:deep\?80000:55000/);
+  assert.match(edge, /ms:deep\?45000:70000/);
 });
 
 test('editor renders all sections on one screen without tabs', () => {
