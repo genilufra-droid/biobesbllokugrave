@@ -83,4 +83,19 @@ test('aborts immediately when the signal is already aborted', async () => {
   );
 });
 
+test('careful mode sends thinking=high; the default request is unchanged', async () => {
+  const bodies = [];
+  const w = dom.window;
+  api.setFastWait();
+  const original = w.fetch;
+  w.fetch = async (_url, options) => { bodies.push(JSON.parse(options.body)); return { ok: true, status: 200, json: async () => ({ candidates: [] }) }; };
+  try {
+    const parts = [{ text: 'SKEDARI EXCEL: x' }];
+    await api.cloudGemini(parts, new AbortController().signal);
+    await api.cloudGemini(parts, new AbortController().signal, true);
+  } finally { w.fetch = original; }
+  assert.deepEqual(Object.keys(bodies[0]).sort(), ['anonymous', 'consent', 'freeTier', 'parts']);
+  assert.equal(bodies[1].thinking, 'high');
+});
+
 run();
