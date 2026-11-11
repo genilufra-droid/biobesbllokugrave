@@ -163,7 +163,7 @@ Deno.test('runtime: sends twelve staff instructions and enhanced observation sch
 });
 Deno.test('runtime: preserves model fallback for 429 and protects forbidden accounts', async () => {
   const calls: string[]=[];
-  fetchImpl=async (url)=>{if(url.includes('/auth/v1/user'))return new Response('{}',{status:200});if(url.includes('/rest/v1/rpc/'))return new Response('{}',{status:200});calls.push(url);return calls.length===1?new Response('{}',{status:429}):new Response('{}',{status:200})};
+  fetchImpl=async (url)=>{if(url.includes('/auth/v1/user'))return new Response('{}',{status:200});if(url.includes('/rest/v1/rpc/'))return new Response('{}',{status:200});calls.push(url);return calls.length===1?new Response('{}',{status:429}):new Response(JSON.stringify({candidates:[{content:{parts:[{text:'{}'}]},finishReason:'STOP'}]}),{status:200})};
   assert.equal((await handler!(request(validBody))).status,200);assert.equal(calls.length,2);assert.match(calls[1],/gemini-3\.8-flash/);
   fetchImpl=async (url)=>url.includes('/auth/v1/user')?new Response('{}',{status:200}):new Response('{"message":"BIOBES_FORBIDDEN"}',{status:403});
   assert.equal((await handler!(request(validBody))).status,403);

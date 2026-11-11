@@ -39,20 +39,24 @@ test('client retries four times with a bounded wait', () => {
 test('Edge Function can fall back across models for transient errors', () => {
   assert.match(edge, /gemini-3\.6-flash/);
   assert.match(edge, /gemini-3\.8-flash/);
-  assert.match(edge, /!\[429,500,503\]\.includes\(upstream\.status\)/);
+  assert.match(edge, /!\[429,500,503\]\.includes\(r\.attempt\.httpStatus\|\|0\)/);
 });
 
 test('Edge Function handles Gemini 503 explicitly', () => {
   assert.match(edge, /upstream\.status===503\?503/);
 });
 
-test('Edge Function bounds tokens and uses low thinking unless careful mode is requested', () => {
+test('Edge Function bounds tokens, uses low thinking and fits the 150 s platform limit', () => {
   assert.match(edge, /maxOutputTokens:32768/);
-  assert.match(edge, /const deep=body\?\.thinking==='high'/);
-  assert.match(edge, /thinkingConfig:\{thinkingLevel:deep\?'high':'low'\}/);
-  // Both attempts must fit inside the 130 s budget in either mode.
-  assert.match(edge, /ms:deep\?80000:55000/);
-  assert.match(edge, /ms:deep\?45000:70000/);
+  assert.match(edge, /thinkingConfig:\{thinkingLevel:'low'\}/);
+  assert.doesNotMatch(edge, /thinkingLevel:[^}]*high/);
+  assert.match(edge, /streamGenerateContent\?alt=sse/);
+  assert.match(edge, /const TOTAL_MS=125000;/);
+  assert.match(edge, /const FIRST_MS=40000;/);
+});
+
+test('page does not repeat a reading that already used the whole time budget (504)', () => {
+  assert.match(cloud, /if\(status===504\|\|/);
 });
 
 test('editor renders all sections on one screen without tabs', () => {

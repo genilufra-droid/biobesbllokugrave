@@ -90,7 +90,7 @@ const edge = fs.readFileSync(path.join(root, 'BioBes_Cloud/supabase/functions/bi
 assert.match(edge, /httpStatus:upstream\.status/);
 assert.match(edge, /providerStatus/);
 assert.match(edge, /providerCode/);
-assert.match(edge, /thinkingConfig:\{thinkingLevel:deep\?'high':'low'\}/);
+assert.match(edge, /thinkingConfig:\{thinkingLevel:'low'\}/);
 assert.doesNotMatch(edge, /console\.error\([^\n]*(?:secret|parts|body)/i, 'do not log API secrets or document payloads');
 
 console.log('BioBes core checks passed.');

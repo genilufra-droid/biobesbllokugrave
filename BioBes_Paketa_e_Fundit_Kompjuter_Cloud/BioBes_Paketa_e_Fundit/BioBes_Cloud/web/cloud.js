@@ -299,7 +299,7 @@ async function cloudGemini(parts,signal){
    const providerDetail=result.providerStatus?` (${result.providerStatus}${result.providerCode?` #${result.providerCode}`:''})`:'';
    lastError=new Error(str(result.error||'Shërbimi Gemini nuk u përgjigj.',300)+providerDetail);
    const upstream=Number(result.httpStatus),status=Number.isInteger(upstream)&&upstream>=400?upstream:response.status;
-   if(status!==408&&status!==429&&(status<500||status>599))throw lastError;
+   if(status===504||status!==408&&status!==429&&(status<500||status>599))throw lastError;
   }
   if(attempt<3){const retryAfter=Number(response?.headers?.get('retry-after'));const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,30000):5000*(attempt+1);if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);await batchWait(wait,signal)}
  }

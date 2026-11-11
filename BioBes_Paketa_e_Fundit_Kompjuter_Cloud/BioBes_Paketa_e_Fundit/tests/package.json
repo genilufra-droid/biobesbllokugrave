@@ -4,7 +4,7 @@
   "private": true,
   "description": "Local regression and audit checks for BioBes",
   "scripts": {
-    "test": "node core_checks.js && node ai_record.test.js && node parse_ai_json.test.js && node batch_workbook.test.js && node prepare_parts.test.js && node cloud_gemini.test.js && node security_checks.js && node performance_checks.js && node ocr_p0_p1.test.js && node password_recovery.test.js && node rows_layout.test.js && node word_import.test.js && node handwritten_form.test.js"
+    "test": "node core_checks.js && node ai_record.test.js && node parse_ai_json.test.js && node batch_workbook.test.js && node prepare_parts.test.js && node cloud_gemini.test.js && node security_checks.js && node performance_checks.js && node ocr_p0_p1.test.js && node password_recovery.test.js && node rows_layout.test.js && node word_import.test.js && node handwritten_form.test.js && node edge_stream.test.js"
   },
   "license": "ISC",
   "dependencies": {

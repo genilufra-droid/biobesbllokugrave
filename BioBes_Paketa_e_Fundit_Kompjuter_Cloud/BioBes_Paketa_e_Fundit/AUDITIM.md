@@ -43,8 +43,14 @@ Ky dokument zëvendëson tre raportet e vjetra (`RAPORT_AUDITIMI.md`, `RAPORT_OC
 - Data ditë/muaj me të dyja numrat deri në 12 (p.sh. `11/11/2026`, pra çdo datë nga dita 1 deri më 12) lihej bosh; bashkë me të binin dita e javës dhe java. Tani lexohet si ditë/muaj, siç shkruhet në formular; paralajmërohet vetëm kur mund të lexohet në dy mënyra dhe në letër nuk ka ditë jave që ta vërtetojë.
 - Orët e shkruara `7⁰⁰`, `7 00`, `700`, `7h`, `7` hidheshin poshtë; tani bëhen `07:00`.
 - Numri me pikë pas (`300.`) hidhej poshtë; tani lexohet `300`. Vlerat me njësi (`125 kg`) vazhdojnë të refuzohen me paralajmërim.
-- Kutia “Lexim i thelluar” u hoq nga faqja: në provën e vetme reale nuk mbaroi brenda kufirit. Mbështetja në Edge Function mbetet, por faqja nuk e përdor.
+- Kutia “Lexim i thelluar” u hoq nga faqja: në provën e vetme reale nuk mbaroi brenda kufirit. Më pas mbështetja u hoq edhe nga Edge Function.
 - Testi i ri `handwritten_form.test.js` mban vlerat e atij formulari (me emra të trilluar). **Ende nuk dihet çfarë ktheu vetë Gemini** për atë foto; për këtë duhet skedari “Shkarko leximin JSON”.
+
+**Korrigjim i dytë, 11 nëntor: leximi që kalonte kohën.** Pas korrigjimit të mësipërm, e njëjta foto dha “Leximi kaloi kohën”. Regjistri i Supabase tregoi një kërkesë që mbaroi me 504 pas rreth 71 sekondash dhe një riprovim të faqes që u ndërpre nga kufiri i saj prej 140 sekondash. Pra Gemini nuk u përgjigj brenda kohës që i jepte funksioni, dhe riprovimi nuk kishte më kohë të mjaftueshme. Pse Gemini vonoi nuk dihet: regjistri nuk e tregon.
+
+Ndryshimet: (1) Edge Function e merr përgjigjen si rrjedhë (`streamGenerateContent`). Modeli i parë duhet të fillojë të përgjigjet brenda 40 sekondash; nëse hesht, kalohet te modeli i dytë, i cili ka pjesën tjetër të 125 sekondave. Një model që ka filluar të shkruajë nuk ndërpritet, veç kur hesht 30 sekonda ose përsërit të njëjtin tekst pa fund. (2) Nga udhëzimi u hoq kërkesa që modeli të krahasojë rreshtat me totalet dhe t'i rishohë; këtë kontroll e bën programi. (3) Kur leximi dështon, mesazhi tregon për secilin model çfarë ndodhi dhe sa sekonda zgjati; kur ia del, skedari JSON i leximit mban modelin dhe kohën. (4) Faqja nuk e përsërit më një lexim që mbaroi me 504. (5) Parametri `thinking: 'high'` u hoq edhe nga funksioni.
+
+Kufizim: këto ndryshime u provuan vetëm me një Gemini të simuluar (`tests/edge_stream.test.js`). Nëse modeli vetë ka nevojë për më shumë se 125 sekonda për këtë foto, leximi do të dështojë përsëri, por mesazhi do të tregojë arsyen e saktë.
 
 ## 4. Çfarë u testua dhe çfarë jo
 
