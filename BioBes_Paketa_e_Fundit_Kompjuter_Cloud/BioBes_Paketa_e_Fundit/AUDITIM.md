@@ -39,6 +39,13 @@ Ky dokument zëvendëson tre raportet e vjetra (`RAPORT_AUDITIMI.md`, `RAPORT_OC
 
 **Shtesë, 11 nëntor (dega e dytë): “Lexim i thelluar”.** Parazgjedhja mbetet `thinkingLevel: 'low'`. Një kuti e re te “Leximi me Gemini” e kërkon leximin me `high` vetëm për atë përpunim; Edge Function i jep modelit të parë 80 s (në vend të 55 s) dhe të dytit 45 s, brenda të njëjtit kufi 130 s. Koha e çdo leximi shfaqet te paralajmërimet e formularit dhe ruhet te “Shkarko leximin JSON” (`seconds`, `thinking`), që i njëjti formular të krahasohet në të dyja mënyrat. Nuk është provuar me Gemini real: nuk dihet ende sa fiton në saktësi dhe sa shpesh e kalon kohën. Kërkon deploy të ri të Edge Function; me funksionin e vjetër kutia nuk ka efekt.
 
+**Korrigjim pas provës së parë me formular real (11 nëntor, dega e tretë).** Një formular i thjeshtë i shkruar me dorë doli gjysmak, dhe “Leximi i thelluar” e kaloi kohën. Shkaku i gjetur dhe i riprodhuar me test ishte në faqe, jo te Gemini: vlerat e lexuara hidheshin poshtë para se të arrinin në formular.
+- Data ditë/muaj me të dyja numrat deri në 12 (p.sh. `11/11/2026`, pra çdo datë nga dita 1 deri më 12) lihej bosh; bashkë me të binin dita e javës dhe java. Tani lexohet si ditë/muaj, siç shkruhet në formular; paralajmërohet vetëm kur mund të lexohet në dy mënyra dhe në letër nuk ka ditë jave që ta vërtetojë.
+- Orët e shkruara `7⁰⁰`, `7 00`, `700`, `7h`, `7` hidheshin poshtë; tani bëhen `07:00`.
+- Numri me pikë pas (`300.`) hidhej poshtë; tani lexohet `300`. Vlerat me njësi (`125 kg`) vazhdojnë të refuzohen me paralajmërim.
+- Kutia “Lexim i thelluar” u hoq nga faqja: në provën e vetme reale nuk mbaroi brenda kufirit. Mbështetja në Edge Function mbetet, por faqja nuk e përdor.
+- Testi i ri `handwritten_form.test.js` mban vlerat e atij formulari (me emra të trilluar). **Ende nuk dihet çfarë ktheu vetë Gemini** për atë foto; për këtë duhet skedari “Shkarko leximin JSON”.
+
 ## 4. Çfarë u testua dhe çfarë jo
 
 - `cd tests && npm ci && npm test` (Node 22.22): 74 teste plus kontrolli bazë, të gjitha kalojnë. 6 janë të reja (`word_import.test.js`).
