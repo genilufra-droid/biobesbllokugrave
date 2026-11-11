@@ -11,7 +11,7 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const appPath = path.join(root, 'BioBes_Cloud/web/app.js');
 const app = fs.readFileSync(appPath, 'utf8');
-const wanted = ['num', 'hoursFor', 'roundHoursTotal', 'timeFromImport', 'parseAlNumber', 'importedNumber'];
+const wanted = ['num', 'hoursFor', 'roundHoursTotal', 'clockText', 'timeFromImport', 'parseAlNumber', 'looseNumberText', 'importedNumber'];
 const functions = wanted.map((name) => {
   const start = app.indexOf(`function ${name}(`);
   assert.ok(start >= 0, `Could not find production helper ${name} in app.js`);

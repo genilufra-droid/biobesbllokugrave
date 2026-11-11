@@ -98,11 +98,9 @@ Dokumentacion: [Supabase Storage dhe RLS](https://supabase.com/docs/guides/stora
 
 ## Rregullat e leximit (OCR)
 
-**Lexim i thelluar.** Kutia “Lexim i thelluar” te “Leximi me Gemini” i kërkon modelit më shumë arsyetim për atë përpunim. Është më i ngadaltë dhe mund të dalë “Leximi zgjati shumë”; atëherë lexo përsëri pa të. Për të parë nëse ia vlen, lexo të njëjtin formular një herë me kutinë dhe një herë pa të dhe krahaso gabimet dhe sekondat.
-
 Për Gemini, fotot përgatiten në pajisje me orientimin e dekoderit, maksimum 2400 px, gri dhe nivele automatike; origjinali nuk ndryshohet. Rezolucioni i ulët paralajmërohet. Nëse HEIC nuk hapet në shfletues, konvertoje në JPEG/PNG. Për dy foto, kontrollo rendin PARA/PAS.
 
-Katalogu i listave bazë nuk dërgohet pa zgjedhjen e checkbox-it të tij të veçantë. Zgjidhe vetëm nëse **të gjitha** listat bazë janë anonime dhe jokonfidenciale; ato mund të përmbajnë emra njerëzish. Aplikacioni nuk i anonimizon. Kufiri është 20 KiB dhe nuk përfshihet historiku i regjistrimeve. Kontrollo të gjitha paralajmërimet dhe vlerat përpara ruajtjes. Datat me ditë/muaj të dyja deri në 12 mbeten bosh në importin me format ditë/muaj; `6.11.26` nuk hamendësohet. Në OCR `1.250` do të thotë një mijë e dyqind e pesëdhjetë, ndërsa `1,250` është 1,25; kjo është një paqartësi që duhet kontrolluar në dokument.
+Katalogu i listave bazë nuk dërgohet pa zgjedhjen e checkbox-it të tij të veçantë. Zgjidhe vetëm nëse **të gjitha** listat bazë janë anonime dhe jokonfidenciale; ato mund të përmbajnë emra njerëzish. Aplikacioni nuk i anonimizon. Kufiri është 20 KiB dhe nuk përfshihet historiku i regjistrimeve. Kontrollo të gjitha paralajmërimet dhe vlerat përpara ruajtjes. Datat lexohen si ditë/muaj (`6.11.26` është 6 nëntor); kur data mund të lexohet në dy mënyra dhe në letër nuk ka ditë jave, del një paralajmërim për ta kontrolluar. Në OCR `1.250` do të thotë një mijë e dyqind e pesëdhjetë, ndërsa `1,250` është 1,25; kjo është një paqartësi që duhet kontrolluar në dokument.
 
 Për testet aktuale përdor Node 24 (`cd tests && npm ci && npm test`) dhe për testet Edge offline `deno test --allow-env --allow-read tests/edge_function.test.ts` nga rrënja e paketës. Pretendimet historike për 49 teste apo mungesën e testit Deno më sipër i referohen auditimit të mëparshëm, jo kësaj dege. Ndryshimet e kësaj dege nuk janë vendosur live; duhen deploy i ndërgjegjshëm i web-it dhe Edge Function-it dhe test integrimi pas bashkimit të varësisë.
 
