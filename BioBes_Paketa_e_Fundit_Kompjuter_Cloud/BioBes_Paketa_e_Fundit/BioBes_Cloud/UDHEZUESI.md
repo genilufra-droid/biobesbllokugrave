@@ -2,7 +2,7 @@
 
 Ky është **versioni i vetëm dhe i fundit** i sistemit. Versioni i vjetër HTML për kompjuter (`BioBes_Kompjuter`) u hoq nga paketa sepse nuk merrte korrigjimet e fundit (pauza 13 s, leximi me tabe, pa cache PDF); ai mbetet vetëm në historikun e Git.
 
-Gjendja aktuale: `web/cloud-config.js` përmban URL-në publike dhe çelësin `publishable` të projektit të zgjedhur, dhe faqja është publikuar në GitHub Pages (`https://genilufra-droid.github.io/biobesbllokugrave/`) me workflow-in manual **Manual BioBes Pages deployment**. Publikimi vazhdon të jetë vetëm manual — asnjë deploy automatik në `push`. Ky kontroll **nuk** ka ekzekutuar SQL, nuk ka krijuar llogari dhe **nuk** ka bërë deploy të Edge Function-it; këto kërkojnë identifikim të pronarit me Supabase CLI. Nuk ka asnjë çelës sekret në paketë.
+Gjendja aktuale: `web/cloud-config.js` përmban URL-në publike dhe çelësin `publishable` të projektit të zgjedhur, dhe faqja është publikuar në GitHub Pages (`https://genilufra-droid.github.io/biobesbllokugrave/`) me workflow-in manual **Manual BioBes Pages deployment**. Publikimi vazhdon të jetë vetëm manual — asnjë deploy automatik në `push`. Në projektin Supabase `abbgynbwfnrtemunyfzc` tabelat `biobes_daily_*` (me RLS) dhe Edge Function `biobes-read-form` janë të vendosura (verifikuar më 11 nëntor 2026; shih `../AUDITIM.md`). Çdo ndryshim në `supabase/functions/` kërkon deploy të ri që të hyjë në fuqi. Nuk ka asnjë çelës sekret në paketë.
 
 ## Çfarë përmban
 
@@ -16,8 +16,8 @@ Regjistrimet dhe dokumentet origjinale mund të ruhen në Supabase privat; formu
 
 ## Regjistrimi me dy hapa
 
-1. Hyr në llogari dhe zgjidh **Regjistro me 2 hapa**. Ngarko foto, PDF ose Excel. Mund të përpunosh deri në 10 formularë. Për fotot zgjidh nëse një apo dy faqe përbëjnë një formular; për PDF zgjidh ndarjen në një ose dy faqe. Kontrollo grupet, renditjen dhe përmbajtjen e tyre.
-2. Kur njihet si modeli i miratuar i BioBes, Excel-i lexohet lokalisht, edhe kur përmban disa fletë; ai nuk i dërgohet Gemini. Për formatet e tjera ose fotografitë/tekstin me dorë, Gemini mund të propozojë të dhëna, por saktësia nuk garantohet. Para leximit me Gemini, dokumentet duhet të jenë kopje të anonimizuara dhe jokonfidenciale dhe duhen shënuar të dy konfirmimet e privatësisë dhe Free Tier.
+1. Hyr në llogari dhe zgjidh **Lexo formularë** (i vetmi ekran leximi; ekrani i vjetër “Lexo formular” për një dokument u hoq sepse bënte të njëjtën punë). Ngarko foto, PDF, Excel ose Word (.docx). Mund të përpunosh deri në 10 formularë. Te “Si grupohen faqet” zgjidh, vetëm kur duhet, nëse një apo dy foto përbëjnë një formular dhe si ndahet një PDF me disa faqe. Kontrollo grupet, renditjen dhe përmbajtjen e tyre.
+2. Kur njihet si modeli i miratuar i BioBes, Excel-i lexohet lokalisht, edhe kur përmban disa fletë; ai nuk i dërgohet Gemini. Për formatet e tjera ose fotografitë/tekstin me dorë, Gemini mund të propozojë të dhëna, por saktësia nuk garantohet. Para leximit me Gemini, dokumentet duhet të jenë kopje të anonimizuara dhe jokonfidenciale dhe duhet shënuar konfirmimi i vetëm (privatësia dhe Free Tier së bashku). Word-i (.docx) kthehet në tekst në pajisje – paragrafët dhe tabelat rresht pas rreshti, bashkë me fotot e futura në dokument – dhe i dërgohet Gemini; Word-i i vjetër `.doc` duhet ruajtur si `.docx` ose PDF.
 3. Nëse do të arkivosh veçmas origjinalet me të dhëna reale, përdor **Zgjidh origjinale private** te secili grup; vetëm kopjet e ngarkuara për lexim i dërgohen Gemini. Skedarët e zgjedhur veçmas si origjinale private nuk i dërgohen Gemini. Nëse nuk zgjedh origjinale të tjera, parazgjedhja është të ruhen dokumentet e ngarkuara për lexim — dhe këto mund t'i jenë dërguar Gemini.
 4. Kontrollo çdo rezultat, plotëso lokalisht përgjegjësin dhe korrigjo numrat, emrat, tabelat dhe shkrimin me dorë. Konfirmo veçmas çdo formular; vetëm pastaj zgjidh ruajtjen. Asgjë nuk ruhet si regjistrim vetëm nga leximi. Formulat dhe raportet mbeten ato të modelit të miratuar me 25 rreshta dhe dy faqe A4.
 
@@ -92,13 +92,13 @@ npm install
 npm test
 ```
 
-Të 49 testet Node kaluan (logjika numerike, leximi i Excel-it të miratuar, pjesët Gemini, retry/backoff, kontrollet e sigurisë dhe të performancës). `sha256sum -c SHA256SUMS.txt` kalon për paketën. Nuk u bënë: testimi Deno i `tests/edge_function.test.ts` (Deno nuk ishte i instaluar), testimet Playwright të `tests/ui.spec.js`, kontrollet SQL të `tests/sql_checks.sql` (kërkojnë një bazë testuesi) dhe deploy-i i Edge Function-it në `abbgynbwfnrtemunyfzc`. Faqja në GitHub Pages është publikuar, por ndryshimet e reja në `web/` kërkojnë një `workflow_dispatch` manual. Ndërveprimet e shfletuesit, printimi në Excel Microsoft dhe printimi në printerin tënd duhet kontrolluar veçmas. Shih `RAPORT_AUDITIMI.md` për fushat e patestuara.
+Gjendja e testeve dhe çfarë nuk është testuar përshkruhen në `../AUDITIM.md`. Ndryshimet e reja në `web/` kërkojnë një `workflow_dispatch` manual të GitHub Pages. Ndërveprimet e shfletuesit, printimi në Microsoft Excel dhe printimi në printerin tënd duhet kontrolluar veçmas.
 
 Dokumentacion: [Supabase Storage dhe RLS](https://supabase.com/docs/guides/storage/security/access-control), [sekretet e Edge Functions](https://supabase.com/docs/guides/functions/secrets), [Vercel Hobby](https://vercel.com/docs/plans/hobby).
 
-## Ndryshimet OCR P0/P1 në këtë degë
+## Rregullat e leximit (OCR)
 
-Shih `../RAPORT_OCR_SHQIP.md` për sjelljen, kufijtë dhe rezultatet e simuluara. Për Gemini, fotot përgatiten në pajisje me orientimin e dekoderit, maksimum 2400 px, gri dhe nivele automatike; origjinali nuk ndryshohet. Rezolucioni i ulët paralajmërohet. Nëse HEIC nuk hapet në shfletues, konvertoje në JPEG/PNG. Për dy foto, kontrollo rendin PARA/PAS.
+Për Gemini, fotot përgatiten në pajisje me orientimin e dekoderit, maksimum 2400 px, gri dhe nivele automatike; origjinali nuk ndryshohet. Rezolucioni i ulët paralajmërohet. Nëse HEIC nuk hapet në shfletues, konvertoje në JPEG/PNG. Për dy foto, kontrollo rendin PARA/PAS.
 
 Katalogu i listave bazë nuk dërgohet pa zgjedhjen e checkbox-it të tij të veçantë. Zgjidhe vetëm nëse **të gjitha** listat bazë janë anonime dhe jokonfidenciale; ato mund të përmbajnë emra njerëzish. Aplikacioni nuk i anonimizon. Kufiri është 20 KiB dhe nuk përfshihet historiku i regjistrimeve. Kontrollo të gjitha paralajmërimet dhe vlerat përpara ruajtjes. Datat me ditë/muaj të dyja deri në 12 mbeten bosh në importin me format ditë/muaj; `6.11.26` nuk hamendësohet. Në OCR `1.250` do të thotë një mijë e dyqind e pesëdhjetë, ndërsa `1,250` është 1,25; kjo është një paqartësi që duhet kontrolluar në dokument.
 

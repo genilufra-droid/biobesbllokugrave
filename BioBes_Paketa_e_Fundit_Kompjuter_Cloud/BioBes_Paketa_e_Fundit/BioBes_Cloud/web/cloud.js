@@ -116,7 +116,7 @@ document.getElementById('cloud-forgot-form').addEventListener('submit',cloudForg
 async function cloudLogout(){
  if(cloud.busy||cloud.uncertain||cloud.conflict)return;
  if(!await canLeave())return;
- await clearImportReview();cancelRead();state.draft=null;state.dirty=false;
+ await clearImportReview();state.draft=null;state.dirty=false;
  cloudBusy(true,'Po mbyllet sesioni…');const old=cloud.client;let failed=false;
  cloud.subscription?.unsubscribe();cloud.user=null;
  try{const {error}=await old.auth.signOut({scope:'local'});failed=!!error}catch(_){failed=true}
@@ -257,7 +257,7 @@ async function cloudUploadSource(source,recordId){
  if(source.uploaded)return source.uploaded;
  if(!cloud.user||!source.file)throw new Error('Skedari nuk është më i disponueshëm.');
  if(!/^[A-Za-z0-9._-]{1,120}$/.test(recordId))throw new Error('Identifikuesi i formularit është i pavlefshëm.');
- const file=source.file,ext=(file.name.toLowerCase().match(/\.(jpg|jpeg|png|webp|heic|heif|pdf|xlsx|xltx|xlsm|xltm|xls|xlt)$/)||['','.bin'])[0];
+ const file=source.file,ext=(file.name.toLowerCase().match(/\.(jpg|jpeg|png|webp|heic|heif|pdf|xlsx|xltx|xlsm|xltm|xls|xlt|docx|docm|dotx)$/)||['','.bin'])[0];
  if(!source.pendingPath)source.pendingPath=`${cloud.user.id}/${recordId}/${crypto.randomUUID()}${ext}`;
  const bucket=cloud.client.storage.from(CLOUD_BUCKET);
  let uploaded=await bucket.upload(source.pendingPath,file,{contentType:file.type||'application/octet-stream',upsert:false,cacheControl:'0'});
@@ -287,7 +287,7 @@ async function cloudOpenOriginal(index){
 async function cloudGemini(parts,signal){
  const {data,error}=await cloud.client.auth.getSession();if(error||!data.session?.access_token)throw new Error('Sesioni ka përfunduar. Hyr përsëri.');
  const body=JSON.stringify({parts,consent:true,anonymous:true,freeTier:true});if(new Blob([body]).size>19000000)throw new Error('Dokumentet janë shumë të mëdha për lexim në cloud. Ndaji në skedarë më të vegjël.');
- const pause=cloudLastAiStart?Math.max(0,BATCH_AI_GAP_MS-(Date.now()-cloudLastAiStart)):0;if(pause){if(batchState.busy)batchSetBusy(true,'Pauzë për kufirin falas; leximet vazhdojnë së shpejti…');else if(importState.busy)setImportBusy(true,'Pauzë për kufirin falas; leximi vazhdon së shpejti…');await batchWait(pause,signal)}if(signal.aborted)throw new DOMException('aborted','AbortError');cloudLastAiStart=Date.now();
+ const pause=cloudLastAiStart?Math.max(0,BATCH_AI_GAP_MS-(Date.now()-cloudLastAiStart)):0;if(pause){if(batchState.busy)batchSetBusy(true,'Pauzë për kufirin falas; leximet vazhdojnë së shpejti…');await batchWait(pause,signal)}if(signal.aborted)throw new DOMException('aborted','AbortError');cloudLastAiStart=Date.now();
  let lastError=null;
  for(let attempt=0;attempt<4;attempt++){
   let response,result={};
@@ -301,7 +301,7 @@ async function cloudGemini(parts,signal){
    const upstream=Number(result.httpStatus),status=Number.isInteger(upstream)&&upstream>=400?upstream:response.status;
    if(status!==408&&status!==429&&(status<500||status>599))throw lastError;
   }
-  if(attempt<3){const retryAfter=Number(response?.headers?.get('retry-after'));const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,30000):5000*(attempt+1);if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);else if(importState.busy)setImportBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);await batchWait(wait,signal)}
+  if(attempt<3){const retryAfter=Number(response?.headers?.get('retry-after'));const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,30000):5000*(attempt+1);if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);await batchWait(wait,signal)}
  }
  throw lastError;
 }
