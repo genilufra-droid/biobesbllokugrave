@@ -8,3 +8,12 @@ const records=[{date:'2026-11-02',nr:'002',isDemo:false,employees:[{name:' Ana '
 const result=ctx.test.timecardData(records,'ANA');
 assert.equal(result.rows.length,3);assert.equal(result.rows[0].date,'2026-11-01');assert.equal(result.minutes,125);assert.equal(result.incomplete,1);assert.equal(ctx.test.durationText(result.minutes),'2:05');assert.equal(ctx.test.timecardData(records,'').rows.length,0);
 console.log('Timecard checks passed');
+(async()=>{
+ const XLSX=require('../BioBes_Cloud/web/vendor/xlsx.full.min.js');let output;
+ const exportContext={XLSX,state:{report:{employee:'ANA',from:'',to:''}},reportRecords:()=>records,timecardData:ctx.test.timecardData,download:(name,bytes)=>{output={name,bytes}},toast:()=>{},console};
+ vm.createContext(exportContext);vm.runInContext(extract('exportTimecardXlsx'),exportContext);await vm.runInContext('exportTimecardXlsx()',exportContext);
+ assert.equal(output.name,'BioBes_timecard.xlsx');const sheet=XLSX.read(output.bytes,{type:'array'}).Sheets.Timecard;
+ assert.equal(sheet.E5.v,80/1440);assert.equal(sheet.E6.v,45/1440);assert.equal(sheet.E7.v,'E paplotë');assert.equal(sheet.E8.v,125/1440);assert.equal(sheet.E8.z,undefined); // formats are read only with cellNF
+ const formatted=XLSX.read(output.bytes,{type:'array',cellNF:true}).Sheets.Timecard;assert.equal(formatted.E8.z,'[h]:mm');
+ console.log('Timecard Excel checks passed');
+})().catch(e=>{console.error(e);process.exitCode=1});
