@@ -18,15 +18,11 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
-steps:
+    steps:
       - uses: actions/checkout@v4
-
-- uses: actions/configure-pages@v5
-
-- uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: BioBes_Paketa_e_Fundit_Kompjuter_Cloud/BioBes_Paketa_e_Fundit/BioBes_Cloud/web
-
-- id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4
