@@ -364,7 +364,7 @@ function batchGroupsHTML(){
  return batchState.groups.map((g,i)=>{const names=g.files.map((f,j)=>`<span>${g.files.length>1?`${j+1}. `:''}${esc(f.name)}</span>`).join('');const imageOnly=g.files.every(f=>fileKind(f).startsWith('image/'));const originalNames=(g.privateFiles||g.originalFiles||g.files).map(f=>esc(f.name)).join(' · ');const next=batchState.groups[i+1],join=next&&g.files.length===1&&next.files.length===1&&imageOnly&&fileKind(next.files[0]).startsWith('image/')&&g.status!=='ready'&&next.status!=='ready'&&!g.privateFiles&&!next.privateFiles;const lock=batchState.busy?'disabled':'';return `<div class="batch-group"><div><strong>Grupi ${i+1}</strong> <span class="batch-state ${g.status==='ready'?'good':g.status==='error'?'bad':''}">${esc(batchGroupStatus(g))}</span><div class="batch-file-names">${names}</div>${g.note?`<div class="small-note">${esc(g.note)}</div>`:''}<div class="small-note batch-private-names"><strong>Origjinale për ruajtje private:</strong> ${originalNames}</div><label class="batch-private-picker btn btn-small" for="batch-original-${esc(g.id)}">Zgjidh origjinale private</label><input class="sr-only" type="file" id="batch-original-${esc(g.id)}" data-batch-original="${esc(g.id)}" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx" ${lock}>${g.privateFiles?`<button type="button" class="btn btn-small" data-action="batch-original-reset" data-id="${esc(g.id)}" ${lock}>Përdor dokumentet e ngarkuara</button>`:''}<div class="small-note">${g.privateFiles?'Origjinalet e zgjedhura veçmas nuk dërgohen te Gemini.':'Si parazgjedhje ruhen dokumentet e ngarkuara, të cilat mund të dërgohen te Gemini.'}</div>${g.error?`<p class="batch-error-inline">${esc(g.error)}</p>`:''}</div><div class="batch-group-actions"><button type="button" class="btn btn-small" data-action="batch-up" data-index="${i}" ${i===0?'disabled':lock} aria-label="Lëviz grupin ${i+1} lart">↑</button><button type="button" class="btn btn-small" data-action="batch-down" data-index="${i}" ${i===batchState.groups.length-1?'disabled':lock} aria-label="Lëviz grupin ${i+1} poshtë">↓</button>${g.files.length===2&&imageOnly&&g.status!=='ready'&&!g.privateFiles?`<button type="button" class="btn btn-small" data-action="batch-swap" data-index="${i}" ${lock}>Ndërro faqet</button><button type="button" class="btn btn-small" data-action="batch-split" data-index="${i}" ${lock}>Ndaji</button>`:''}${join?`<button type="button" class="btn btn-small" data-action="batch-join" data-index="${i}" ${lock}>Bashko me tjetrin</button>`:''}<button type="button" class="btn btn-small" data-action="batch-remove" data-index="${i}" ${lock}>Hiq</button></div></div>`}).join('')
 }
 function batchHTML(){
- return `<div class="page-head"><div><div class="eyebrow">Regjistrim me 2 hapa</div><h1 class="page-title">1. Ngarko formularët</h1><p class="page-sub">Foto, PDF, Excel ose Word. Një formular ose deri në 10 bashkë.</p></div></div><div class="batch-steps"><span class="active">1 &nbsp; Ngarko dhe lexo</span><span>2 &nbsp; Kontrollo dhe ruaj</span></div><div class="import-grid batch-layout"><div class="card"><div class="card-head"><div><h2>Dokumentet</h2><p>Zgjidh skedarët, shtyp “Lexo formularët”, pastaj kontrollo dhe ruaj.</p></div></div><div class="card-body"><label class="upload-zone" for="batch-files">${icon('upload',21)}<strong>Zgjidh foto, PDF, Excel ose Word</strong><span>Deri në 10 formularë · 12 MB për skedar</span></label><input class="sr-only" type="file" id="batch-files" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><details class="batch-advanced"><summary>Si grupohen faqet (foto dhe PDF me disa faqe)</summary><div class="field"><label for="batch-photo-mode">Kur zgjedh disa foto</label><select id="batch-photo-mode" class="input"><option value="pairs">Dy foto radhazi = një formular</option><option value="single">Çdo foto = një formular</option></select></div><div class="field"><label for="batch-pdf-mode">Nëse një PDF ka disa formularë</label><select id="batch-pdf-mode" class="input"><option value="whole">Çdo PDF = një formular</option><option value="pairs">Ndaje: çdo 2 faqe = një formular</option><option value="pages">Ndaje: çdo faqe = një formular</option></select><span class="small-note">Ndarja bëhet në pajisje. Kontrollo faqet e çdo grupi.</span></div></details><div class="batch-list-head"><strong>Grupet e dokumenteve</strong><span>Kontrollo që faqet e secilit formular të jenë bashkë.</span></div><div id="batch-groups" aria-live="polite">${batchGroupsHTML()}</div><div class="head-actions batch-start-actions"><button type="button" class="btn btn-primary" data-action="batch-read">${icon('search',15)} Lexo formularët</button><button type="button" class="btn" data-action="batch-cancel" hidden>Anulo leximin</button><button type="button" class="btn" data-action="batch-review-ready" hidden>Kontrollo të lexuarit</button><button type="button" class="btn btn-quiet" data-action="batch-reset" ${batchState.groups.length?'':'hidden'}>Fillo nga e para</button><button type="button" class="btn btn-small" data-action="batch-raw" ${batchState.groups.some(g=>g.raw)?'':'hidden'}>Shkarko leximin JSON</button></div><div id="batch-error" class="import-error" role="alert" ${batchState.error?'':'hidden'}>${esc(batchState.error)}</div><div id="batch-progress" class="read-progress" role="status" aria-live="polite" hidden><span class="read-spinner" aria-hidden="true"></span><div><strong>Po përpunohen formularët</strong><span id="batch-progress-text"></span><small id="batch-elapsed" aria-hidden="true"></small></div></div></div></div><div class="card"><div class="card-head"><div><h2>Leximi me Gemini</h2><p>Për foto, PDF, Word dhe Excel-e të tjera. Çdo formular lexohet më vete; mund të zgjasë disa minuta.</p></div></div><div class="card-body"><div class="notice import-privacy">${icon('info',16)}<span>Excel-i i modelit të BioBes lexohet në këtë pajisje pa Gemini. Dokumentet ruhen privatisht në cloud vetëm kur konfirmon ruajtjen.</span></div><p class="small-note batch-key-field">Çelësi Gemini konfigurohet privatisht vetëm në server. Çdo grup ka mundësi të zgjedhë origjinalet për ruajtje private, veçmas nga kopjet që lexon AI.</p><label class="import-consent"><input id="batch-anonymous" type="checkbox"> <span>Konfirmoj se dokumentet që do të dërgohen nuk përmbajnë emra, firma, të dhëna personale ose konfidenciale, dhe se projekti i çelësit Gemini në server është Free Tier pa faturim të lidhur.</span></label><details class="batch-advanced"><summary>Privatësia dhe kostot – lexo një herë</summary><p class="small-note">Dokumentet nuk anonimizohen automatikisht: hiqi të dhënat, mos i mbulo vetëm në pamje, dhe kontrollo metadatat. Emrat e skedarëve zëvendësohen, por përmbajtja dhe metadatat mund të dërgohen. Google mund të përdorë dhe të shqyrtojë leximet falas. Aplikacioni nuk verifikon planin; projektet me faturim mund të kenë kosto. Në EEA, Zvicër dhe MB Google kërkon shërbime me pagesë kur aplikacionet API u ofrohen përdoruesve atje. <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">Kushtet e Google ↗</a></p></details><label class="import-consent"><input id="batch-catalog" type="checkbox"> <span>Pranoj shprehimisht dërgimin te Gemini të emrave në listat bazë më poshtë, vetëm nëse janë të anonimizuar dhe jokonfidencialë. Këto lista nuk anonimizohen automatikisht.</span></label><p class="small-note">Opsionale: listat bazë të përgjegjëseve, punonjësve, produkteve, paketimit, statuseve, njësive dhe burimeve. Mos e zgjidh nëse përmbajnë emra realë ose të dhëna konfidenciale.</p><label class="import-consent"><input id="batch-device-notice" type="checkbox" ${importState.notify?'checked':''}> <span>Më njofto kur të përfundojë leximi.</span></label></div></div></div>`
+ return `<div class="page-head"><div><div class="eyebrow">Regjistrim me 2 hapa</div><h1 class="page-title">1. Ngarko formularët</h1><p class="page-sub">Foto, PDF, Excel ose Word. Një formular ose deri në 10 bashkë.</p></div></div><div class="batch-steps"><span class="active">1 &nbsp; Ngarko dhe lexo</span><span>2 &nbsp; Kontrollo dhe ruaj</span></div><div class="import-grid batch-layout"><div class="card"><div class="card-head"><div><h2>Dokumentet</h2><p>Zgjidh skedarët, shtyp “Lexo formularët”, pastaj kontrollo dhe ruaj.</p></div></div><div class="card-body"><label class="upload-zone" for="batch-files">${icon('upload',21)}<strong>Zgjidh foto, PDF, Excel ose Word</strong><span>Deri në 10 formularë · 12 MB për skedar</span></label><input class="sr-only" type="file" id="batch-files" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><details class="batch-advanced"><summary>Si grupohen faqet (foto dhe PDF me disa faqe)</summary><p class="small-note">Një PDF i tërë lexohet vetëm: nëse përmban disa formularë, secili hapet si kartë kontrolli më vete. Ndarja më poshtë përdoret vetëm kur dokumenti duhet ndarë para leximit.</p><div class="field"><label for="batch-photo-mode">Kur zgjedh disa foto</label><select id="batch-photo-mode" class="input"><option value="pairs">Dy foto radhazi = një formular</option><option value="single">Çdo foto = një formular</option></select></div><div class="field"><label for="batch-pdf-mode">Nëse një PDF ka disa formularë</label><select id="batch-pdf-mode" class="input"><option value="whole">Çdo PDF = një formular</option><option value="pairs">Ndaje: çdo 2 faqe = një formular</option><option value="pages">Ndaje: çdo faqe = një formular</option></select><span class="small-note">Ndarja bëhet në pajisje. Kontrollo faqet e çdo grupi.</span></div></details><div class="batch-list-head"><strong>Grupet e dokumenteve</strong><span>Kontrollo që faqet e secilit formular të jenë bashkë.</span></div><div id="batch-groups" aria-live="polite">${batchGroupsHTML()}</div><div class="head-actions batch-start-actions"><button type="button" class="btn btn-primary" data-action="batch-read">${icon('search',15)} Lexo formularët</button><button type="button" class="btn" data-action="batch-cancel" hidden>Anulo leximin</button><button type="button" class="btn" data-action="batch-review-ready" hidden>Kontrollo të lexuarit</button><button type="button" class="btn btn-quiet" data-action="batch-reset" ${batchState.groups.length?'':'hidden'}>Fillo nga e para</button><button type="button" class="btn btn-small" data-action="batch-raw" ${batchState.groups.some(g=>g.raw)?'':'hidden'}>Shkarko leximin JSON</button></div><div id="batch-error" class="import-error" role="alert" ${batchState.error?'':'hidden'}>${esc(batchState.error)}</div><div id="batch-progress" class="read-progress" role="status" aria-live="polite" hidden><span class="read-spinner" aria-hidden="true"></span><div><strong>Po përpunohen formularët</strong><span id="batch-progress-text"></span><small id="batch-elapsed" aria-hidden="true"></small></div></div></div></div><div class="card"><div class="card-head"><div><h2>Leximi me Gemini</h2><p>Për foto, PDF, Word dhe Excel-e të tjera. Çdo formular lexohet më vete; mund të zgjasë disa minuta.</p></div></div><div class="card-body"><div class="notice import-privacy">${icon('info',16)}<span>Excel-i i modelit të BioBes lexohet në këtë pajisje pa Gemini. Dokumentet ruhen privatisht në cloud vetëm kur konfirmon ruajtjen.</span></div><p class="small-note batch-key-field">Çelësi Gemini konfigurohet privatisht vetëm në server. Çdo grup ka mundësi të zgjedhë origjinalet për ruajtje private, veçmas nga kopjet që lexon AI.</p><label class="import-consent"><input id="batch-anonymous" type="checkbox"> <span>Konfirmoj se dokumentet që do të dërgohen nuk përmbajnë emra, firma, të dhëna personale ose konfidenciale, dhe se projekti i çelësit Gemini në server është Free Tier pa faturim të lidhur.</span></label><details class="batch-advanced"><summary>Privatësia dhe kostot – lexo një herë</summary><p class="small-note">Dokumentet nuk anonimizohen automatikisht: hiqi të dhënat, mos i mbulo vetëm në pamje, dhe kontrollo metadatat. Emrat e skedarëve zëvendësohen, por përmbajtja dhe metadatat mund të dërgohen. Google mund të përdorë dhe të shqyrtojë leximet falas. Aplikacioni nuk verifikon planin; projektet me faturim mund të kenë kosto. Në EEA, Zvicër dhe MB Google kërkon shërbime me pagesë kur aplikacionet API u ofrohen përdoruesve atje. <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">Kushtet e Google ↗</a></p></details><label class="import-consent"><input id="batch-catalog" type="checkbox"> <span>Pranoj shprehimisht dërgimin te Gemini të emrave në listat bazë më poshtë, vetëm nëse janë të anonimizuar dhe jokonfidencialë. Këto lista nuk anonimizohen automatikisht.</span></label><p class="small-note">Opsionale: listat bazë të përgjegjëseve, punonjësve, produkteve, paketimit, statuseve, njësive dhe burimeve. Mos e zgjidh nëse përmbajnë emra realë ose të dhëna konfidenciale.</p><label class="import-consent"><input id="batch-device-notice" type="checkbox" ${importState.notify?'checked':''}> <span>Më njofto kur të përfundojë leximi.</span></label></div></div></div>`
 }
 function batchError(message){batchState.error=str(message,700);const el=document.getElementById('batch-error');if(el){el.textContent=batchState.error;el.hidden=!batchState.error}}
 function batchPaint(){const el=document.getElementById('batch-groups');if(el)el.innerHTML=batchGroupsHTML();const reset=view.querySelector('[data-action="batch-reset"]'),raw=view.querySelector('[data-action="batch-raw"]'),ready=view.querySelector('[data-action="batch-review-ready"]');if(reset)reset.hidden=!batchState.groups.length;if(raw)raw.hidden=!batchState.groups.some(g=>g.raw);if(ready)ready.hidden=!(batchState.groups.some(g=>g.status==='ready')&&batchState.groups.some(g=>g.status!=='ready'))}
@@ -427,7 +427,8 @@ async function batchGemini(g,signal,catalog){
  const photoWarnings=[];
  const {safe,cache}=batchGenericFiles(g.files,g.workbook),parts=await prepareGeminiParts(safe,signal,cache,photoWarnings,catalog);if(signal.aborted)throw new DOMException('aborted','AbortError');const timer=setTimeout(()=>batchState.abort?.abort(),140000);let response;
  const started=Date.now();try{response=await cloudGemini(parts,signal)}finally{clearTimeout(timer)}
- g.seconds=Math.max(1,Math.round((Date.now()-started)/1000));const data=parseAIJson(response);g.raw=data;const result=aiRecord(data);result.warnings.push(...photoWarnings);if(g.workbook?.Sheets?.TE_DHENAT_PLOTA)result.warnings.push('Të dhënat e fshehura të Excel-it nuk lexohen nga AI; kontrollo dokumentin origjinal.');return [{...result,missingNumber:!str(data.record_number).trim()}]
+ g.seconds=Math.max(1,Math.round((Date.now()-started)/1000));const data=parseAIJson(response),read=aiReadings(data,{fileName:g.files.map(f=>f.name).join(' · '),pageCount:data?.document?.page_count });g.raw={...data,reading:{document:{fileName:g.files.map(f=>f.name).join(' · '),pageCount:read.document.pageCount,formCount:read.document.formCount},forms:read.forms.map(x=>x.reading)}};
+ return read.forms.map(({record,warnings,reading},index)=>{const merged=[...warnings,...photoWarnings];if(g.workbook?.Sheets?.TE_DHENAT_PLOTA)merged.push('Të dhënat e fshehura të Excel-it nuk lexohen nga AI; kontrollo dokumentin origjinal.');return {record,warnings:merged,reading,formNumber:reading.formNumber,formCount:read.document.formCount,missingNumber:!reading.header.nr.value}})
 }
 function batchWait(ms,signal){return new Promise((resolve,reject)=>{if(signal.aborted){reject(new DOMException('aborted','AbortError'));return}const timer=setTimeout(()=>{signal.removeEventListener('abort',cancel);resolve()},ms);function cancel(){clearTimeout(timer);reject(new DOMException('aborted','AbortError'))}signal.addEventListener('abort',cancel,{once:true})})}
 async function batchRead(){
@@ -463,16 +464,48 @@ function batchAssignNumbers(items){
  for(const it of items)if(it.missingNumber){while(used.has(candidate))candidate++;it.record.nr=String(candidate).padStart(3,'0');used.add(candidate++);it.warnings=it.warnings.filter(x=>!x.startsWith('Numri nuk u lexua')&&!x.startsWith('Numri nuk ishte i plotësuar'));it.warnings.push(`Numri nuk ishte i lexueshëm; u propozua ${it.record.nr}. Kontrolloje.`)}
 }
 function batchBeginReview(){
- const items=[];for(const g of batchState.groups){if(g.status!=='ready'||!g.results?.length){batchError('Jo të gjitha grupet janë lexuar.');return}for(const result of g.results){const record=normalizeRecord(result.record),warnings=[...new Set(result.warnings||[])];if(record.attachments?.length)warnings.push('Lidhjet e vjetra të dokumenteve nuk importohen; do të ruhen origjinalet e zgjedhura këtu.');record.attachments=[];record.id=uid();const sources=g.files.map(f=>({name:f.name,url:URL.createObjectURL(f)}));const originals=(g.privateFiles||g.originalFiles||g.files).map(f=>({name:f.name,file:f,uploaded:null,pendingPath:''}));items.push({record,warnings,missingNumber:!!result.missingNumber,sources,originals,confirmedDigest:''})}}
+ const items=[];for(const g of batchState.groups){if(g.status!=='ready'||!g.results?.length){batchError('Jo të gjitha grupet janë lexuar.');return}for(const result of g.results){const record=normalizeRecord(result.record),warnings=[...new Set(result.warnings||[])];if(record.attachments?.length)warnings.push('Lidhjet e vjetra të dokumenteve nuk importohen; do të ruhen origjinalet e zgjedhura këtu.');record.attachments=[];record.id=uid();const sources=g.files.map(f=>({name:f.name,url:URL.createObjectURL(f)}));const originals=(g.privateFiles||g.originalFiles||g.files).map(f=>({name:f.name,file:f,uploaded:null,pendingPath:''}));items.push({record,warnings,missingNumber:!!result.missingNumber,reading:result.reading||null,formNumber:result.formNumber||null,formCount:result.formCount||null,sources,originals,confirmedDigest:''})}}
  if(items.length>BATCH_MAX){for(const it of items)for(const x of it.sources)URL.revokeObjectURL(x.url);batchError('Rezultati përmban më shumë se 10 formularë. Ndaji në grupe më të vogla.');return}batchAssignNumbers(items);batchState.items=items;batchState.phase='review';batchOpen(0)
 }
 function batchReviewed(item){return !!item.confirmedDigest&&item.confirmedDigest===JSON.stringify(item.record)}
 function batchMarkChanged(){if(!batchIsReview())return;const item=batchState.items[batchState.index];if(item.confirmedDigest){item.confirmedDigest='';const el=document.getElementById('batch-reviewed');if(el)el.checked=false;batchUpdateSummary()}}
 function batchUpdateSummary(){const text=document.getElementById('batch-review-count');if(text)text.textContent=`${batchState.items.filter(batchReviewed).length}/${batchState.items.length} të kontrolluar`}
 function batchOpen(i){if(batchState.phase!=='review'||i<0||i>=batchState.items.length)return;batchState.index=i;const item=batchState.items[i];state.route='editor';state.mode='new';state.editorBase=null;state.draft=item.record;state.tab='details';state.side=0;state.weightOpen=new Set([0]);state.dirty=true;render();window.scrollTo({top:0,behavior:'smooth'})}
-function batchReviewPanel(){const it=batchState.items[batchState.index],links=it.sources.length?it.sources.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.name)} ↗</a>`).join(' · '):'Dokumentet origjinale nuk përfshihen në draftin JSON.',warnings=it.warnings.length?`<ul>${it.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:'';return `<div class="review-panel batch-review-panel" role="status"><div class="batch-review-heading"><strong>Formulari ${batchState.index+1} nga ${batchState.items.length}</strong><span id="batch-review-count">${batchState.items.filter(batchReviewed).length}/${batchState.items.length} të kontrolluar</span></div><p>Krahasoje me dokumentin e lexuar: ${links}</p><p>Origjinale për ruajtje private: ${it.originals.length?it.originals.map(x=>esc(x.name)).join(' · '):'Nuk ka dokumente në këtë draft.'}</p><label for="batch-review-original" class="btn btn-small batch-private-picker">Zgjidh origjinalet private për këtë formular</label><input class="sr-only" type="file" id="batch-review-original" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><div class="small-note">Këta skedarë nuk dërgohen te Gemini.</div>${warnings}<label class="import-consent"><input type="checkbox" id="batch-reviewed" ${batchReviewed(it)?'checked':''}> <span>Konfirmoj që e kontrollova këtë formular.</span></label><div class="batch-pages">${batchState.items.map((x,i)=>`<button type="button" class="btn btn-small ${i===batchState.index?'btn-primary':''}" data-action="batch-open" data-index="${i}" aria-current="${i===batchState.index?'step':'false'}">${i+1}${batchReviewed(x)?' ✓':''}</button>`).join('')}</div></div>`}
+function readingStatusLabel(section){return section==='front'?'Faqja PARA':section==='back'?'Faqja PAS':'E paqartë'}
+function readingRows(item){
+ const reading=item?.reading;if(!reading)return [];
+ const rows=[],add=(label,field,section)=>{if(field&&(field.value||field.needsReview))rows.push({label,field,section})};
+ const header=reading.header||{},employees=reading.employees||[];
+ const firstRow=key=>employees.find(person=>person[key]&&(person[key].value||person[key].needsReview));
+ for(const [label,field,section] of [['Emri e Mbiemri (përgjegjësja)',header.responsible,'front'],['Fillim Pune · punonjësit',firstRow('start')?.start,'front'],['Mbarim Pune · punonjësit',firstRow('end')?.end,'front'],['Orë Gjithsej',header.totalHours,'front'],['Komente · punonjësit',firstRow('comment')?.comment,'front'],['Firma e Punonjësit',firstRow('signature')?.signature,'front']])add(label,field,section);
+ if((reading.comments||[]).length)add('KOMENTE',reading.comments[0],'back');
+ const keys=[['nrThas','Nr. thas.'],['kg','Kg'],['ambalazhi','Ambalazhi'],['shuma','Shuma']];
+ for(const table of ['peshimi1','peshimi2','peshimi3']){
+  const list=(reading.weights||{})[table]||[];
+  for(const row of list)for(const key of keys)add(table.toUpperCase()+' · '+key[1]+(row.row?' · rreshti '+row.row:''),row[key[0]],'front');
+ }
+ return rows;
+}
+function readingReviewHTML(item){
+ const reading=item?.reading;if(!reading)return '';
+ const formCount=item.formCount||batchState.items.length,multi=formCount>1;
+ const pages=reading.pages||{},rows=readingRows(item),flagged=rows.filter(row=>row.field.needsReview).length;
+ const status=(reading.needsReview||flagged)?'NeedsReview = true':'NeedsReview = false';
+ const cells=rows.length?rows.map(function(row){
+  const page=row.section==='front'&&pages.front?String(pages.front):row.section==='back'&&pages.back?String(pages.back):(row.field.page||'—');
+  const value=row.field.value==null?'[e paqartë]':String(row.field.value);
+  const percent=row.field.confidence==null?'—':Math.round(row.field.confidence*100)+'%';
+  return '<tr'+(row.field.needsReview?' class="reading-flag"':'')+'><td>'+esc(row.label)+'</td><td class="strong">'+esc(value)+'</td><td>'+esc(page)+'</td><td>'+esc(row.field.formArea||'—')+'</td><td>'+esc(percent)+'</td><td>'+(row.field.needsReview?'po':'jo')+'</td></tr>';
+ }).join(''):'<tr><td colspan="6" class="muted">Nuk u lexua asnjë vlerë; kontrollo dokumentin.</td></tr>';
+ const uncertain=(reading.uncertain||[]).length?'<p class="small-note">Të paqarta: '+reading.uncertain.map(x=>esc(x.readAs||x.formArea||'—')).join(' · ')+'</p>':'';
+ const formLine=multi?'<span>Formulari <strong>'+(reading.formNumber||item.formNumber||'—')+'/'+formCount+'</strong> në dokument</span>':'';
+ return '<details class="reading-panel" open><summary>Vendndodhja e çdo vlere · '+status+(flagged?' · '+flagged+' për kontroll':'')+'</summary>'
+  +'<div class="reading-meta"><span>Faqja PARA: <strong>'+(pages.front||'—')+'</strong></span><span>Faqja PAS: <strong>'+(pages.back||'—')+'</strong></span>'+formLine+'</div>'
+  +'<div class="table-wrap"><table class="table reading-table"><thead><tr><th>Fusha</th><th>Vlera e lexuar</th><th>Faqja</th><th>Zona e formularit</th><th>Siguria</th><th>needsReview</th></tr></thead><tbody>'+cells+'</tbody></table></div>'+uncertain+'</details>';
+}
+function batchReviewPanel(){const it=batchState.items[batchState.index],links=it.sources.length?it.sources.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.name)} ↗</a>`).join(' · '):'Dokumentet origjinale nuk përfshihen në draftin JSON.',warnings=it.warnings.length?`<ul>${it.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:'';return `<div class="review-panel batch-review-panel" role="status"><div class="batch-review-heading"><strong>Formulari ${batchState.index+1} nga ${batchState.items.length}</strong><span id="batch-review-count">${batchState.items.filter(batchReviewed).length}/${batchState.items.length} të kontrolluar</span></div><p>Krahasoje me dokumentin e lexuar: ${links}</p><p>Origjinale për ruajtje private: ${it.originals.length?it.originals.map(x=>esc(x.name)).join(' · '):'Nuk ka dokumente në këtë draft.'}</p><label for="batch-review-original" class="btn btn-small batch-private-picker">Zgjidh origjinalet private për këtë formular</label><input class="sr-only" type="file" id="batch-review-original" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><div class="small-note">Këta skedarë nuk dërgohen te Gemini.</div>${warnings}${readingReviewHTML(it)}<label class="import-consent"><input type="checkbox" id="batch-reviewed" ${batchReviewed(it)?'checked':''}> <span>Konfirmoj që e kontrollova këtë formular.</span></label><div class="batch-pages">${batchState.items.map((x,i)=>`<button type="button" class="btn btn-small ${i===batchState.index?'btn-primary':''}" data-action="batch-open" data-index="${i}" aria-current="${i===batchState.index?'step':'false'}">${i+1}${batchReviewed(x)?' ✓':''}</button>`).join('')}</div></div>`}
 async function batchReviewPrivateChanged(el){if(!batchIsReview()||cloud.busy)return;const files=Array.from(el.files||[]);el.value='';if(!files.length)return;try{checkImportFiles(files)}catch(e){toast(e?.message||'Origjinalet nuk u zgjodhën.','error');return}const item=batchState.items[batchState.index];cloudBusy(true,'Po përgatiten origjinalet private…');try{await batchCleanupCloud(db,[item]);item.originals=files.map(f=>({name:f.name,file:f,uploaded:null,pendingPath:''}));item.confirmedDigest='';render();toast('Origjinalet u zgjodhën; kontrollo dhe konfirmo formularin.','warn')}catch(e){toast('Origjinalet nuk u zgjodhën. Provo përsëri.','error')}finally{cloudBusy(false)}}
-function batchEditorHTML(){const r=state.draft,body=detailsHTML(r,false)+staffHTML(r,false)+weightsHTML(r,false)+commentsHTML(r,false),prev=batchState.index===0?'disabled':'',next=batchState.index===batchState.items.length-1?'disabled':'';return `<div class="page-head"><div><div class="eyebrow">Regjistrim me 2 hapa</div><h1 class="page-title">2. Kontrollo dhe ruaj</h1><p class="page-sub">Formulari ${batchState.index+1} / ${batchState.items.length} · Nr. ${esc(r.nr||'—')} · të gjitha seksionet në një ekran</p></div><div class="head-actions"><button class="btn" data-action="batch-draft">${icon('download',15)} Shkarko draftet</button><button class="btn btn-primary" data-action="batch-save">${icon('save',15)} Ruaj të gjitha</button></div></div><div class="batch-steps"><span>1 &nbsp; Ngarko dhe lexo</span><span class="active">2 &nbsp; Kontrollo dhe ruaj</span></div>${batchReviewPanel()}<div class="editor-stack editor-all">${body}</div><div class="head-actions batch-bottom"><button type="button" class="btn" data-action="batch-open" data-index="${batchState.index-1}" ${prev}>← Paraardhësi</button><button type="button" class="btn" data-action="batch-open" data-index="${batchState.index+1}" ${next}>Tjetri →</button><button type="button" class="btn btn-quiet" data-action="batch-remove-review">Hiq këtë formular</button><button type="button" class="btn btn-primary" data-action="batch-save">${icon('save',15)} Ruaj të gjitha</button></div>`}
+function batchEditorHTML(){const r=state.draft,body=detailsHTML(r,false)+staffHTML(r,false)+weightsHTML(r,false)+commentsHTML(r,false),prev=batchState.index===0?'disabled':'',next=batchState.index===batchState.items.length-1?'disabled':'';return `<div class="page-head"><div><div class="eyebrow">Regjistrim me 2 hapa</div><h1 class="page-title">2. Kontrollo dhe ruaj</h1><p class="page-sub">Formulari ${batchState.index+1} / ${batchState.items.length} · Nr. ${esc(r.nr||'—')}${batchState.items[batchState.index]?.formCount>1?` · formulari ${batchState.items[batchState.index].formNumber||batchState.index+1} nga ${batchState.items[batchState.index].formCount} formularë në dokument`:""}</p></div><div class="head-actions"><button class="btn" data-action="batch-draft">${icon('download',15)} Shkarko draftet</button><button class="btn btn-primary" data-action="batch-save">${icon('save',15)} Ruaj të gjitha</button></div></div><div class="batch-steps"><span>1 &nbsp; Ngarko dhe lexo</span><span class="active">2 &nbsp; Kontrollo dhe ruaj</span></div>${batchReviewPanel()}<div class="editor-stack editor-all">${body}</div><div class="head-actions batch-bottom"><button type="button" class="btn" data-action="batch-open" data-index="${batchState.index-1}" ${prev}>← Paraardhësi</button><button type="button" class="btn" data-action="batch-open" data-index="${batchState.index+1}" ${next}>Tjetri →</button><button type="button" class="btn btn-quiet" data-action="batch-remove-review">Hiq këtë formular</button><button type="button" class="btn btn-primary" data-action="batch-save">${icon('save',15)} Ruaj të gjitha</button></div>`}
 function batchDraftDownload(){if(!batchIsReview())return;const records=batchState.items.map(it=>({record:clone(it.record),warnings:it.warnings}));download('BioBes_draftet.json',JSON.stringify({type:'BioBes-Batch-Draft',version:VERSION,exportedAt:new Date().toISOString(),records},null,2),'application/json;charset=utf-8');toast('Draftet u shkarkuan. Dokumentet origjinale nuk përfshihen.','warn')}
 function batchRestore(parsed){
  if(!Array.isArray(parsed.records)||!parsed.records.length||parsed.records.length>BATCH_MAX||parsed.records.some(x=>!x?.record||typeof x.record!=='object'||Array.isArray(x.record)))throw new Error('invalid batch draft');
@@ -635,7 +668,7 @@ async function prepareGeminiParts(files,signal,cache,warnings=[],catalog=null){
  }));for(const fp of fileParts)parts.push(...fp);if(catalog)parts.push(catalog);parts.push({text:'Extract the fields from these files as directed in the system instruction.'});return parts;
 }
 
-function parseAIJson(response){const candidate=response?.candidates?.[0];if(!candidate)throw new Error('Gemini nuk ktheu rezultat. Kontrollo dokumentin dhe provo përsëri.');if(candidate.finishReason==='MAX_TOKENS')throw new Error('Leximi nuk u përfundua: përgjigjja arriti kufirin MAX_TOKENS dhe u pre. Ndaj dokumentin në më pak faqe dhe provo përsëri.');if(candidate.finishReason&&candidate.finishReason!=='STOP')throw new Error('Leximi nuk u përfundua. Provo me faqe më të qarta ose më pak faqe.');const text=(candidate.content?.parts||[]).map(x=>x.text||'').join('');let obj;try{obj=JSON.parse(text.replace(/^\s*```(?:json)?\s*/i,'').replace(/\s*```\s*$/,''))}catch(e){throw new Error('Përgjigjja e Gemini nuk ishte e lexueshme. Provo përsëri.')}if(!obj||typeof obj!=='object'||!Array.isArray(obj.plan)||!Array.isArray(obj.employees)||!Array.isArray(obj.weighings))throw new Error('Përgjigjja e Gemini është e paplotë. Provo përsëri.');return obj}
+function parseAIJson(response){const candidate=response?.candidates?.[0];if(!candidate)throw new Error('Gemini nuk ktheu rezultat. Kontrollo dokumentin dhe provo përsëri.');if(candidate.finishReason==='MAX_TOKENS')throw new Error('Leximi nuk u përfundua: përgjigjja arriti kufirin MAX_TOKENS dhe u pre. Ndaj dokumentin në më pak faqe dhe provo përsëri.');if(candidate.finishReason&&candidate.finishReason!=='STOP')throw new Error('Leximi nuk u përfundua. Provo me faqe më të qarta ose më pak faqe.');const text=(candidate.content?.parts||[]).map(x=>x.text||'').join('');let obj;try{obj=JSON.parse(text.replace(/^\s*```(?:json)?\s*/i,'').replace(/\s*```\s*$/,''))}catch(e){throw new Error('Përgjigjja e Gemini nuk ishte e lexueshme. Provo përsëri.')}if(!obj||typeof obj!=='object')throw new Error('Përgjigjja e Gemini është e paplotë. Provo përsëri.');const complete=form=>!!form&&typeof form==='object'&&(Array.isArray(form.fields)||(Array.isArray(form.plan)&&Array.isArray(form.employees)&&Array.isArray(form.weighings)));const perForm=Array.isArray(obj.forms)&&obj.forms.length?obj.forms:[obj];if(perForm.some(form=>!complete(form)))throw new Error('Përgjigjja e Gemini është e paplotë. Provo përsëri.');return obj}
 function positiveIndex(value){if(typeof value==='number'&&Number.isInteger(value)&&value>0)return value;if(typeof value==='string'&&/^\d+$/.test(value.trim())&&Number(value)>0)return Number(value);return null}
 // The following are audit-only comparisons. Nothing observed is used to
 // silently replace the document number, date, times, row values or totals.
@@ -675,12 +708,304 @@ function auditAIObservations(data,r,warnings){
   }
  }
 }
-function aiRecord(data){if(data.multiple_forms===true)throw new Error('Dokumenti përmban disa formularë të ndryshëm. Ndaji dhe lexo një formular në çdo import.');const warnings=Array.isArray(data.warnings)?data.warnings.slice(0,30).map(x=>str(x,400)).filter(Boolean):[],r=blankRecord(nextNr()),rawNr=str(data.record_number).trim();r.nr=rawNr||String(nextNr()).padStart(3,'0');if(!rawNr)warnings.push('Numri nuk u lexua; u propozua numri i radhës.');r.date=dateFromImport(data.date);if(!r.date)warnings.push('Data nuk u lexua; vendose dhe kontrolloje.');else if(dateOrderAmbiguous(data.date)&&!nonempty(data.weekday))warnings.push(`Data “${str(data.date,40)}” u lexua si ditë/muaj. Kontrolloje.`);r.room=str(data.room,300);r.responsible={name:str(data.responsible?.name,500),signature:str(data.responsible?.signature,500)};r.assistant={name:str(data.assistant?.name,500),signature:str(data.assistant?.signature,500)};
- if(data.plan.slice(3).some(p=>p&&Object.values(p).some(nonempty))||data.employees.slice(EMPLOYEE_ROWS).some(p=>p&&Object.values(p).some(nonempty)))throw new Error('Dokumenti ka më shumë se 3 produkte ose 12 punonjës. Nuk u importua automatikisht; shkarko leximin JSON dhe ndaje në formularë.');
- data.plan.slice(0,3).forEach((p,i)=>{if(!p||typeof p!=='object')return;const x=r.plan[i];x.product=str(p.product,500);x.status=str(p.status,200);x.planned=importedNumber(p.ordered_quantity,`Produkti ${i+1}, sasia e porositur`,warnings);x.actual=importedNumber(p.produced_quantity,`Produkti ${i+1}, sasia e prodhuar`,warnings);x.unit=str(p.unit,100);x.packaging=str(p.packaging,300);x.client=str(p.client,500);x.comment=str(p.comment,3000)});
- data.employees.slice(0,EMPLOYEE_ROWS).forEach((p,i)=>{if(!p||typeof p!=='object')return;const e=r.employees[i];e.name=str(p.name,500);for(const key of ['start','end']){e[key]=timeFromImport(p[key]);if(nonempty(p[key])&&!e[key])warnings.push(`Punonjësi ${i+1}: kontrollo orën ${key==='start'?'e fillimit':'e mbarimit'}.`)}e.comment=str(p.comment,3000);e.signature=str(p.signature,500)});
- if(data.weighings.length>60)throw new Error('Dokumenti ka shumë tabela peshimi për një formular; shkarko leximin JSON.');const seen=new Set();for(let k=0;k<data.weighings.length;k++){const g=data.weighings[k]||{},observed=positiveIndex(g.index),index=observed||k+1;if(!observed)warnings.push(`Peshimi ${index}: pozicioni nuk u identifikua qartë; kontrollo faqen.`);if(index>60||seen.has(index))throw new Error('Numrat e tabelave të peshimit janë të paqartë; shkarko leximin JSON dhe kontrollo dokumentin.');seen.add(index);while(r.weighings.length<index)r.weighings.push(newGroup());const dest=r.weighings[index-1];dest.product=str(g.product,500);const src=fold(g.source);if(src==='stok'||src==='stock'||src==='marre nga stoku'){dest.source='stock';dest.sourceLabel='Marrë nga stoku'}else if(src==='tjeter'||src==='other'){dest.source='other';dest.sourceLabel='Tjetër / jo nga stoku'}else if(src)warnings.push(`Peshimi ${index}: kontrollo burimin “${str(g.source,80)}”.`);const used=new Set(),rows=Array.isArray(g.rows)?g.rows:[];if(rows.length>1000)throw new Error('Ka shumë rreshta në një peshim; shkarko leximin JSON.');for(let j=0;j<rows.length;j++){const row=rows[j]||{},observedRow=positiveIndex(row.row),n=observedRow||j+1;if(!observedRow&&['bags','kg','packaging','sum'].some(key=>nonempty(row[key])))warnings.push(`Peshimi ${index}: kontrollo numrin e rreshtit ${n}; nuk u identifikua qartë.`);if(n>1000||used.has(n))throw new Error(`Peshimi ${index}: numrat e rreshtave janë të paqartë; shkarko leximin JSON.`);used.add(n);while(dest.rows.length<n)dest.rows.push(newRow());for(const key of ['bags','kg','packaging','sum'])dest.rows[n-1][key]=importedNumber(row[key],`Peshimi ${index}, rreshti ${n}`,warnings,key==='bags')}}
- r.comments=str(data.comments,20000);auditAIObservations(data,r,warnings);return {record:r,warnings:[...new Set(warnings)]};
+// ---------------------------------------------------------------------------
+// Leximi i formularëve BioBes.
+// Një dokument (PDF, foto, Word, Excel) mund të përmbajë disa formularë të
+// bashkuar. Çdo formular ka faqen PARA (të dhënat e ditës, plani, punonjësit,
+// peshimet 1–3) dhe faqen PAS (KOMENTE, peshimet 4–6). Rezultati i leximit mban
+// për çdo vlerë faqen, zonën e formularit, nivelin e sigurisë dhe needsReview.
+// Vlera që nuk shihet mbetet null; asnjë vlerë nuk kalohet nga një formular në
+// tjetrin dhe asnjë fushë bosh nuk plotësohet me hamendje.
+// ---------------------------------------------------------------------------
+const AI_MAX_FORMS=10,AI_UNCLEAR=/^\[?\s*e\s+paqart[eë]\s*\]?$/i;
+const AI_FRONT_AREAS=/^(plani|produkti|punonj|peshimi\s*[123]\b|nr\.|data|dhoma|përgjegj|ndihmës)/i;
+const AI_BACK_AREAS=/^(komente|peshimi\s*[456]\b|shuma|ambalazh)/i;
+
+function aiText(value,max=500){
+ if(value&&typeof value==='object'&&!Array.isArray(value)){for(const key of ['readAs','value','text','observed'])if(value[key]!=null){value=value[key];break}}
+ if(Array.isArray(value))return value.map(x=>aiText(x,max)).filter(Boolean).join(' ').slice(0,max);
+ return typeof value==='string'||typeof value==='number'?str(value,max).trim():'';
+}
+// Një qelizë e lexuar: vlera mbahet si tekst, [e paqartë] nuk bëhet kurrë vlerë.
+function aiCell(raw){
+ if(raw===null||raw===undefined||typeof raw==='boolean')return {value:null,read:''};
+ if(typeof raw!=='object'){const read=aiText(raw);return !read?{value:null,read:''}:AI_UNCLEAR.test(read)?{value:null,unclear:true,read}:{value:read,read}}
+ const read=aiText(raw.readAs??raw.value??raw.text??raw.observed);
+ return !read?{value:null,read:''}:AI_UNCLEAR.test(read)?{value:null,unclear:true,read}:{value:read,read};
+}
+function aiPageOf(raw){const text=aiText(typeof raw==='object'?raw?.page:null,60).toLowerCase(),word=(text.match(/[a-zçë]+/g)||[])[0]||'';
+ if(word==='back'||word==='pas'||word==='pasme')return 2;
+ if(word==='front'||word==='para'||word==='pare'||word==='parme')return 1;
+ const number=text.match(/\d+/);return number&&Number(number[0])>0?Number(number[0]):null;
+}
+function aiConfidence(value){if(value===null||value===undefined||value==='')return null;
+ const number=Number(aiText(value,20).replace(/%/g,'').replace(',','.'));
+ return Number.isFinite(number)&&number>=0?(number>1?Math.min(1,number/100):number):null;
+}
+// Vlera e një fushe me vendndodhjen e saj në formular.
+function aiField(raw,area,normalize){
+ const cell=aiCell(raw);let value=cell.value,note='';
+ if(nonempty(cell.value)&&normalize){const result=normalize(cell.value);value=result.value;note=result.note||''}
+ return {value:nonempty(value)?value:null,page:aiPageOf(raw),
+  formArea:aiText(typeof raw==='object'?raw?.formArea??raw?.area:null,120)||area,
+  confidence:aiConfidence(typeof raw==='object'?raw?.confidence:null),
+  needsReview:cell.unclear===true||(nonempty(cell.value)&&!nonempty(value))||raw?.needsReview===true,
+  readAs:cell.value||null,note};
+}
+// Paraqitja e një vlere në JSON-in e leximit.
+function aiPublic(field){
+ if(!field)return {value:null,page:null,formArea:null,confidence:null,needsReview:false};
+ const out={value:field.value??null,page:field.page??null,formArea:field.formArea||null,confidence:field.confidence??null,needsReview:Boolean(field.needsReview)};
+ if(field.readAs&&field.readAs!==field.value)out.readAs=field.readAs;
+ if(field.note)out.note=field.note;
+ return out;
+}
+// IDs e fushave në formularin e leximit; shih SKEMA.md.
+function aiFieldMap(list){
+ const map=new Map();
+ for(const item of Array.isArray(list)?list:[]){
+  if(!item||typeof item!=='object')continue;
+  const id=aiText(item.field,80);if(!id)continue;
+  map.set(id,{value:item.value===null||item.value===undefined?null:aiText(item.value,2000)||null,
+   page:positiveIndex(item.page),formArea:aiText(item.formArea,120)||null,
+   confidence:aiConfidence(item.confidence),needsReview:item.needsReview===true,readAs:aiText(item.readAs,400)||null,note:''});
+ }
+ return map;
+}
+// Vlera e lexuar për një fushë: `fields` (me faqe e siguri) mbizotëron mbi formën
+// e shkurtër `value` që vjen nga modelet e vjetra.
+function aiPick(map,id,area,short,normalize){
+ const entry=map.get(id);
+ if(entry){if(normalize&&nonempty(entry.value)){const result=normalize(entry.value);entry.value=result.value||null;entry.needsReview=entry.needsReview||!entry.value}
+  if(!entry.formArea)entry.formArea=area;return entry}
+ return aiField(short,area,normalize);
+}
+function aiTooMany(what){return new Error(`Dokumenti ka më shumë të dhëna nga sa mban një formular (${what}). Nuk u importua automatikisht; ndaje dokumentin ose shkarko leximin JSON.`)}
+
+// Ndarja e dokumentit në blloqe formularësh. Modeli jep `forms`; përndryshe
+// fushat e sheshta ndahen sipas vendndodhjes së shtypur (3 produkte, 12
+// punonjës, 6 peshime dhe 1 bllok komentesh për formular).
+function aiBlocks(data){
+ if(Array.isArray(data?.forms)&&data.forms.length){
+  if(data.forms.length>AI_MAX_FORMS)throw aiTooMany(`${AI_MAX_FORMS} formularë`);
+  return data.forms.filter(form=>form&&typeof form==='object');
+ }
+ const plan=(Array.isArray(data?.plan)?data.plan:[]).filter(x=>x&&typeof x==='object');
+ const employees=(Array.isArray(data?.employees)?data.employees:[]).filter(x=>x&&typeof x==='object');
+ const weighings=(Array.isArray(data?.weighings)?data.weighings:[]).filter(x=>x&&typeof x==='object');
+ const comments=Array.isArray(data?.comments)?data.comments:nonempty(data?.comments)?[data.comments]:[];
+ const printed=(Array.isArray(data?.printed_totals)?data.printed_totals:[]).filter(x=>x&&typeof x==='object');
+ if(weighings.length>60)throw aiTooMany('60 tabela peshimi');
+ // Shenjat që dokumenti ka vërtet më shumë se një formular: tabela peshimi me
+ // numër mbi 6, komente të shumta ose më shumë se 12 punonjës. Pa to, teprica
+ // e produkteve nuk shpiket si formular i dytë.
+ const evidence=weighings.some(group=>positiveIndex(group.index)>6)||comments.length>1||employees.length>EMPLOYEE_ROWS;
+ if(!evidence&&(plan.length>3||employees.length>EMPLOYEE_ROWS))throw aiTooMany('3 produkte, 12 punonjës');
+ const groups=new Map();
+ for(const group of weighings){
+  const number=positiveIndex(group.index);
+  if(!number||number>60||groups.has(number))throw new Error('Numrat e tabelave të peshimit janë të paqartë; shkarko leximin JSON dhe kontrollo dokumentin.');
+  groups.set(number,group);
+ }
+ // Ndarja në formularë vetëm kur dokumenti e tregon vetë: tabela peshimi mbi 6,
+ // komente të shumta ose më shumë se 12 punonjës. Përndryshe leximi mbetet një
+ // formular dhe teprica raportohet si gabim, pa shpikur formularë.
+ // Ndarja në formularë bëhet vetëm kur dokumenti e tregon vetë: tabela peshimi
+ // me numër mbi 6 ose më shumë se një bllok komentesh. Teprica e punonjësve a
+ // produkteve pa këto shenja raportohet si gabim, pa shpikur formularë të rinj.
+ const count=Math.max(1,Math.ceil(Math.max(0,...[...groups.keys()])/6),comments.length);
+ if(data?.multiple_forms===true&&!(count>1))throw new Error('Dokumenti përmban disa formularë, por faqet e secilit nuk u identifikuan. Ndaje dokumentin dhe lexo një formular në çdo import.');
+ if(!(count>1)&&(plan.length>3||employees.length>EMPLOYEE_ROWS))throw aiTooMany('3 produkte, 12 punonjës');
+ // Produktet e 4-ta e tutje nuk hidhen: kur dokumenti tregon më shumë formularë,
+ // ato shkojnë te formulari pasardhës me paralajmërim; përndryshe raportohet.
+ if(count>AI_MAX_FORMS)throw aiTooMany(`${AI_MAX_FORMS} formularë`);
+ return Array.from({length:count},(_,index)=>{
+  const slices=[];
+  // Tabelat 1–6 mbahen të ndara: 1–3 janë faqja PARA, 4–6 faqja PAS.
+  for(let local=1;local<=6;local+=1)if(groups.has(index*6+local))slices.push({...groups.get(index*6+local),index:local});
+  const totals=printed.filter(x=>positiveIndex(x.index)>index*6&&positiveIndex(x.index)<=(index+1)*6)
+   .map(x=>({...x,index:positiveIndex(x.index)-index*6}));
+  return {form_number:index+1,pages:null,header:index===0?data:null,
+   plan:plan.slice(index*3,index*3+3),employees:employees.slice(index*EMPLOYEE_ROWS,(index+1)*EMPLOYEE_ROWS),
+   fields:index===0?data?.fields:null,record_numbers_seen:index===0?data?.record_numbers_seen:null,dates_seen:index===0?data?.dates_seen:null,
+   weighings:slices,printed_totals:totals,comments:comments[index]===undefined?null:comments[index],
+   uncertain:index===0?data?.uncertain:null,warnings:index===0?data?.warnings:null};
+ });
+}
+
+function aiWeightColumns(raws,area,warnings){
+ const columns={};
+ for(const [key,label] of [['bags','Nr. thas.'],['kg','Kg'],['packaging','Ambalazhi'],['sum','Shuma']])
+  columns[key]=aiField(raws?.[key],`${area} · ${label}`,value=>({value:importedNumber(value,`${area}, ${label}`,warnings,key==='bags')||null}));
+ return columns;
+}
+
+// Zbaton vetëm kontrolle krahasimi; asnjë vlerë nuk ndryshohet prej tyre.
+function aiAudit(block,record,fields,warnings){
+ const observed={uncertain:block.uncertain,record_numbers_seen:block.record_numbers_seen,dates_seen:block.dates_seen,record_number:fields.nr?.value??block.record_number,date:fields.date?.value??block.date,
+  weekday:fields.weekday?.value??block.weekday,iso_week:fields.iso_week?.value??block.iso_week,
+  total_hours:fields.total_hours?.value??block.total_hours,printed_totals:block.printed_totals,
+  weighings:(block.weighings||[]).map((group,index)=>({index:positiveIndex(group?.index)||index+1,rows:group?.rows||[]}))};
+ auditAIObservations(observed,record,warnings);
+}
+
+// Një bllok formular → regjistrim + lexim i plotë me faqe, zonë dhe siguri.
+function aiReadBlock(block,formNumber,proposedNr,info){
+ const warnings=[],fields={},uncertain=[],record=blankRecord(proposedNr);
+ const header=block.header??block,map=aiFieldMap(block.fields);
+ const get=(id,raw,area,normalize)=>{const field=aiPick(map,id,area,raw,normalize);fields[id]=field;return field};
+ // Faqja PARA: e dhëna e ditës.
+ const nr=get('nr',header?.record_number,'Numri i formularit');
+ record.nr=nr.value||String(proposedNr).padStart(3,'0');
+ if(!nr.value)warnings.push('Numri nuk u lexua; u propozua numri i radhës.');
+ const date=get('date',header?.date,'Data',value=>({value:dateFromImport(value)||null}));
+ record.date=date.value||'';
+ if(!record.date)warnings.push('Data nuk u lexua; vendose dhe kontrolloje.');
+ else if(dateOrderAmbiguous(aiText(header?.date))&&!nonempty(aiText(header?.weekday)))warnings.push(`Data “${aiText(header?.date,40)}” u lexua si ditë/muaj. Kontrolloje.`);
+ if(nonempty(aiText(header?.weekday)))get('weekday',header.weekday,'Dita');
+ if(nonempty(aiText(header?.iso_week)))get('iso_week',header.iso_week,'Java');
+ record.room=get('room',header?.room,'Dhoma').value||'';
+ record.responsible={name:get('responsible.name',header?.responsible?.name,'Përgjegjësja').value||'',
+  signature:get('responsible.signature',header?.responsible?.signature,'Firma e përgjegjëses').value||''};
+ record.assistant={name:get('assistant.name',header?.assistant?.name,'Ndihmës përgjegjësja').value||'',
+  signature:get('assistant.signature',header?.assistant?.signature,'Firma e ndihmëses').value||''};
+ get('total_hours',header?.total_hours,'Orë Gjithsej',value=>({value:importedNumber(value,'Orë Gjithsej',warnings)||null}));
+ // Plani i punës: 3 produkte, sipas rreshtit të shtypur.
+ const plan=Array.isArray(block.plan)?block.plan:[];
+ plan.slice(3).forEach(p=>{if(p&&Object.values(p).some(nonempty))throw aiTooMany('3 produkte')});
+ plan.forEach((p,i)=>{if(!p||typeof p!=='object')return;const area=`Produkti ${i+1}`,target=record.plan[i];
+  target.product=get(`plan.${i}.product`,p.product,`${area} · Produkti`).value||'';
+  target.status=get(`plan.${i}.status`,p.status,`${area} · Statusi`).value||'';
+  target.planned=get(`plan.${i}.planned`,p.ordered_quantity,`${area} · Sasia e porositur`,value=>({value:importedNumber(value,`${area}, sasia e porositur`,warnings)||null})).value||'';
+  target.actual=get(`plan.${i}.actual`,p.produced_quantity,`${area} · Sasia e produkuar`,value=>({value:importedNumber(value,`${area}, sasia e produkuar`,warnings)||null})).value||'';
+  target.unit=get(`plan.${i}.unit`,p.unit,`${area} · Njësia`).value||'';
+  target.packaging=get(`plan.${i}.packaging`,p.packaging,`${area} · Paketimi`).value||'';
+  target.client=get(`plan.${i}.client`,p.client,`${area} · Klienti`).value||'';
+  target.comment=get(`plan.${i}.comment`,p.comment,`${area} · Komente`).value||''});
+ // Punonjësit: 12 rreshta; orët siç duken dhe Orë Gjithsej vetëm e llogaritur.
+ const employees=Array.isArray(block.employees)?block.employees:[];
+ employees.slice(EMPLOYEE_ROWS).forEach(p=>{if(p&&Object.values(p).some(nonempty))throw aiTooMany('12 punonjës')});
+ employees.forEach((p,i)=>{if(!p||typeof p!=='object')return;const area=`Punonjësi ${i+1}`,target=record.employees[i];
+  target.name=get(`employees.${i}.name`,p.name,`${area} · Emri e Mbiemri`).value||'';
+  for(const [key,label] of [['start','Fillim Pune'],['end','Mbarim Pune']]){
+   const field=get(`employees.${i}.${key}`,p[key],`${area} · ${label}`,value=>({value:timeFromImport(value)||null}));
+   target[key]=field.value||'';
+   if(nonempty(aiText(p[key]))&&!field.value)warnings.push(`${area}: kontrollo orën ${key==='start'?'e fillimit':'e mbarimit'}.`)}
+  target.comment=get(`employees.${i}.comment`,p.comment,`${area} · Komente`).value||'';
+  target.signature=get(`employees.${i}.signature`,p.signature,`${area} · Firma e Punonjësit`).value||'';
+  if(p.total_hours!==undefined&&p.total_hours!==null)get(`employees.${i}.total_hours_printed`,p.total_hours,`${area} · Orë Gjithsej`,value=>({value:importedNumber(value,`${area}, Orë Gjithsej`,warnings)||null}));
+  const hours=hoursFor(target);
+  if(hours!==null&&target.start&&target.end)fields[`employees.${i}.total_hours`]={value:fmt(hours),page:fields[`employees.${i}.start`]?.page??null,
+   formArea:`${area} · Orë Gjithsej (llogaritur nga orari)`,confidence:null,
+   needsReview:Boolean(fields[`employees.${i}.start`]?.needsReview||fields[`employees.${i}.end`]?.needsReview),readAs:null,note:'llogaritur'};
+ });
+ // Faqja PAS dhe tabelat e peshimit: numri i shtypur vendos tabelën, kolonat nuk zhvendosen.
+ const weighings=(Array.isArray(block.weighings)?block.weighings:[]).filter(x=>x&&typeof x==='object');
+ if(weighings.length>60)throw aiTooMany('60 tabela peshimi');
+ const tables={},used=new Set(),printedTotals={};
+ for(const group of weighings){
+  const local=positiveIndex(group.index);
+  if(!local||local>6)throw new Error('Numrat e tabelave të peshimit janë të paqartë; shkarko leximin JSON dhe kontrollo dokumentin.');
+  if(used.has(local))throw new Error('Numrat e tabelave të peshimit janë të paqartë; shkarko leximin JSON dhe kontrollo dokumentin.');
+  used.add(local);
+  // Tabelat 1–3 janë në faqen PARA, 4–6 në faqen PAS; numri nuk e kalon formularin.
+  // Çdo formular ka 6 tabela: 1–3 në faqen PARA dhe 1–3 (4–6 në rend leximi) në faqen PAS.
+  const number=local,area=`PESHIMI ${local<=3?local:local-3} · faqja ${local<=3?'PARA':'PAS'}`;
+  while(record.weighings.length<number)record.weighings.push(newGroup());
+  const target=record.weighings[number-1];
+  target.product=get(`weighings.${local}.product`,group.product,`PESHIMI ${local} · Produkti`).value||'';
+  const source=get(`weighings.${local}.source`,group.source,`PESHIMI ${local} · Burimi`),folded=fold(source.value||'');
+  if(folded==='stok'||folded==='stock'||folded==='marre nga stoku'){target.source='stock';target.sourceLabel='Marrë nga stoku'}
+  else if(folded==='tjeter'||folded==='other'){target.source='other';target.sourceLabel='Tjetër / jo nga stoku'}
+  else if(folded)warnings.push(`Peshimi ${local}: kontrollo burimin “${source.value}”.`);
+  const rows=(Array.isArray(group.rows)?group.rows:[]).filter(x=>x&&typeof x==='object');
+  if(rows.length>1000)throw new Error('Ka shumë rreshta në një peshim; shkarko leximin JSON.');
+  const list=tables[local]=[],seenRows=new Set();
+  for(const row of rows){
+   const n=positiveIndex(row.row)??null;
+   if(!n)throw new Error(`Peshimi ${local}: numrat e rreshtave janë të paqartë; shkarko leximin JSON.`);
+   if(n>1000||seenRows.has(n))throw new Error(`Peshimi ${local}: numrat e rreshtave janë të paqartë; shkarko leximin JSON.`);
+   seenRows.add(n);
+   while(target.rows.length<n)target.rows.push(newRow());
+   const columns=aiWeightColumns(row,`${area} · rreshti ${n}`,warnings);
+   for(const key of ['bags','kg','packaging','sum'])target.rows[n-1][key]=columns[key].value||'';
+   fields[`weighings.${local}.rows.${n}`]=columns;
+   list.push({table:local,row:n,nrThas:aiPublic(columns.bags),kg:aiPublic(columns.kg),ambalazhi:aiPublic(columns.packaging),shuma:aiPublic(columns.sum)});
+  }
+  if(group.total&&typeof group.total==='object'){
+   const columns=aiWeightColumns(group.total,`${area} · rreshti SH`,warnings);
+   target.printedTotal={bags:columns.bags.value||'',kg:columns.kg.value||'',packaging:columns.packaging.value||'',sum:columns.sum.value||''};
+   fields[`weighings.${local}.total`]=columns;
+   printedTotals[`peshimi${local<=3?local:local-3}`]=columns;
+  }
+ }
+ // Komentet e faqes së pasme.
+ const comment=get('comments',block.comments,'KOMENTE');
+ record.comments=comment.value||'';
+ // Vlerat e pasigurta shkojnë vetëm në paralajmërime dhe në lexim, nuk bëhen vlera.
+ for(const item of Array.isArray(block.uncertain)?block.uncertain:[]){
+  if(typeof item==='string'){if(nonempty(item))uncertain.push({value:null,page:null,formArea:'e pasigurt',confidence:null,needsReview:true,readAs:aiText(item,300)});continue}
+  if(!item||typeof item!=='object')continue;
+  uncertain.push({value:null,page:aiPageOf(item),formArea:aiText(item.formArea||item.field,120)||'e pasigurt',confidence:aiConfidence(item.confidence),needsReview:true,readAs:aiText(item.readAs||item.value,120)||null,note:aiText(item.reason,200)});
+ }
+ aiAudit(block,record,fields,warnings);
+ const extra=Array.isArray(block.warnings)?block.warnings.slice(0,20).map(x=>aiText(x,400)).filter(Boolean):[];
+ const all=[...new Set([...extra,...warnings])];
+ // Faqet PARA/PAS: vetëm nga ajo që është shenjuar; kur mungon, nuk shpiket.
+ const pages={front:positiveIndex(block.pages?.front),back:positiveIndex(block.pages?.back)};
+ const fieldPages=Object.entries(fields).filter(([,field])=>field.page).map(([id,field])=>[id,field.page]);
+ if(!pages.front){const front=fieldPages.filter(([id])=>AI_FRONT_AREAS.test(fields[id].formArea||'')).map(([,page])=>page);if(front.length)pages.front=Math.min(...front)}
+ if(!pages.back){const back=fieldPages.filter(([id])=>AI_BACK_AREAS.test(fields[id].formArea||'')).map(([,page])=>page);if(back.length)pages.back=Math.max(...back)}
+ if(pages.front&&pages.back&&pages.back<pages.front)warnings.push(`Faqja PAS (${pages.back}) është para faqes PARA (${pages.front}); kontrollo rendin e faqeve.`);
+ const misordered=Object.entries(fields).find(([id,field])=>field.page&&pages.front&&pages.back&&
+  ((/^weighings\.[456]\./.test(id)&&field.page<pages.back)||(/^weighings\.[123]\./.test(id)&&field.page>pages.front)));
+ if(misordered)all.push(`Vlera “${misordered[1].formArea}” u shenjua në faqen ${misordered[1].page}, ndërsa tabela i përket faqes tjetër. Kontrollo rendin e faqeve.`);
+ const needsReview=uncertain.length>0||Object.values(fields).some(field=>field.needsReview);
+ const value=id=>aiPublic(fields[id]);
+ const employeeItems=record.employees.map((employee,index)=>({row:index+1,name:value(`employees.${index}.name`),start:value(`employees.${index}.start`),
+  end:value(`employees.${index}.end`),totalHours:value(`employees.${index}.total_hours`),comment:value(`employees.${index}.comment`),signature:value(`employees.${index}.signature`)}))
+  .filter(item=>item.name.value||item.start.value||item.end.value||item.comment.value||item.signature.value||item.start.needsReview||item.end.needsReview||item.name.needsReview);
+ const planItems=record.plan.map((_,index)=>({row:index+1,product:value(`plan.${index}.product`),status:value(`plan.${index}.status`),
+  planned:value(`plan.${index}.planned`),actual:value(`plan.${index}.actual`),unit:value(`plan.${index}.unit`),
+  packaging:value(`plan.${index}.packaging`),client:value(`plan.${index}.client`),comment:value(`plan.${index}.comment`)}))
+  .filter(item=>Object.values(item).some(field=>field&&typeof field==='object'&&(field.value||field.needsReview)));
+ // Peshimi 1–3 shfaqet në faqen PARA dhe 4–6 në faqen PAS; çdo rresht mban
+ // numrin e tabelës së shtypur (`table`) dhe faqen e vet, që të mos përzihen.
+ const weights={peshimi1:[],peshimi2:[],peshimi3:[]};
+ for(const local of [1,2,3,4,5,6])if(tables[local])weights[`peshimi${((local-1)%3)+1}`].push(...tables[local]);
+ const comments=comment.value||comment.needsReview?[{value:comment.value,page:comment.page,formArea:comment.formArea,confidence:comment.confidence,needsReview:comment.needsReview,readAs:comment.readAs}]:[];
+ const reading={formNumber,pages:{front:pages.front||null,back:pages.back||null},
+  header:{nr:value('nr'),date:value('date'),weekday:value('weekday'),isoWeek:value('iso_week'),room:value('room'),
+   responsible:value('responsible.name'),responsibleSignature:value('responsible.signature'),
+   assistant:value('assistant.name'),assistantSignature:value('assistant.signature'),totalHours:value('total_hours')},
+  employees:employeeItems,plan:planItems,weights,printedTotals,comments,uncertain,needsReview,warnings:all};
+ return {record,warnings:all,reading};
+}
+
+// Rezultati i plotë i leximit: dokumenti, formularët dhe regjistrimet.
+function aiReadings(data,info={}){
+ const blocks=aiBlocks(data),forms=[],warnings=[];
+ let proposed=nextNr();
+ for(let index=0;index<blocks.length;index+=1){
+  const empty=!blocks[index].header&&!(blocks[index].plan||[]).some(x=>Object.values(x).some(nonempty))&&
+   !(blocks[index].employees||[]).some(x=>Object.values(x).some(nonempty))&&
+   !(blocks[index].weighings||[]).some(x=>Object.values(x).some(nonempty))&&!nonempty(aiText(blocks[index].comments));
+  if(empty){warnings.push(`Formulari ${index+1} nuk ka asnjë vlerë të lexuar; u hoq nga lista. Kontrollo dokumentin.`);continue}
+  const result=aiReadBlock(blocks[index],forms.length+1,proposed,info);
+  proposed=Math.max(proposed+1,Number(result.record.nr)+1||proposed+1);
+  forms.push(result);warnings.push(...result.warnings);
+ }
+ if(!forms.length)throw new Error('Dokumenti nuk përmban asnjë formular të lexueshëm.');
+ if(forms.length>1)warnings.unshift(`Dokumenti përmban ${forms.length} formularë; secili kontrollohet veçmas dhe asnjë vlerë nuk kalohet nga njëri te tjetri.`);
+ return {document:{fileName:aiText(info.fileName||data?.document?.fileName,200)||null,pageCount:positiveIndex(info.pageCount||data?.document?.page_count),formCount:forms.length},
+  forms,records:forms.map(x=>({record:x.record,warnings:x.warnings}))};
+}
+
+// Përputhshmëri me leximin e një formulari të vetëm (përdoret edhe në teste).
+function aiRecord(data){
+ const result=aiReadings(data);
+ const first=result.forms[0];
+ return {record:first.record,warnings:first.warnings,forms:result.document.formCount>1?result.forms.map(x=>x.reading):[first.reading],document:result.document};
 }
 
 function render(){hideCombo();updateNav();updateDatalists();document.getElementById('top-date').textContent=`${dayName(today())}, ${formatDate(today())}`;view.innerHTML=state.route==='dashboard'?dashboardHTML():state.route==='records'?historyHTML():state.route==='reports'?reportsHTML():state.route==='batch'?batchHTML():state.route==='print'?printHTML():state.route==='catalog'?catalogHTML():(batchIsReview()?batchEditorHTML():editorHTML());if(state.route==='records')renderHistoryList();if(state.route==='print')renderPrintList()}
