@@ -716,6 +716,23 @@ function auditAIObservations(data,r,warnings){
   }
  }
 }
+// Siguria e ulët nuk hidhet poshtë, por nuk lejohet të kalojë pa kontroll.
+// Kjo zbatohet edhe kur modeli harron ta vendosë vetë needsReview=true.
+function aiMarkLowConfidence(fields,uncertain,warnings){
+ const threshold=.65,visit=(field,id)=>{
+  if(!field||typeof field!=='object')return;
+  if(Object.prototype.hasOwnProperty.call(field,'value')){
+   if(nonempty(field.value)&&field.confidence!==null&&field.confidence!==undefined&&field.confidence<threshold){
+    field.needsReview=true;const confidence=Math.round(field.confidence*100);
+    if(!uncertain.some(x=>x.formArea===field.formArea&&x.readAs===field.value))uncertain.push({value:null,page:field.page??null,formArea:field.formArea||id,confidence:field.confidence,needsReview:true,readAs:field.value,note:`Siguri e ulët (${confidence}%).`});
+    warnings.push(`Fusha “${field.formArea||id}” ka siguri të ulët (${confidence}%). Kontrolloje në dokument.`);
+   }
+   return;
+  }
+  for(const [key,child] of Object.entries(field))visit(child,`${id}.${key}`);
+ };
+ for(const [id,field] of Object.entries(fields))visit(field,id);
+}
 // ---------------------------------------------------------------------------
 // Leximi i formularëve BioBes.
 // Një dokument (PDF, foto, Word, Excel) mund të përmbajë disa formularë të
@@ -956,6 +973,7 @@ function aiReadBlock(block,formNumber,proposedNr,info){
   if(!item||typeof item!=='object')continue;
   uncertain.push({value:null,page:aiPageOf(item),formArea:aiText(item.formArea||item.field,120)||'e pasigurt',confidence:aiConfidence(item.confidence),needsReview:true,readAs:aiText(item.readAs||item.value,120)||null,note:aiText(item.reason,200)});
  }
+ aiMarkLowConfidence(fields,uncertain,warnings);
  aiAudit(block,record,fields,warnings);
  const extra=Array.isArray(block.warnings)?block.warnings.slice(0,20).map(x=>aiText(x,400)).filter(Boolean):[];
  const all=[...new Set([...extra,...warnings])];

@@ -118,6 +118,7 @@ sintaksë me `esbuild`. Paneli u provua në jsdom, jo në shfletues të vërtet�
 
 - Një PDF skanimi me 14 faqe, ku çdo formular ka dy faqe, ndahet në 7 grupe nga dy faqe në pajisje. Ndarja është automatike edhe kur zgjedhja mbetet “Çdo PDF = një formular”, nëse PDF-ja ka më shumë se dy faqe.
 - Çdo rezultat ruan `pageOffset`, `formNumber` dhe `pageCount`; faqet e paraqitura në “Vendndodhja e çdo vlere” janë faqet e PDF-së origjinale (1–14), jo faqet relative të copës së ndarë.
+- Vlerat me `confidence < 0.65` tani shënohen automatikisht `needsReview=true`, futen te `uncertain` dhe shfaqin paralajmërim; vlera nuk zëvendësohet dhe nuk hidhet poshtë pa kontroll.
 - Testi i ri sintetik kontrollon 14 faqe → 7 grupe, me offsets `0,2,4,6,8,10,12`. Dokumenti real i përdoruesit nuk futet në repository.
 - Kjo e përmirëson ndarjen dhe gjurmueshmërinë, jo garancinë e saktësisë së Gemini-t. Çdo formular duhet të kontrollohet dhe konfirmohet para ruajtjes.
 
