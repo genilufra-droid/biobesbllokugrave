@@ -1,4 +1,4 @@
-name: BioBes Pages from OCR branch
+name: BioBes Pages
 
 on:
   workflow_dispatch:
