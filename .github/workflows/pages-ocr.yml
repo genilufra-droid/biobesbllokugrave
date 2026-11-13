@@ -8,24 +8,22 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: pages-ocr
-  cancel-in-progress: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
+
+environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout repository
+
+steps:
+      - name: Checkout
         uses: actions/checkout@v4
 
 - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-- name: Upload website artifact
+- name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: BioBes_Paketa_e_Fundit_Kompjuter_Cloud/BioBes_Paketa_e_Fundit/BioBes_Cloud/web
