@@ -119,3 +119,34 @@ sintaksë me `esbuild`. Paneli u provua në jsdom, jo në shfletues të vërtet�
 - Dosjet `BioBes_Paketa_e_Fundit_Kompjuter_Cloud/BioBes_Paketa_e_Fundit/` nuk u sheshuan: workflow-i i Pages dhe ngarkimet me dorë në GitHub mbështeten te kjo rrugë.
 - Në `app.js` dhe `cloud.js` mbetën disa degë `if(importState.review)` në rrugën e ruajtjes dhe të rikuperimit. Pas heqjes së ekranit të vjetër ato nuk ekzekutohen më; nuk u hoqën sepse prekin ruajtjen në cloud dhe nuk mund të provoheshin në shfletues.
 - `tests/fixtures/ocr_baseline_app.js` është një kopje e ngrirë e `app.js` të vjetër, e përdorur nga një test krahasimi “para → pas”.
+
+## 7. Skanim real i provuar (14 nëntor 2026)
+
+U lexua i plotë skanimi real `BioBes_7_formulare_14_faqe.pdf` (14 faqe, imazhe
+me dorëshkrim, faqet e ruajtura të rrotulluara 90°) dhe u kalua nëpër parserin e
+prodhimit `aiReadings`. Rezultati: **7 formularë**, secili me faqen PARA dhe PAS
+(1/2, 3/4, 5/6, 7/8, 9/10, 11/12, 13/14), pa kaluar asnjë vlerë nga një formular
+te tjetri. Të dhënat reale mbahen jashtë repo-s (shih `.gitignore`); testi
+përdor `tests/fixtures/scan_14_pages.json`, të njëjtin lexim të anonimizuar.
+
+**Defekt i gjetur dhe i rregulluar.** Auditimi i totalit të shtypur (SH) lexonte
+vetëm qeliza tekst; kur qelizat vinin si objekte `{value, page, formArea,
+confidence}` — formati që kërkon `SKEMA.md` për `fields` — totali raportohej
+gabimisht si “nuk mund të verifikohet”. Tani `auditAIObservations` i lexon të dy
+format. Pas rregullimit, formulari 001 e verifikon totalin **1476** nga 20 rreshta,
+kurse formulari 004 e kap mospërputhjen **1569 kundrejt 1571** pa e ndryshuar asnjë
+vlerë.
+
+**Kontroll i pavarur nga letra.** Totalet e shkruara në formularë u përdorën si
+provë e leximit: 1476 − 250 = 1226 dhe 1569 − 150 = 1419 dalin nga rreshtat.
+Kështu u kap edhe rreshti 5 i formularit 004 (174 për 172) dhe data e lexuar
+gabim `19.11.2026` (është **9.11.2026**; presja e shtypur “/” ishte lexuar si “1”
+dhe dita “e Hënë” e vërteton).
+
+**Testet.** U shtua `tests/skanim_real.test.js` (7 teste) mbi një fixture me të
+njëjtën strukturë, i lidhur në `npm test`. E gjithë seria kalon (exit 0).
+
+**Çfarë nuk u provua ende.** Leximi u krye me sy (zmadhim 4–16×) dhe jo përmes
+Gemini, sepse skanimi përmban të dhëna reale. Edge Function mbetet e pandërgjuar
+(deploy) dhe matja e saktësisë me Gemini mbetet për t'u bërë me dokumente të
+anonimizuara.

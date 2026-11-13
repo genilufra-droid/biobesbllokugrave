@@ -696,15 +696,18 @@ function auditAIObservations(data,r,warnings){
   if(printed===null||!people.length||people.some(e=>!e.start||!e.end||hoursFor(e)===null))warnings.push('Totali i shkruar i orëve nuk mund të verifikohet nga orët e lexuara. Kontrolloje.');
   else{const calculated=roundHoursTotal(people.reduce((sum,e)=>sum+hoursFor(e),0));if(Math.abs(printed-calculated)>0.005)warnings.push(`Totali i shkruar i orëve (${str(data.total_hours,80)}) nuk përputhet me totalin e llogaritur (${fmt(calculated)}). Kontrolloje.`)}
  }
+ // Qelizat mund të vijnë si tekst ose si objekt {value,page,confidence}; totali
+ // krahasohet gjithmonë me tekstin e lexuar, pavarësisht formatit.
+ const cellText=value=>aiText(value,200);
  const keys=['bags','kg','packaging','sum'],labels={bags:'thasëve',kg:'kilogramëve',packaging:'ambalazhit',sum:'shumës'},sourceByIndex=new Map();
  (Array.isArray(data.weighings)?data.weighings:[]).forEach((g,i)=>sourceByIndex.set(positiveIndex(g?.index)||i+1,g));
  const printedSeen=new Set();
  for(const total of Array.isArray(data.printed_totals)?data.printed_totals:[]){
   const index=positiveIndex(total?.index);if(!index||printedSeen.has(index)){warnings.push('Totali i shtypur ka indeks peshimi të munguar ose të përsëritur. Kontrolloje.');continue}printedSeen.add(index);
   const group=sourceByIndex.get(index),rows=Array.isArray(group?.rows)?group.rows:[];
-  for(const key of keys){if(!nonempty(total[key]))continue;const value=parseAlNumber(looseNumberText(total[key])),raw=rows.map(row=>row?.[key]).filter(nonempty),values=raw.map(x=>parseAlNumber(looseNumberText(x)));
+  for(const key of keys){const printed=cellText(total[key]);if(!nonempty(printed))continue;const value=parseAlNumber(looseNumberText(printed)),raw=rows.map(row=>cellText(row?.[key])).filter(nonempty),values=raw.map(x=>parseAlNumber(looseNumberText(x)));
    if(value===null||!group||!raw.length||values.some(x=>x===null)||(key==='bags'&&(values.some(x=>!Number.isInteger(x))||!Number.isInteger(value)))){warnings.push(`Peshimi ${index}: totali i shtypur i ${labels[key]} nuk mund të verifikohet nga rreshtat e lexuar. Kontrolloje.`);continue}
-   const calculated=values.reduce((sum,x)=>sum+x,0);if(Math.abs(value-calculated)>0.005+1e-9)warnings.push(`Peshimi ${index}: totali i shtypur i ${labels[key]} (${str(total[key],80)}) nuk përputhet me shumën e rreshtave (${fmt(calculated)}). Kontrolloje.`);
+   const calculated=values.reduce((sum,x)=>sum+x,0);if(Math.abs(value-calculated)>0.005+1e-9)warnings.push(`Peshimi ${index}: totali i shtypur i ${labels[key]} (${str(printed,80)}) nuk përputhet me shumën e rreshtave (${fmt(calculated)}). Kontrolloje.`);
   }
  }
 }

@@ -1,0 +1,4 @@
+# Leximet e skanimeve reale përmbajnë të dhëna personale (emra punonjësish,
+# klientë, pesha). Mbahen vetëm lokalisht; nuk hyjnë në repo publik.
+leximet/
+LEXIM_SKANIM_REAL.md
