@@ -63,6 +63,57 @@ Ky dokument zëvendëson tre raportet e vjetra (`RAPORT_AUDITIMI.md`, `RAPORT_OC
 6. **Koka CSP në GitHub Pages** (gjetja 9): ose `<meta http-equiv="Content-Security-Policy">` në `index.html`, ose kalimi i publikimit në Vercel. Kërkon provë në shfletues.
 7. **Vendimi për privatësinë** (gjetja 10): ose punohet vërtet me kopje të anonimizuara, ose kalohet në një plan Gemini me pagesë, ku të dhënat nuk përdoren për trajnim, dhe ndryshohet teksti i konfirmimit.
 
+## 7. Shtesë, 13 nëntor 2026 — dokumenti me disa formularë (faqja PARA / PAS)
+
+**Problemi.** Deri tani dokumenti trajtohej si **një** formular: `aiRecord` e ktheu
+gabim kur Gemini shënonte `multiple_forms: true` dhe i shtynte përdoruesin ta ndajë
+PDF-në me dorë. Nuk kishte asnjë mënyrë për të ditur se në cilën faqe ose në cilën
+zonë të formularit u lexua një vlerë, sa e sigurt është ajo dhe cilat vlera duhen
+kontrolluar.
+
+**Çfarë ndryshoi.**
+
+- **Leximi** (`BioBes_Cloud/web/app.js`): `aiReadings()` kthen `document`
+  (`fileName`, `pageCount`, `formCount`) dhe një listë `forms`. Çdo formular ka
+  `pages.front`, `pages.back`, `header`, `plan`, `employees`, `weights`
+  (`peshimi1..3`), `comments`, `uncertain`, `needsReview` dhe `warnings`. Çdo vlerë
+  mban `value`, `page`, `formArea`, `confidence` (0–1) dhe `needsReview`, plus
+  `readAs` kur teksti i lexuar ndryshon nga vlera e pranuar. Skema e plotë është në
+  `SKEMA.md`.
+- **Ndarja në formularë** bëhet vetëm kur dokumenti e tregon vetë: tabelë peshimi me
+  numër mbi 6, më shumë se një bllok komentesh ose `multiple_forms: true` me faqe të
+  identifikuara. Produktet, punonjësit dhe komentet e tepërta **nuk** shpikën formular
+  të ri; ato raportohen si gabim, si më parë. Formulari i dytë nuk trashëgon numrin,
+  datën, përgjegjësen, punonjësit, peshimet ose komentet e të parit.
+- **Vlera e paqartë** (`[e paqartë]`) nuk bëhet kurrë vlerë për ruajtje: `value`
+  mbetet `null`, `needsReview` bëhet `true` dhe e njëjta gjë shënohet në `uncertain`.
+  Fushat bosh mbeten `null` (jo `0`).
+- **Peshimet.** Peshimi 1–3 është faqja PARA dhe 4–6 faqja PAS. Çdo rresht mban
+  `table` (numri i shtypur) dhe faqen e vet, që peshimi 4 të mos ngatërrohet me
+  peshimin 1. Kolonat (Nr. thas., Kg, Ambalazhi, Shuma) nuk zhvendosen.
+- **Faqja.** Një PDF/Word i tërë lexohet vetëm; nëse përmban disa formularë, çdo
+  formular hapet si **kartë kontrolli më vete** (deri në 10). Paneli i ri
+  **“Vendndodhja e çdo vlere”** tregon fushën, vlerën e lexuar, faqen, zonën,
+  sigurinë dhe `needsReview`, me rreshtat për kontroll të theksuar.
+- **Edge Function**: prompti dhe skema u zëvendësuan me strukturën `document` /
+  `forms` (faqe, `formArea`, `confidence`, `needsReview`, `fields` me ID të
+  dokumentuara). Rregullat e mëparshme ruhen: 12 punonjës, tabelat e peshimit,
+  dyshkronjëshat, `[e paqartë]`, “asnjëherë mos ndrysho një vlerë vetëm që totali të
+  dalë”. Kufiri i testit për gjatësinë e promptit u rrit me vetëdije nga 6 000 në
+  8 000 karaktere.
+
+**Testet.** `cd tests && npm ci && npm test` kalon të gjitha (exit 0). Testet e reja:
+`multi_form.test.js` (8) dhe `reading_panel.test.js` (1). Testi i mëparshëm që
+pritej të hidhte gabim për `multiple_forms` kalon vetëm kur dokumenti nuk jep faqe
+të identifikueshme.
+
+**Çfarë nuk u provua.** Si më parë: asnjë dokument real nuk u dërgua te Gemini dhe
+nuk u mat saktësia. **Edge Function nuk është vendosur (deploy).** Deri para deploy-it
+modeli i vjetër nuk e plotëson `forms`, ndaj faqja sillet me rrugën e vjetër: lexon
+një formular dhe i shton faqen vetëm kur modeli e jep. Testi Deno nuk u ekzekutua
+(Deno nuk ishte i disponueshëm); funksioni u përkthye dhe u kontrollua vetëm për
+sintaksë me `esbuild`. Paneli u provua në jsdom, jo në shfletues të vërtetë.
+
 ## 6. Çfarë mbeti me dashje
 
 - Dosjet `BioBes_Paketa_e_Fundit_Kompjuter_Cloud/BioBes_Paketa_e_Fundit/` nuk u sheshuan: workflow-i i Pages dhe ngarkimet me dorë në GitHub mbështeten te kjo rrugë.

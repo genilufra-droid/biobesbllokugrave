@@ -91,8 +91,10 @@ test('Edge Function accepts Word text and keeps the reading rules', () => {
   assert.match(edge, /startsWith\('SKEDARI WORD:'\)/);
   assert.match(edge, /saktësisht 12 objekte/);
   assert.match(edge, /Asnjëherë mos ndrysho një vlerë vetëm që totali të dalë/);
+  // Udhëzimet e reja shtojnë grupimin e formularëve, faqet PARA/PAS dhe
+  // faqen/zonën/sigurinë për çdo vlerë; kufiri rritet me vetëdije, jo pa kufi.
   const prompt = edge.match(/const prompt=`([\s\S]*?)`;/)[1];
-  assert.ok(!prompt.includes('${') && prompt.length < 6000);
+  assert.ok(!prompt.includes('${') && prompt.length < 8000);
 });
 
 run();

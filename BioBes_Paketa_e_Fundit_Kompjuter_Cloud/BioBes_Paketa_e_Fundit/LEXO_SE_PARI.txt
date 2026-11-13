@@ -6,7 +6,8 @@ BIOBES — BLLOKU DITOR (VERSIONI I VETËM)
 4. Modele_Bosh/ — modeli bosh i miratuar (PDF dhe Excel). Të njëjtat kopje janë brenda web/index.html.
 5. tools/ — skriptet që rindërtojnë modelin. tests/ — testet (nga dosja tests: npm ci, pastaj npm test).
 6. AUDITIM.md — auditimi i fundit: çfarë u fshi, çfarë u ndryshua, çfarë mbetet për t'u bërë.
-7. SHA256SUMS.txt — verifikohet nga kjo dosje me: sha256sum -c SHA256SUMS.txt
+7. SKEMA.md — si ndahet një dokument me disa formularë (faqja PARA/PAS) dhe çfarë do të thotë vlera, faqja, zona, siguria dhe needsReview.
+8. SHA256SUMS.txt — verifikohet nga kjo dosje me: sha256sum -c SHA256SUMS.txt
 
 SI REGJISTROHET NJË FORMULAR
 Hyr → "Lexo formularë" → zgjidh foto, PDF, Excel ose Word (.docx) → "Lexo formularët" → kontrollo çdo fushë → ruaj.
