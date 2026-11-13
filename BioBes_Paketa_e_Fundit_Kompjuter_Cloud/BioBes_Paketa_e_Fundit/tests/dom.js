@@ -52,7 +52,7 @@ function loadApp(appOverride = null, customHook = null) {
   const cloudCode = fs.readFileSync(path.join(web, 'cloud.js'), 'utf8');
   const hook = `
 ;globalThis.__BIOBES__ = {
-  aiRecord, aiReadings, parseAIJson, batchResultsFromWorkbook, prepareGeminiParts, prepareOCRPhoto, optionalCatalog, parseAlNumber, dateFromImport, timeFromImport, fmt,
+  aiRecord, aiReadings, parseAIJson, batchResultsFromWorkbook, batchSplitPdf, prepareGeminiParts, prepareOCRPhoto, optionalCatalog, parseAlNumber, dateFromImport, timeFromImport, fmt,
   setFastWait: () => { batchWait = async (_ms, signal) => { if(signal.aborted) throw new DOMException('aborted','AbortError'); }; cloudLastAiStart=0; },
   cloudForgotShow, cloudForgotRequest, generatePrintablePDF, editorHTML, batchEditorHTML, cloudGemini, readApprovedExcel, blankRecord,
   normalizeRecord, generateFormWorkbook, planPrintPages,

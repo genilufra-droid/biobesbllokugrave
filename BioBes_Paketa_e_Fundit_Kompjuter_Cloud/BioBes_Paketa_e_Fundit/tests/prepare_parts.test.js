@@ -10,7 +10,7 @@ const { loadApp, root } = require('./dom.js');
 const { test, run } = require('./test_runner.js');
 
 const dom = loadApp();
-const { prepareGeminiParts } = dom.window.__BIOBES__;
+const { prepareGeminiParts, batchSplitPdf } = dom.window.__BIOBES__;
 const { File, AbortController } = dom.window;
 const PDFLib = dom.window.PDFLib;
 
@@ -33,6 +33,17 @@ test('prepares a one-page PDF as inline data', async () => {
   const parts = await prepareGeminiParts([file], new AbortController().signal, new Map());
   assert.ok(parts.some((p) => p.inlineData && p.inlineData.mimeType === 'application/pdf'));
   assert.ok(parts.some((p) => p.text && /one-page\.pdf/.test(p.text)));
+});
+
+test('splits a 14-page scanned PDF into seven two-page forms', async () => {
+  const pdf = await PDFLib.PDFDocument.create();
+  for (let i = 0; i < 14; i += 1) pdf.addPage();
+  const file = new File([await pdf.save()], 'seven-forms.pdf', { type: 'application/pdf' });
+  const groups = await batchSplitPdf(file, 2, new AbortController().signal);
+  assert.equal(groups.length, 7);
+  assert.deepEqual(Array.from(groups, (x) => x.pageOffset), [0, 2, 4, 6, 8, 10, 12]);
+  assert.deepEqual(Array.from(groups, (x) => x.formNumber), [1, 2, 3, 4, 5, 6, 7]);
+  assert.ok(groups.every((x) => x.pageCount === 14 && x.file.name.endsWith('.pdf')));
 });
 
 test('prepares the approved Excel as text, without inline media', async () => {
