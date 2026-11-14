@@ -354,3 +354,28 @@ përsëritur, tekst, jashtë tabelës, vetëm tabela e keqe shënohet, gjashtë 
 të sakta mbeten gjashtë, dhe skanimi real pa regres. Testi i vjetër
 `rejects duplicate weighing indexes` u zëvendësua me `keeps both tables…`, sepse
 mbrojnte sjelljen që e humbte të dhënën.
+
+### 7.8 Pse vazhdoi gabimi pas rregullimit (mësim për publikimin)
+
+Pas #22 gabimi *“Numrat e tabelave të peshimit janë të paqartë”* vazhdoi në faqen
+live, edhe pse `main` e kishte rregullimin.
+
+**Shkaku: publikimi mungonte.** Workflow-i “BioBes Pages” është vetëm
+`workflow_dispatch`; bashkimi i PR-së **nuk e nis vetë**. Publikimi i fundit
+ishte 48 minuta para bashkimit, pra live-i shërbente ende kodin e vjetër.
+
+**Rregull praktik:** pas çdo bashkimi që prek `BioBes_Cloud/web/`, duhet nisur
+me dorë “BioBes Pages”, dhe verifikuar që `headSha` i ekzekutimit është commit-i
+i ri — jo vetëm që statusi është `success`.
+
+### 7.9 Një formular me problem nuk rrëzon grupin
+
+Edhe pas 7.7 mbeti një rrugë e gjerë: `aiReadBlock` hidhte gabim për çdo tepricë
+të vërtetë (mbi 3 produkte, mbi 12 punonjës, mbi 60 tabela), dhe `aiReadings`
+e linte të hidhej — duke humbur **të gjithë formularin** e jo vetëm pjesën
+problematicе.
+
+Tani çdo formular lexohet veçmas brenda `try`: nëse dështon, shënohet
+*“Formulari N nuk u lexua: [arsyeja]. Të tjerët e grupit u ruajtën”*, formulaрët
+e tjerë mbeten, dhe shënimi shfaqet te kartat e ruajtura (jo vetëm në listën e
+përgjithshme, ku nuk shihej).

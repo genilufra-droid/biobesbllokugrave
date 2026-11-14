@@ -95,4 +95,18 @@ test('skanimi real nuk ndryshoi', () => {
   assert.equal(kg(3), 1571);
 });
 
+test('një formular me problem nuk i hedh poshtë të tjerët e grupit', () => {
+  // Formulari 2 ka 5 produkte pa shenja formaresh të tjerë: dështon vetëm ai.
+  const data = {
+    forms: [
+      { record_number: '001', header: {}, weighings: [{ index: 1, rows: [{ row: 1, kg: '180' }] }] },
+      { record_number: '002', header: {}, plan: [{ product: 'a' }, { product: 'b' }, { product: 'c' }, { product: 'd' }, { product: 'e' }], weighings: [] },
+    ],
+  };
+  const read = api.aiReadings(plain(data), { fileName: 'x.pdf', pageCount: 4 });
+  assert.equal(read.forms.length, 1, 'formulari i mirë ruhet');
+  assert.equal(read.forms[0].record.weighings[0].rows[0].kg, '180');
+  assert.ok(read.forms[0].warnings.some((w) => /Formulari 2 nuk u lexua/.test(w)), 'shënimi shfaqet te kartat');
+});
+
 run();

@@ -1336,18 +1336,30 @@ function aiReadBlock(block,formNumber,proposedNr,info){
 
 // Rezultati i plotë i leximit: dokumenti, formularët dhe regjistrimet.
 function aiReadings(data,info={}){
- const blocks=aiBlocks(data),forms=[],warnings=[];
+ const blocks=aiBlocks(data),forms=[],warnings=[],skipped=[];
  let proposed=nextNr();
  for(let index=0;index<blocks.length;index+=1){
   const empty=!blocks[index].header&&!(blocks[index].plan||[]).some(x=>Object.values(x).some(nonempty))&&
    !(blocks[index].employees||[]).some(x=>Object.values(x).some(nonempty))&&
    !(blocks[index].weighings||[]).some(x=>Object.values(x).some(nonempty))&&!nonempty(aiText(blocks[index].comments));
   if(empty){warnings.push(`Formulari ${index+1} nuk ka asnjë vlerë të lexuar; u hoq nga lista. Kontrollo dokumentin.`);continue}
-  const result=aiReadBlock(blocks[index],forms.length+1,proposed,info);
+  // Një formular me problem nuk guxon t'i hedhë poshtë të tjerët e të njëjtit grup:
+  // lexohet veçmas dhe, nëse dështon, raportohet me emër e arsye, pa prishur pjesën tjetër.
+  let result;
+  try{result=aiReadBlock(blocks[index],forms.length+1,proposed,info)}
+  catch(e){
+   const note=`Formulari ${index+1} nuk u lexua: ${str(e?.message||'gabim i panjohur',200)} Të tjerët e grupit u ruajtën; kontrollo këtë formular në dokument.`;
+   warnings.push(note);
+   // Duhet të duket edhe te kartat e ruajtura, jo vetëm në listën e përgjithshme.
+   skipped.push(note);
+   continue;
+  }
   proposed=Math.max(proposed+1,Number(result.record.nr)+1||proposed+1);
   forms.push(result);warnings.push(...result.warnings);
  }
- if(!forms.length)throw new Error('Dokumenti nuk përmban asnjë formular të lexueshëm.');
+ if(!forms.length)throw new Error(`Dokumenti nuk përmban asnjë formular të lexueshëm.${skipped.length?' '+skipped[0]:''}`);
+ // Shënimi për formularin e dështuar shfaqet te formulari i parë i ruajtur.
+ if(skipped.length&&forms.length)forms[0].warnings.push(...skipped);
  if(forms.length>1)warnings.unshift(`Dokumenti përmban ${forms.length} formularë; secili kontrollohet veçmas dhe asnjë vlerë nuk kalohet nga njëri te tjetri.`);
  return {document:{fileName:aiText(info.fileName||data?.document?.fileName,200)||null,pageCount:positiveIndex(info.pageCount||data?.document?.page_count),formCount:forms.length},
   forms,records:forms.map(x=>({record:x.record,warnings:x.warnings}))};
