@@ -1351,6 +1351,17 @@ function aiReadBlock(block,formNumber,proposedNr,info){
    printedTotals[`peshimi${local<=3?local:local-3}`]=columns;
   }
  }
+ // Totali i shtypur (SH) mund të vijë vetëm te `printed_totals` dhe jo brenda
+ // tabelës. Pa këtë urë, kontrolli SHUMA = KG − Ambalazhi do të krahasonte me
+ // shumën e rreshtave, ndërsa letra ka total të shtypur — dhe diferenca e vërtetë
+ // nuk do të shihej. Vlera mbahet siç është lexuar; nuk llogaritet këtu.
+ for(const total of Array.isArray(block.printed_totals)?block.printed_totals:[]){
+  if(!total||typeof total!=='object')continue;
+  const index=positiveIndex(total.index);if(!index||index>6)continue;
+  const group=record.weighings[index-1];if(!group)continue;
+  const saved=group.printedTotal||(group.printedTotal={bags:'',kg:'',packaging:'',sum:''});
+  for(const key of ['bags','kg','packaging','sum']){const value=aiText(total[key],80);if(value&&!nonempty(saved[key]))saved[key]=value}
+ }
  // Komentet e faqes së pasme.
  const comment=get('comments',block.comments,'KOMENTE');
  record.comments=comment.value||'';

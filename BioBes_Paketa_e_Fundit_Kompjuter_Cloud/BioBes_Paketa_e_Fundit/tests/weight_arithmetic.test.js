@@ -149,4 +149,35 @@ test('regjistrimi i ruajtur mban totalin e shtypur pas normalizimit', () => {
   assert.ok(find(issues, /1156/), 'kontrolli duhet të punojë edhe pas rihapjes së formularit');
 });
 
+test('totali i shtypur merret edhe kur vjen vetëm te printed_totals', () => {
+  // Rasti real i skanimit: tabela ka vetëm rreshtat, ndërsa totali SH lexohet
+  // veçmas. Pa këtë urë kontrolli do të krahasonte me shumën e rreshtave dhe
+  // diferenca e letrës (1476 − 320 ≠ 122) nuk do të shihej kurrë.
+  const data = {
+    forms: [{
+      record_number: '001',
+      header: {},
+      weighings: [{ index: 1, product: 'Fenë', rows: [{ row: 1, kg: '1476', packaging: '320', sum: '122' }] }],
+      printed_totals: [{ index: 1, kg: '1476', packaging: '320', sum: '122' }],
+    }],
+  };
+  const form = api.aiReadings(data, { fileName: 'x.pdf', pageCount: 2 }).forms[0];
+  assert.equal(form.record.weighings[0].printedTotal.sum, '122');
+  assert.equal(form.record.weighings[0].printedTotal.packaging, '320');
+});
+
+test('KG − Ambalazhi kundër totalit të shtypur të veçantë: raportohet diferenca', () => {
+  const data = {
+    forms: [{
+      record_number: '001',
+      header: {},
+      weighings: [{ index: 1, product: 'Fenë', rows: [{ row: 1, kg: '1476', packaging: '320', sum: '1156' }] }],
+      printed_totals: [{ index: 1, kg: '1476', packaging: '320', sum: '122' }],
+    }],
+  };
+  const form = api.aiReadings(data, { fileName: 'x.pdf', pageCount: 2 }).forms[0];
+  assert.ok(find(form.warnings, /1156/), form.warnings.join(' | '));
+  assert.ok(find(form.warnings, /122/), form.warnings.join(' | '));
+});
+
 run();

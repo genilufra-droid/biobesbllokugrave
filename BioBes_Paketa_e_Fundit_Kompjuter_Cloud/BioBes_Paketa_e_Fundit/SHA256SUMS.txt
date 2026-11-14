@@ -5,7 +5,7 @@ a24296e54891528a05b1668c075e50f957cc87eb2fb03d64e8eebe0de693f0a9  ./BioBes_Cloud
 1de6de5d3f18b7efe8467314e7ffcd1d6a15f91610da8154d137c353d1c67033  ./BioBes_Cloud/supabase/config.toml
 83652c4b9a258a9e8c1fcaf70b30e87839c1a51c85c3a2c53d8fde2b0527f9ad  ./BioBes_Cloud/supabase/functions/biobes-read-form/index.ts
 cf19db73f06c8f87f42cbad9515e71682ebd813a45a01b275d0179a56b88e4f2  ./BioBes_Cloud/supabase/migrations/20261104000000_biobes_daily.sql
-cea5932c99bab272eb0a2d79ebe54b5d761b9d6e046a9dc5fb53c15d845a8660  ./BioBes_Cloud/web/app.js
+f6f1ff65a34160ae637c1cd3004602b9c867f95c3f09a36867a0b83bf3cd2df8  ./BioBes_Cloud/web/app.js
 6cadf31ae07de09ce95fecc1ceb528ded78415a929e3693a8223a21513b34b97  ./BioBes_Cloud/web/cloud-config.js
 41d2d9f529cce3e7e7273d84939aec7f56ea39870ac3a963e62a12a967769386  ./BioBes_Cloud/web/cloud.js
 fc87ad42d9f5a7eb1f36ae995737ff519893e2018da38f307314eec80ca066d9  ./BioBes_Cloud/web/index.html
@@ -62,7 +62,7 @@ eaccfc0888545a0c0d14390ccb651afabfa2442899a3c3a08241f99a2087480a  ./tests/sql_ch
 c67dadf523408d6e69a5567d951d6298f8fc9a9aa6fc23acce74769254f40171  ./tests/timecard.test.js
 2a6e446f632ca6c028638c44976f63d404044eec05e1b442f6a579cefc86d8ea  ./tests/timecard_ui.test.js
 6924deddd9f7f340e6830c31e09dd51a4379a475516972b0b036596140e464c7  ./tests/ui.spec.js
-5253497876486285dc756c5db7e376ab95ad083a46aa9896abb408efe2996038  ./tests/weight_arithmetic.test.js
+319b7bbabe60ffa6150e39fee98eb14e637420c5d929051780e6be2bc22d82d8  ./tests/weight_arithmetic.test.js
 ba7bfa5a05699630e09ce46fa5cf0bf327bb9067c83fb70569c83c978d814b4f  ./tests/weight_row_numbers.test.js
 ca401c49d7dc1a1f337d1d0796f56b71e6c96e77286637cbd1a5e6f86958f67f  ./tests/weight_table_numbers.test.js
 b10491affbff307d7e81b6c4f064a86c4fedd54553714ac46c1373662cb75447  ./tests/word_import.test.js
