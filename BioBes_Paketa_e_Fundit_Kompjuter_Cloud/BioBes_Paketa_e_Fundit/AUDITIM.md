@@ -638,3 +638,46 @@ niste — as leximi, as “Kontrollo pa Gemini”.
 - Grupe të pavarura (dita1, dita2) nuk bashkohen.
 
 **Verifikimi:** `npm test` → **24 suite, 209 teste, zero dështime**.
+
+---
+
+## 7.17 Tubacioni i portës: sa pranohet automatikisht dhe sa është e saktë
+
+Matjet e §7.15 dhanë saktësi mesatare (80%). Kjo matje përgjigjet pyetjes që
+vërtetonte mangësi: **a funksionon porta e abstensionit** (konsensus + prag
+besueshmërie) dhe çfarë çmimi ka në mbulim?
+
+**Tubacioni (i gjithi automatik, pa koordinata të shkruara me dorë):**
+
+1. Zbulim i tabelës: vijat horizontale/vertikale gjenden nga dendësia e pixelet.
+2. Prerje e qelizës KG midis dy vijave vertikale.
+3. **Tri prerje të pavarura** (pad 2/4 px, zmadhim 1×/2×/3×) → tre lexime.
+4. **Konsensus**: pranohet vetëm vlera ku pajtohen të tri prerjet.
+5. **Prag besueshmërie** mbi mesataren e leximeve.
+6. Pa konsensus ose nën prag → `needsReview`, asnjë vlerë.
+
+**Rezultati mbi 2 formulare reale (30 qeliza KG, 2 ditë, shkrimtarë të ndryshëm):**
+
+| Prag | Pranuar | Mbulim | Saktësi | Gabime të pranuara |
+|---|---|---|---|---|
+| 0,50 | 8/30 | 27% | 88% | 1 |
+| 0,80 | 8/30 | 27% | 88% | 1 |
+| 0,92 | 6/30 | 20% | 83% | 1 |
+| **0,98** | **3/30** | **10%** | **100%** | **0** |
+
+**Konkluzioni — dhe ai është kundër idesë së leximit lokal:**
+
+- Për **zero gabime të pranuara** duhet prag 0,98, dhe atëherë mbulimi është
+  **10%** (3 nga 30 qeliza). Pjesa tjetër 90% duhet dorazi — pra sistemi nuk
+  kursen punë, vetëm shton një shtresë që duhet kontrolluar gjithsesi.
+- Në çdo prag që jep mbulim të dobishëm (≥20%), del **të paktën një gabim i
+  pranuar me besim të plotë** — pikërisht rreziku që §7.15 paralajmëroi.
+- Shpërndarja e besueshmërisë për lexime të sakta dhe të gabuara **mbivendoset**:
+  rreshti `105 → 705` u lexua njësoj nga të tri prerjet me 98% besueshmëri.
+  Konsensusi i prerjeve nuk e kap, sepse gabimi është sistematik, jo i rastësishëm.
+
+**Përfundim për prodhimin:** rruga manuale (“Kontrollo pa Gemini”) mbetet e
+vetmja që nuk shpik vlera, dhe ky tubacion **nuk** hyn në faqen live. Ai do të
+kishte kuptim vetëm si *parapopullim* me `needsReview` të detyruar për 90% —
+që është më shumë punë se plotësimi nga zero, sepse përdoruesi duhet të
+kontrollojë edhe atë që sistemi “pranoi”.
