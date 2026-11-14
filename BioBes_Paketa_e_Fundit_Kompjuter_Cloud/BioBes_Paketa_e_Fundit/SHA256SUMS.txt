@@ -1,4 +1,4 @@
-a83b7e34fbefd7ee9f71fa5d401282ecbabcef890ce2b11d6a7510c4071a9778  ./AUDITIM.md
+2e2d021afb9ceef8082694e15f663fd16ed46a61f84b4d8b92ea675a490db9ed  ./AUDITIM.md
 7565e8ecca183674fd2f94fbb8f3c644d6088756338601714fc4d57b46c6c289  ./BioBes_Cloud/.gitignore
 d112f6e9fd30f5c1a1ecf112e3e278169216dbdd86fb643a1665210185d51e30  ./BioBes_Cloud/UDHEZUESI.md
 a24296e54891528a05b1668c075e50f957cc87eb2fb03d64e8eebe0de693f0a9  ./BioBes_Cloud/supabase/authorize_owner.sql
@@ -7,7 +7,7 @@ a24296e54891528a05b1668c075e50f957cc87eb2fb03d64e8eebe0de693f0a9  ./BioBes_Cloud
 cf19db73f06c8f87f42cbad9515e71682ebd813a45a01b275d0179a56b88e4f2  ./BioBes_Cloud/supabase/migrations/20261104000000_biobes_daily.sql
 090af33c307a0c1941259079b22bf88a15a0f8751b573fd8b540294dc126107f  ./BioBes_Cloud/web/app.js
 6cadf31ae07de09ce95fecc1ceb528ded78415a929e3693a8223a21513b34b97  ./BioBes_Cloud/web/cloud-config.js
-d007550f58a59542b2c14ac28c8b14e922a11685d4c68ee8e08b69cc2f06455e  ./BioBes_Cloud/web/cloud.js
+38f71d845d4ba554427a684c50bfa19a87c7867c42421c509895e897ad5bc1c9  ./BioBes_Cloud/web/cloud.js
 ed9848d6e60f978d230629b83eb6eee4067e741e6a708651bd43a5e859b19f5c  ./BioBes_Cloud/web/index.html
 848d4170655834607781edfa7fd60558a8ee83c8d3c9317125e5564df200f99d  ./BioBes_Cloud/web/notification-sw.js
 051907ac3169206e2b2f42bdeb1c2b3dee0651b8b114bf8b698fe2e25afef894  ./BioBes_Cloud/web/reset-password.html
@@ -28,7 +28,7 @@ fe1ff3e81a354801a4341a49653287a905a577d59dc73a24b0574188e3eafbe1  ./Modele_Bosh/
 a1b9b3aabbabe90958f5b13afee01981b529713cc1a54d5109e4ba88c5b0c77f  ./tests/.gitignore
 b755b0c4e981e99ab415c2091e3f5062b8ae532fa005c79bba6de489de6b10eb  ./tests/ai_record.test.js
 42bbbb7a9ad6ca818f2e6382d1874f1ab9c9b1bbe4ca697c47f939e72c1e0b6c  ./tests/attendance.test.js
-f0269cb330c13f56a3d361d7c02a498a7a98c7a1008adfcaf54aa199d7269b74  ./tests/batch_resume.test.js
+ee011570f979e3b8af97e224f60e531d9f3d585cbfb3791fae335292fc5c1910  ./tests/batch_resume.test.js
 9081b2cc598e5ca90f08418da165fd5f647a3c0342d77736b0a9e7016601c5bb  ./tests/batch_workbook.test.js
 3e7265cd96d596f6f7a1c32012603b1b257a6592d39b4c56201167fc15668711  ./tests/catalog_edit.test.js
 bf7cafd61e83691bb4bef760c4845af08de67b6b04303166451ded5020098586  ./tests/cloud_gemini.test.js

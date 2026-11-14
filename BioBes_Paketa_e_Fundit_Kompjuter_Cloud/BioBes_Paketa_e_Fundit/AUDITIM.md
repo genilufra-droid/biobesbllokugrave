@@ -469,3 +469,27 @@ Tani:
 **Testet:** `tests/batch_resume.test.js` — 6 teste: sa grupe mbeten, që
 riprovimi prek vetëm të palexuarit, që butoni shfaqet vetëm kur ka kuptim, që
 rezultatet e lexuara nuk hidhen, dhe që mesazhi thotë rrugën.
+
+### 7.13 Kërkesa për lexim lokal pa Gemini (15 nëntor 2026)
+
+Përdoruesi kërkoi ta heqë varësinë nga Gemini: *“ma hiq, kaloj lokal, jo Gemini”*.
+
+**Prova e bërë para se të premtohej gjë.** Nga PDF-ja reale u nxor faqja 1
+(imazh 1754 × 1240, JPEG i mbështjellë në Flate) dhe u provua OCR lokal:
+
+- **Nuk ka shtresë teksti:** PDF-ja nuk përmban asnjë `/Font` — janë 14 imazhe të
+  skanuara. Pra nuk mjafton të “lexosh tekstin e PDF-së”; duhet OCR mbi imazh.
+- **Tesseract.js** (motori OCR që punon në pajisje) nuk niset në këtë mjedis:
+  binarët WASM dhe të dhënat e gjuhës nuk arrihen (rrjeti i hapur kufizohet te
+  npm/PyPI/GitHub). Prova mbeti pa përfunduar — **nuk u mat saktësia**.
+- Dorëshkrimi në këto formularë është shkrim i lidhur shqip mbi tabelë; OCR
+  klasik e lexon shumë dobët. Për krahasim, Gemini e lexon me gabime të pakta,
+  por edhe ai gabon (174 vs 1569, tabelat 5–7).
+
+**Vendimi:** nuk u dynd asnjë motor i pasigurt në faqen live që lexon të dhëna
+reale pune. Në vend të tij, mesazhi i kuotës tani e drejton përdoruesin te
+“Lexo në pajisje” (shih 7.14) dhe te rruga e vazhdimit.
+
+**Kushti për lexim lokal që ia vlen:** duhet të mbajë të njëjtat rregulla — asnjë
+vlerë e hamendësuar, `[e paqartë]` për atë që nuk lexohet, `needsReview`, dhe
+një masë saktësie e matur mbi skanimin real përpara se të shpallet i gatshëm.

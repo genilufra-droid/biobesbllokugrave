@@ -80,10 +80,11 @@ test('grupet e lexuara ruajnë rezultatet gjatë ndalesës për kuotë', () => {
   assert.equal(T.batchState.groups[0].results.length, 1, 'rezultati i lexuar nuk hidhet');
 });
 
-test('mesazhi i kuotës tregon si të vazhdohet, jo vetëm se mbaroi', () => {
+test('mesazhi i kuotës tregon si të vazhdohet menjëherë, jo vetëm se mbaroi', () => {
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'BioBes_Cloud/web/cloud.js'), 'utf8');
   assert.match(src, /Rinovohet pas mesnate/);
-  assert.match(src, /vetëm të mbeturit kërkojnë kuotë të re/);
+  // Duhet të tregojë edhe rrugën e menjëhershme, jo vetëm të presësh nesër.
+  assert.match(src, /Lexo në pajisje/);
 });
 
 run();
