@@ -14,14 +14,22 @@ const { prepareGeminiParts } = dom.window.__BIOBES__;
 const { File, AbortController } = dom.window;
 const PDFLib = dom.window.PDFLib;
 
-test('rejects a PDF with more than six pages', async () => {
+// Mbi 6 faqe nuk hidhet më gabim: PDF-ja e gjatë ndahet para se të dërgohet
+// (shih large_pdf.test.js). prepareGeminiParts merr vetëm pjesë deri në 6 faqe.
+test('prepares every page of a PDF up to the per-call limit', async () => {
   const pdf = await PDFLib.PDFDocument.create();
-  for (let i = 0; i < 7; i += 1) pdf.addPage();
+  for (let i = 0; i < 6; i += 1) pdf.addPage();
   const bytes = await pdf.save();
-  const file = new File([bytes], 'seven-pages.pdf', { type: 'application/pdf' });
+  const file = new File([bytes], 'six-pages.pdf', { type: 'application/pdf' });
+  const parts = await prepareGeminiParts([file], new AbortController().signal, new Map());
+  assert.ok(parts.some((p) => p.inlineData && p.inlineData.mimeType === 'application/pdf'));
+});
+
+test('a corrupt PDF reports a clear error', async () => {
+  const file = new File([new Uint8Array([1, 2, 3, 4])], 'broken.pdf', { type: 'application/pdf' });
   await assert.rejects(
     () => prepareGeminiParts([file], new AbortController().signal, new Map()),
-    /më shumë se 6 faqe/,
+    /nuk u hap/,
   );
 });
 

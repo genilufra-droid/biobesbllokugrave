@@ -150,3 +150,29 @@ njëjtën strukturë, i lidhur në `npm test`. E gjithë seria kalon (exit 0).
 Gemini, sepse skanimi përmban të dhëna reale. Edge Function mbetet e pandërgjuar
 (deploy) dhe matja e saktësisë me Gemini mbetet për t'u bërë me dokumente të
 anonimizuara.
+
+### 7.1 PDF-ja e skanuar me shumë faqe (i njëjti rast, rregullim)
+
+**Defekti.** `prepareGeminiParts` hidhte gabim për çdo PDF mbi 6 faqe
+(“PDF … ka më shumë se 6 faqe. Zgjidh faqet e një formulari.”). Skanimi real i
+këtij rasti ka 14 faqe, pra **do të ishte refuzuar i tëri** — leximi i bërë me sy
+nuk tregonte se çfarë bën aplikacioni me një skanim të vërtetë. Kufizimi ishte i
+kërkesës (numri i faqeve për thirrje), por ishte vënë si kufi i dokumentit.
+
+**Rregullimi.** Një PDF që kalon 6 faqe ndahet tani automatikisht në pjesë me
+`PDFLib` (`slicePdf`), lexohet pjesë për pjesë (`planReadingCalls`) dhe
+ribashkohet si **një dokument** (`mergeReadingChunks`):
+
+- faqet e çdo pjese zhvendosen te numrat e PDF-së (`shiftPages`): 1 … 14, jo 1 … 6;
+- rreshtat e peshimit, punonjësit dhe planet e një formulari të prerë mes dy
+  pjesëve bashkohen te formulari i vetëm, vetëm kur formulari i mëparshëm mbaron
+  pikërisht aty dhe pjesa e re nuk ka identitet (numër/fusha). Nuk ka hamendje:
+  një formular me numër nuk bashkohet kurrë me një tjetër;
+- kufiri i vërtetë mbetet 20 faqe (10 formularë × 2), me mesazh të qartë.
+
+**Prova.** `tests/large_pdf.test.js` (11 teste) ndërton PDF të vërtetë me
+`PDFLib` dhe kalon leximin e prodhimit deri te `aiReadings`; rrjeti
+zëvendësohet, `cloudGemini` xhiron i paprekur. Me fixture-in e skanimit real
+(14 faqe), leximi i ndarë në 6+6+2 jep **të njëjtin rezultat** si leximi direkt:
+7 formularë, faqet 1–14, 1476 kg te formulari 001 dhe 1571 kg te 004, pa rreshta
+të humbur ose të dyfishuar.

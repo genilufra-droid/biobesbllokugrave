@@ -56,6 +56,7 @@ function loadApp(appOverride = null, customHook = null) {
   setFastWait: () => { batchWait = async (_ms, signal) => { if(signal.aborted) throw new DOMException('aborted','AbortError'); }; cloudLastAiStart=0; },
   cloudForgotShow, cloudForgotRequest, generatePrintablePDF, editorHTML, batchEditorHTML, cloudGemini, readApprovedExcel, blankRecord,
   normalizeRecord, generateFormWorkbook, planPrintPages,
+  planReadingCalls, slicePdf, shiftPages, mergeReadingChunks, readFilesWithGemini,
   wordForAI, fileKind, checkImportFiles, batchHTML, updateNav, render,
   state, db, cloud, batchState, importState,
 };`;

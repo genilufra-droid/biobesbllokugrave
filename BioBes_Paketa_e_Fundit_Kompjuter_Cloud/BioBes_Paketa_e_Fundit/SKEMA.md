@@ -98,6 +98,12 @@ të mos ngatërrohet me peshimin 1 të faqes PARA.
 - Në **Lexo formularë**, një PDF ose Word i tërë lexohet vetëm. Nëse përmban disa
   formularë, çdo formular hapet si **kartë kontrolli më vete** (deri në 10), me
   numrin e vet, paralajmërimet e veta dhe faqet PARA/PAS.
+- **PDF-ja e skanuar nuk ka kufi 6 faqesh.** Një skanim me shumë faqe (p.sh. 7
+  formularë në 14 faqe) dërgohet për lexim në pjesë nga 6 faqe dhe ribashkohet
+  si **një dokument i vetëm**: numrat e faqeve mbeten ata të PDF-së (1 … N), jo
+  të pjesës. Kufiri i vërtetë është 20 faqe (10 formularë × 2); mbi kaq, skanimi
+  ndahet në dy skedarë. Kur një formular pritet mes dy pjesëve, peshimet e tij
+  bashkohen te formulari i vetëm — nuk hapet formular i rremë.
 - Paneli **“Vendndodhja e çdo vlere”** tregon për çdo vlerë: fushën, vlerën e lexuar,
   faqen, zonën e formularit, sigurinë dhe `needsReview`. Rreshtat për kontroll janë të
   theksuar.

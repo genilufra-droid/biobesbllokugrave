@@ -425,9 +425,11 @@ function batchGenericFiles(files,workbook){
 }
 async function batchGemini(g,signal,catalog){
  const photoWarnings=[];
- const {safe,cache}=batchGenericFiles(g.files,g.workbook),parts=await prepareGeminiParts(safe,signal,cache,photoWarnings,catalog);if(signal.aborted)throw new DOMException('aborted','AbortError');const timer=setTimeout(()=>batchState.abort?.abort(),140000);let response;
- const started=Date.now();try{response=await cloudGemini(parts,signal)}finally{clearTimeout(timer)}
- g.seconds=Math.max(1,Math.round((Date.now()-started)/1000));const data=parseAIJson(response),read=aiReadings(data,{fileName:g.files.map(f=>f.name).join(' · '),pageCount:data?.document?.page_count });g.raw={...data,reading:{document:{fileName:g.files.map(f=>f.name).join(' · '),pageCount:read.document.pageCount,formCount:read.document.formCount},forms:read.forms.map(x=>x.reading)}};
+ const {safe,cache}=batchGenericFiles(g.files,g.workbook);
+ const started=Date.now();
+ const data=await readFilesWithGemini(safe,signal,catalog,photoWarnings,cache);
+ if(signal.aborted)throw new DOMException('aborted','AbortError');
+ g.seconds=Math.max(1,Math.round((Date.now()-started)/1000));const read=aiReadings(data,{fileName:g.files.map(f=>f.name).join(' · '),pageCount:data?.document?.pageCount??data?.document?.page_count });g.raw={...data,reading:{document:{fileName:g.files.map(f=>f.name).join(' · '),pageCount:read.document.pageCount,formCount:read.document.formCount},forms:read.forms.map(x=>x.reading)}};
  return read.forms.map(({record,warnings,reading},index)=>{const merged=[...warnings,...photoWarnings];if(g.workbook?.Sheets?.TE_DHENAT_PLOTA)merged.push('Të dhënat e fshehura të Excel-it nuk lexohen nga AI; kontrollo dokumentin origjinal.');return {record,warnings:merged,reading,formNumber:reading.formNumber,formCount:read.document.formCount,missingNumber:!reading.header.nr.value}})
 }
 function batchWait(ms,signal){return new Promise((resolve,reject)=>{if(signal.aborted){reject(new DOMException('aborted','AbortError'));return}const timer=setTimeout(()=>{signal.removeEventListener('abort',cancel);resolve()},ms);function cancel(){clearTimeout(timer);reject(new DOMException('aborted','AbortError'))}signal.addEventListener('abort',cancel,{once:true})})}
@@ -657,12 +659,151 @@ async function prepareOCRPhoto(file,signal,warnings){
   if(signal.aborted)throw new DOMException('aborted','AbortError');return new File([blob],file.name.replace(/\.[^.]+$/,'.jpg'),{type:'image/jpeg'});
  }finally{bitmap.close?.()}
 }
+// ---------------------------------------------------------------------------
+// PDF-ja e skanuar: e njëjta formë pune për çdo madhësi.
+// Një PDF me shumë faqe lexohet i tëri. Nëse kalon 6 faqe, dërgohet për lexim
+// në pjesë, sepse kërkesa ka kufi faqesh; pjesët ribashkohen si NJË dokument
+// dhe numrat e faqeve mbeten ata të PDF-së (1 … N), jo të pjesës.
+const PDF_PAGES_PER_CALL=6;
+// Kufiri i faqeve varet nga numri i formularëve (2 faqe për formular).
+function pdfMaxPages(){return AI_MAX_FORMS*2}
+
+// Planifikon thirrjet: një grup pa PDF të gjatë dërgohet i tëri si më parë.
+async function planReadingCalls(files){
+ const oversized=[];
+ for(const file of files){
+  if(fileKind(file)!=='application/pdf')continue;
+  let pdf;
+  try{pdf=await loadPdf(file)}catch(e){throw new Error(`PDF “${file.name}” nuk u hap; kontrollo që nuk është i dëmtuar ose i mbrojtur.`)}
+  const total=pdf.getPageCount();
+  if(!total)throw new Error(`PDF “${file.name}” nuk ka faqe të lexueshme.`);
+  if(total>PDF_PAGES_PER_CALL)oversized.push({file,pdf,total});
+ }
+ if(!oversized.length)return [{files,offset:0,total:0}];
+ if(oversized.length>1||files.length>1)throw new Error('Një grup ka edhe PDF me shumë faqe edhe skedarë të tjerë. Zgjidh PDF-në veçmas, ose përdor “Ndaje: çdo 2 faqe = një formular”.');
+ const {file,total}=oversized[0];
+ if(total>pdfMaxPages())throw new Error(`PDF “${file.name}” ka ${total} faqe. Leximi pranon deri në ${pdfMaxPages()} faqe (${AI_MAX_FORMS} formularë); ndaje skanimin në dy pjesë.`);
+ const calls=[];
+ for(let offset=0;offset<total;offset+=PDF_PAGES_PER_CALL){
+  const count=Math.min(PDF_PAGES_PER_CALL,total-offset);
+  calls.push({files:[await slicePdf(file,offset,count)],offset,total});
+ }
+ return calls;
+}
+// Ndarja e një PDF-i; çdo pjesë mban faqet e veta reale.
+async function slicePdf(file,offset,count){
+ const pdf=await loadPdf(file),part=await PDFLib.PDFDocument.create({updateMetadata:false}),
+  pages=await part.copyPages(pdf,Array.from({length:count},(_,i)=>offset+i));
+ for(const page of pages)part.addPage(page);
+ const bytes=await part.save(),base=file.name.replace(/\.pdf$/i,'');
+ return new File([bytes],`${base}_faqet_${offset+1}-${offset+count}.pdf`,{type:'application/pdf'});
+}
+// Shton numrin e faqes reale te çdo `page` që vjen nga një pjesë.
+function shiftPages(node,offset){
+ if(Array.isArray(node)){for(const item of node)shiftPages(item,offset);return node}
+ if(!node||typeof node!=='object')return node;
+ for(const [key,value] of Object.entries(node)){
+  if(key==='page'&&Number.isInteger(value)&&value>0)node[key]=value+offset;
+  else shiftPages(value,offset);
+ }
+ return node;
+}
+// Vetëm vlerat numërojnë: faqja, zona dhe siguria shoqërojnë një vlerë, nuk janë vlerë.
+const FORM_META_KEYS=['page','formArea','confidence','needsReview','index','indexNumber','row','nr','formNumber','pages','document','multiple_forms'];
+function valueOf(cell){return cell&&typeof cell==='object'?cell.value:cell}
+function isBlankCell(value){return !nonempty(aiText(valueOf(value)))}
+// A ka ndonjë vlerë brenda (edhe brenda listave të rreshtave)?
+function rowHasValue(node){
+ if(Array.isArray(node))return node.some(rowHasValue);
+ if(!node||typeof node!=='object')return !isBlankCell(node);
+ return Object.entries(node).some(([key,value])=>!FORM_META_KEYS.includes(key)&&rowHasValue(value));
+}
+// Formulari ka identitet (numër ose datë) kur e lexon vetë?
+function hasIdentity(form){
+ if(!isBlankCell(form.record_number))return true;
+ if(Array.isArray(form.fields)&&form.fields.some(field=>!isBlankCell(field)))return true;
+ if(form.header&&typeof form.header==='object'&&Object.entries(form.header).some(([key,value])=>!FORM_META_KEYS.includes(key)&&!isBlankCell(value)))return true;
+ return false;
+}
+// Faqja e fundit që mbulon formulari (për të njohur prerjen mes dy pjesëve).
+function lastPageOf(form){
+ if(Number.isInteger(form?.pages?.back)&&form.pages.back>0)return form.pages.back;
+ if(Number.isInteger(form?.pages?.front)&&form.pages.front>0)return form.pages.front+1;
+ const pages=[];
+ const walk=node=>{
+  if(Array.isArray(node))return node.forEach(walk);
+  if(!node||typeof node!=='object')return;
+  for(const [key,value] of Object.entries(node))Number.isInteger(value)&&key==='page'?pages.push(value):walk(value);
+ };
+ walk(form);return pages.length?Math.max(...pages):0;
+}
+// Bisht i prerë: një formular pa identitet (pa numër, pa fusha) që vazhdon
+// punonjësit/planin/peshimet e formularit të mëparshëm, dhe formulari i
+// mëparshëm mbaron pikërisht te faqja ku nis pjesa e re. Vetëm atëherë bashkohet.
+function isCutTail(form,last,offset){
+ if(!last||!offset)return false;
+ if(hasIdentity(form))return false;
+ if(lastPageOf(last)!==offset)return false;
+ if(Array.isArray(form.fields)&&form.fields.some(field=>!isBlankCell(field)))return false;
+ const employees=Array.isArray(form.employees)?form.employees:[];
+ if(employees.some(rowHasValue))return false;
+ const plan=Array.isArray(form.plan)?form.plan:[];
+ if(plan.some(rowHasValue))return false;
+ return rowHasValue(form.weighings)||!isBlankCell(form.comments);
+}
+function mergeRows(current,extra){
+ const keep=(Array.isArray(extra)?extra:[]).filter(row=>rowHasValue(row));
+ if(keep.length)return [...(Array.isArray(current)?current:[]),...keep];
+ return Array.isArray(current)?current:[];
+}
+// Bashkon përgjigjet e pjesëve në një dokument të vetëm.
+function mergeReadingChunks(chunks,totalPages){
+ const forms=[];
+ for(const {data,offset} of chunks){
+  if(!data||typeof data!=='object')continue;
+  const list=Array.isArray(data.forms)&&data.forms.length?data.forms:[data];
+  for(const raw of list){
+   const form=shiftPages(raw,offset||0),last=forms[forms.length-1];
+   if(isCutTail(form,last,offset||0)){
+    for(const key of ['plan','employees','weighings'])last[key]=mergeRows(last[key],form[key]);
+    if(Array.isArray(form.uncertain)&&Array.isArray(last.uncertain))last.uncertain=[...last.uncertain,...form.uncertain];
+    const extra=aiText(form.comments);
+    if(extra)last.comments=[...(Array.isArray(last.comments)?last.comments:[last.comments].filter(Boolean)),extra];
+    continue;
+   }
+   forms.push(form);
+  }
+ }
+ return {document:{fileName:'',pageCount:totalPages,page_count:totalPages,formCount:forms.length},forms};
+}
+// Një thirrje Gemini me kufi kohor, si më parë.
+async function geminiForParts(parts,signal){
+ const timer=setTimeout(()=>batchState.abort?.abort(),140000);
+ try{return await cloudGemini(parts,signal)}finally{clearTimeout(timer)}
+}
+// Lexon një grup skedarësh; PDF-të e gjata ndahen dhe ribashkohen vetë.
+async function readFilesWithGemini(files,signal,catalog,warnings=[],cache=new Map()){
+ const calls=await planReadingCalls(files);
+ const single=calls.length===1&&!calls[0].offset;
+ const chunks=[];
+ for(const call of calls){
+  if(signal.aborted)throw new DOMException('aborted','AbortError');
+  const parts=await prepareGeminiParts(call.files,signal,cache,warnings,catalog);
+  const data=parseAIJson(await geminiForParts(parts,signal));
+  if(single)return data;
+  chunks.push({data,offset:call.offset});
+ }
+ const total=calls[0].total||files.reduce((n,f)=>n+(pdfCache.get(f)?.getPageCount()||1),0);
+ return mergeReadingChunks(chunks,total);
+}
+
 async function prepareGeminiParts(files,signal,cache,warnings=[],catalog=null){
  const parts=[];const fileParts=await Promise.all(files.map(async (file,index)=>{
-  if(signal.aborted)throw new DOMException('aborted','AbortError');const kind=fileKind(file),label=files.length===2&&files.every(f=>fileKind(f).startsWith('image/'))?(index===0?'PARA':'PAS'):`faqja ${index+1}`;
+  const kind=fileKind(file),label=files.length===2&&files.every(f=>fileKind(f).startsWith('image/'))?(index===0?'PARA':'PAS'):`faqja ${index+1}`;
+  if(signal.aborted)throw new DOMException('aborted','AbortError');
   if(kind==='excel'){const wb=cache.get(file)||await readExcelFile(file);return [{text:excelForAI(wb,file.name)},...await excelPicturesForAI(file)]}
   if(kind==='word'){const text=await wordForAI(file),pictures=await excelPicturesForAI(file,/^word\/media\//i,'Word');if(text.split('\n').slice(1).join('').trim().length<20&&!pictures.length)throw new Error(`Word-i “${file.name}” nuk ka tekst ose fotografi të lexueshme.`);return [{text},...pictures]}
-  if(kind==='application/pdf'){try{const pdf=await loadPdf(file);if(pdf.getPageCount()>6)throw new Error('too-many')}catch(e){if(e.message==='too-many')throw new Error(`PDF “${file.name}” ka më shumë se 6 faqe. Zgjidh faqet e një formulari.`);throw new Error(`PDF “${file.name}” nuk u hap; kontrollo që nuk është i dëmtuar ose i mbrojtur.`)}}
+  if(kind==='application/pdf'){try{await loadPdf(file)}catch(e){throw new Error(`PDF “${file.name}” nuk u hap; kontrollo që nuk është i dëmtuar ose i mbrojtur.`)}}
   const prepared=kind.startsWith('image/')?await prepareOCRPhoto(file,signal,warnings):file;
   return [{text:`Dokumenti: ${file.name} — ${label}`},{inlineData:{mimeType:kind.startsWith('image/')?'image/jpeg':kind,data:await fileBase64(prepared)}}];
  }));for(const fp of fileParts)parts.push(...fp);if(catalog)parts.push(catalog);parts.push({text:'Extract the fields from these files as directed in the system instruction.'});return parts;
