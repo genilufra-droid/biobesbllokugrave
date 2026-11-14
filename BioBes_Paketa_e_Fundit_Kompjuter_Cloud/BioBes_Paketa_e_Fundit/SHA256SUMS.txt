@@ -1,11 +1,11 @@
-07438d944471f524f8bdb60caa7a9e962b3c955f8695dc2d6f12bf88e34ac3e5  ./AUDITIM.md
+6a999c7eb89278604f97a4b732d8b295b3fbb25294a729ec2dd440c1e134bc85  ./AUDITIM.md
 7565e8ecca183674fd2f94fbb8f3c644d6088756338601714fc4d57b46c6c289  ./BioBes_Cloud/.gitignore
 d112f6e9fd30f5c1a1ecf112e3e278169216dbdd86fb643a1665210185d51e30  ./BioBes_Cloud/UDHEZUESI.md
 a24296e54891528a05b1668c075e50f957cc87eb2fb03d64e8eebe0de693f0a9  ./BioBes_Cloud/supabase/authorize_owner.sql
 1de6de5d3f18b7efe8467314e7ffcd1d6a15f91610da8154d137c353d1c67033  ./BioBes_Cloud/supabase/config.toml
 83652c4b9a258a9e8c1fcaf70b30e87839c1a51c85c3a2c53d8fde2b0527f9ad  ./BioBes_Cloud/supabase/functions/biobes-read-form/index.ts
 cf19db73f06c8f87f42cbad9515e71682ebd813a45a01b275d0179a56b88e4f2  ./BioBes_Cloud/supabase/migrations/20261104000000_biobes_daily.sql
-8f27a6f958aae3e25ca96bc686fe796669a4439956863ef43e8e364c08f69df1  ./BioBes_Cloud/web/app.js
+4b704d74f2dbae92689a5e708a1fb4d6e9beb0abad4d14e450bdf0da008056c3  ./BioBes_Cloud/web/app.js
 6cadf31ae07de09ce95fecc1ceb528ded78415a929e3693a8223a21513b34b97  ./BioBes_Cloud/web/cloud-config.js
 41d2d9f529cce3e7e7273d84939aec7f56ea39870ac3a963e62a12a967769386  ./BioBes_Cloud/web/cloud.js
 000e6df31d630a5e7dc69c79883c327a9780a47756f1dcd8d206773cc971233d  ./BioBes_Cloud/web/index.html
@@ -26,7 +26,7 @@ fe1ff3e81a354801a4341a49653287a905a577d59dc73a24b0574188e3eafbe1  ./Modele_Bosh/
 10db465995e8c88d62d004a453f0c5a4e57b3a93deb8f986b05c35eb88e7754d  ./Modele_Bosh/Model_25_Rreshta_2_Faqe.xlsx
 01c48a8b251773d2a78bc4eb62e14d4275a70454e4ac4e08030c545fbd3aa4f1  ./SKEMA.md
 a1b9b3aabbabe90958f5b13afee01981b529713cc1a54d5109e4ba88c5b0c77f  ./tests/.gitignore
-6133247a8e21882531f029f79a9146cfa6c5b936cf4f27598d85406370a047da  ./tests/ai_record.test.js
+b755b0c4e981e99ab415c2091e3f5062b8ae532fa005c79bba6de489de6b10eb  ./tests/ai_record.test.js
 42bbbb7a9ad6ca818f2e6382d1874f1ab9c9b1bbe4ca697c47f939e72c1e0b6c  ./tests/attendance.test.js
 9081b2cc598e5ca90f08418da165fd5f647a3c0342d77736b0a9e7016601c5bb  ./tests/batch_workbook.test.js
 3e7265cd96d596f6f7a1c32012603b1b257a6592d39b4c56201167fc15668711  ./tests/catalog_edit.test.js
@@ -43,7 +43,7 @@ c161b6b509bfe568320fd6a5d6156c334384e236fa636941a906661cd2460f03  ./tests/fixtur
 fc363e5b8e3279a87f94df1d73fa7fa96fd3f4aa3db3b1d047ab97f2f32bdeca  ./tests/multi_form.test.js
 9976de762ec7322f03883897d07c7a7945a75f712bb40b20e36bd12889dae433  ./tests/ocr_p0_p1.test.js
 45373c19f0e490acc5fdf427d48ff050487c33d43c7121ecec395e8ee61194bf  ./tests/package-lock.json
-e236a687b041ea00daf5c1456dfcdbb84ec921f99f856137c93d8834fe0167ea  ./tests/package.json
+38aeea544a0271e7e13168fdc64f9207501472aca07e196eca33362f3e8bf87f  ./tests/package.json
 233e6049928a148e2b4fb741fb6d36dc0f9828069a9ceeda7bae07899fc4a7ad  ./tests/parse_ai_json.test.js
 0d3e2d798928cc71d7d5f002602a6d031d4dc17c4ed28cb667a2ea04c67f684e  ./tests/password_recovery.test.js
 152645363902dae9418d6d0cb3e3649b99d398c3b72c61f9e3467ecbdfe400c7  ./tests/performance_checks.js
@@ -63,6 +63,7 @@ c67dadf523408d6e69a5567d951d6298f8fc9a9aa6fc23acce74769254f40171  ./tests/timeca
 2a6e446f632ca6c028638c44976f63d404044eec05e1b442f6a579cefc86d8ea  ./tests/timecard_ui.test.js
 6924deddd9f7f340e6830c31e09dd51a4379a475516972b0b036596140e464c7  ./tests/ui.spec.js
 ba7bfa5a05699630e09ce46fa5cf0bf327bb9067c83fb70569c83c978d814b4f  ./tests/weight_row_numbers.test.js
+9c1daba2572a9a2520dec2c4826c8d9cfab1a78c196150ddac97d43c9bbdf1b4  ./tests/weight_table_numbers.test.js
 b10491affbff307d7e81b6c4f064a86c4fedd54553714ac46c1373662cb75447  ./tests/word_import.test.js
 6f2f090fdca0ec7f8e9e597351296183b9ca7563e6cc8ef4c63edf0c0269ecbf  ./tools/build_model_pdf.py
 d25d95bf85c4b111755e57c4292563e11dced99cd7b3cc06d10f89f04239eb77  ./tools/build_model_xlsx.py

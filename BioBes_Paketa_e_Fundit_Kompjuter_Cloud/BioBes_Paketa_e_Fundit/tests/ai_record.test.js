@@ -84,12 +84,19 @@ test('proposes a number when the document has none', () => {
   assert.ok(result.warnings.some((w) => /Numri nuk u lexua/.test(w)), 'missing number must warn');
 });
 
-test('rejects duplicate weighing indexes', () => {
+test('keeps both tables when weighing indexes are duplicated', () => {
+  // Më parë hidhej gabim dhe humbin të dyja tabelat. Tani tabela e dytë merr
+  // vendin e parë të lirë, shënohet dhe paralajmërohet — asnjë vlerë nuk humbet.
   const weighings = [
-    { index: 1, product: 'P1', source: 'stock', rows: [] },
-    { index: 1, product: 'P2', source: 'stock', rows: [] },
+    { index: 1, product: 'P1', source: 'stock', rows: [{ row: 1, kg: '180' }] },
+    { index: 1, product: 'P2', source: 'stock', rows: [{ row: 1, kg: '170' }] },
   ];
-  assert.throws(() => aiRecord(baseResponse({ weighings })), /tabelave të peshimit/);
+  const { record, warnings } = aiRecord(baseResponse({ weighings }));
+  // Formulari ka gjithmonë 6 tabela; rëndësi ka që të dyja vlerat u ruajtën.
+  assert.equal(record.weighings[0].rows[0].kg, '180', 'tabela e parë ruhet');
+  assert.equal(record.weighings[1].rows[0].kg, '170', 'tabela e dytë nuk humbi');
+  assert.ok(record.weighings[1].product, 'produkti i tabelës së dytë u ruajt');
+  assert.ok(warnings.some((w) => /i përsëritur/i.test(w)), 'u paralajmërua për kontroll');
 });
 
 test('keeps ordered and produced quantities separate', () => {
