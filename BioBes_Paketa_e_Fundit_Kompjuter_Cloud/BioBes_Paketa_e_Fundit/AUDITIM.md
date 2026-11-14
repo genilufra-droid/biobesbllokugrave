@@ -257,3 +257,33 @@ rezultat, ndërsa Google thoshte “prit”. `Retry-After` nuk lexohej fare.
 
 **Prova.** `tests/quota_429.test.js` (7 teste). Matja: tre grupe me kuotë të
 shpenzuar → **3 kërkesa në vend të 11**.
+
+## 8. Publikimet live (14 nëntor 2026)
+
+Skedari që shërbehet është `BioBes_Cloud/web/app.js` (dhe `cloud.js`) përmes
+workflow-it **“BioBes Pages”** (`workflow_dispatch`, burimi `main`).
+
+| Commit | Çfarë u publikua | Deploy |
+|---|---|---|
+| `088436e` | Rresht peshimi i keq lexuar nuk rrëzon gjithë formularin (#19) | success |
+| `a409707` | Zona si kod, cache leximi, 4 grupe paralel | success |
+| `f82b7ce` | Kuota 429 ndalon menjëherë, `Retry-After`, grupet e lexuara ruhen | success |
+
+**Si verifikohet që live-i është kodi i duhur** (pa pasur nevojë për shfletues):
+lexohet skedari në commit-in e publikuar dhe kontrollohen shenjat e ndryshimit:
+
+```
+gh api "repos/<owner>/<repo>/contents/<path>/app.js?ref=<commit>" --jq .content | base64 -d
+```
+
+Për `a409707` u kontrollua prania e `BATCH_WORKERS=4`, `aiAreaCode` dhe
+`READ_CACHE_VERSION`; për `f82b7ce` prania e `RESOURCE_EXHAUSTED`, `quota` dhe
+`retry-after` në `cloud.js`. Të dy skedarët kaluan `node --check`.
+
+**Kujdes për shfletuesin.** GitHub Pages ruan cache; pas publikimit duhet
+rifreskim i fortë (Ctrl+Shift+R), përndryshe shfaqet versioni i vjetër.
+
+**Rendi i punës.** Të tre commit-et u dërguan drejt në `main` me fast-forward,
+pa PR të ndërmjetëm (kërkesë e përdoruesit për t'i pasur live). Për këtë arsye
+dega e punës dhe `main` janë identike dhe GitHub nuk pranon PR prej saj:
+*“No commits between main and …”*.
