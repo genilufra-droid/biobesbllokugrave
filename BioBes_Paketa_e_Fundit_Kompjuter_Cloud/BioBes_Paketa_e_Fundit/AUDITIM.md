@@ -184,3 +184,23 @@ zëvendësohet, `cloudGemini` xhiron i paprekur. Me fixture-in e skanimit real
 (14 faqe), leximi i ndarë në 6+6+2 jep **të njëjtin rezultat** si leximi direkt:
 7 formularë, faqet 1–14, 1476 kg te formulari 001 dhe 1571 kg te 004, pa rreshta
 të humbur ose të dyfishuar.
+
+### 7.2 Një rresht i keq lexuar rrëzonte gjithë formularin (gjetur në përdorim)
+
+**Simptoma.** Në skanimin e podit, grupet 5 dhe 6 dolën “Nuk u lexua” dhe në
+fund: *“Numrat e tabelave të peshimit janë të paqartë; shkarko leximin JSON.”*
+
+**Shkaku.** `aiReadBlock` hidhte gabim (`throw`) sapo një rresht i peshimit
+mungonte numrin ose e kishte të përsëritur. Gabimi priste të gjithë grupin, pra
+humbnin edhe 24 rreshtat e tjerë të lexuar saktë. Një numër i shkruar me dorë
+(ose i lexuar keq) mjaftonte për të humbur formularin.
+
+**Rregullimi.** Rreshti tani mbahet gjithmonë: kur numri mungon, përsëritet ose
+është jashtë tabelës, rreshti vendoset sipas rendit, shënohet `needsReview` dhe
+paralajmërimi e thotë hapur (“rreshti u vendos sipas rendit dhe duhet
+kontrolluar në dokument”). Asnjë vlerë e lexuar nuk hidhet poshtë dhe as nuk
+korrigjohet — vetëm shënohet.
+
+**Prova.** `tests/weight_row_numbers.test.js` (7 teste): rresht pa numër, numër
+i përsëritur, numër jo-numerik, dhe kontrolli që vetëm rreshtat e dyshimtë
+shënohen. Me 24 rreshta të qartë + 1 të dyshimtë, ruhen 25 nga 25.

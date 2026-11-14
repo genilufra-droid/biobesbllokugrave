@@ -1090,16 +1090,31 @@ function aiReadBlock(block,formNumber,proposedNr,info){
   const rows=(Array.isArray(group.rows)?group.rows:[]).filter(x=>x&&typeof x==='object');
   if(rows.length>1000)throw new Error('Ka shumë rreshta në një peshim; shkarko leximin JSON.');
   const list=tables[local]=[],seenRows=new Set();
+  // Numri i rreshtit të shtypur është rruga më e sigurt, por nuk guxon të hedhë
+  // poshtë gjithë formularin: një numër i lexuar keq prej shkrimit me dorë do të
+  // hidhte tutje edhe vlerat e sakta të rreshtave të tjerë. Prandaj rreshti pa
+  // numër të qartë mbahet me rendin e vet dhe shënohet për kontroll.
+  let nextRow=1;
   for(const row of rows){
-   const n=positiveIndex(row.row)??null;
-   if(!n)throw new Error(`Peshimi ${local}: numrat e rreshtave janë të paqartë; shkarko leximin JSON.`);
-   if(n>1000||seenRows.has(n))throw new Error(`Peshimi ${local}: numrat e rreshtave janë të paqartë; shkarko leximin JSON.`);
-   seenRows.add(n);
+   const printed=positiveIndex(row.row)??null;
+   let n=printed,byOrder=false;
+   if(!n||n>1000||seenRows.has(n)){
+    const reason=!n?'pa numër rreshti':n>1000?`numri i rreshtit ${n} është jashtë tabelës`:`numri i rreshtit ${n} është i përsëritur`;
+    warnings.push(`${area}: ${reason} për një rresht me vlera; rreshti u vendos sipas rendit dhe duhet kontrolluar në dokument.`);
+    let candidate=nextRow;
+    while(seenRows.has(candidate)&&candidate<=1000)candidate+=1;
+    n=candidate;byOrder=true;
+   }
+   seenRows.add(n);nextRow=n+1;
    while(target.rows.length<n)target.rows.push(newRow());
    const columns=aiWeightColumns(row,`${area} · rreshti ${n}`,warnings);
    for(const key of ['bags','kg','packaging','sum'])target.rows[n-1][key]=columns[key].value||'';
    fields[`weighings.${local}.rows.${n}`]=columns;
-   list.push({table:local,row:n,nrThas:aiPublic(columns.bags),kg:aiPublic(columns.kg),ambalazhi:aiPublic(columns.packaging),shuma:aiPublic(columns.sum)});
+   const shown={table:local,row:n,nrThas:aiPublic(columns.bags),kg:aiPublic(columns.kg),ambalazhi:aiPublic(columns.packaging),shuma:aiPublic(columns.sum)};
+   // Rreshti i vendosur sipas rendit (pa numër të qartë) shënohet i tëri për kontroll.
+   if(byOrder)for(const key of ['bags','kg','packaging','sum'])if(columns[key])columns[key].needsReview=true;
+   if(byOrder)for(const key of ['nrThas','kg','ambalazhi','shuma'])if(shown[key])shown[key].needsReview=true;
+   list.push(shown);
   }
   if(group.total&&typeof group.total==='object'){
    const columns=aiWeightColumns(group.total,`${area} · rreshti SH`,warnings);
