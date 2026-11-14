@@ -414,3 +414,29 @@ leximit.
 **Testet:** `tests/weight_arithmetic.test.js` — 12 teste, mes tyre rasti real
 (1476 − 320 ≠ 122), mungesa e KG/Ambalazhit, vlera `[e paqartë]` që nuk
 llogaritet si zero, presja dhjetore, ruajtja e vlerave pas normalizimit.
+
+### 7.11 Rrjeta e sigurisë për kontrollin aritmetik (15 nëntor 2026)
+
+Pas publikimit të 7.10 përdoruesi raportoi se faqja “nuk lexon dhe nuk bën
+totalet”. Riprodhimi me skedarët e live-it (jo me kopje lokale) dha: 7 formularë
+të lexuar, 1476/1571 kg si më parë, të gjashtë rrugët e faqes pa gabim dhe
+totalet që përditësohen gjatë shkrimit — pra defekti nuk u riprodhua.
+
+Sidoqoftë, kontrolli i ri **nuk duhet të jetë kurrë në rrugën kritike** të leximit
+apo të totaleve. Prandaj u shtua:
+
+- `weighCheckSafe` / `weighIssuesSafe` — çdo thirrje e kontrollit është në `try`;
+  nëse dështon, leximi, tabelat dhe totalet vazhdojnë pa të.
+- Përditësimi i kutisë së kontrollit në `updateDerived` është në `try` më vete, që
+  një gabim aty të mos ndalojë përditësimin e SH-së.
+- Ura e `printed_totals` është në `try`.
+- Provë e detyruar: duke e bërë kontrollin të hedhë gabim me qëllim, faqja
+  lexon 7 formularë, ruan 180 kg dhe pas shkrimit tregon 200 kg — asgjë nuk
+  bllokohet.
+
+**Cache-i i shfletuesit (mos e nënvlerëso).** Versioni i vjetër i `app.js` mund
+të mbetet në disk pas publikimit. Tani `index.html` i thërret skriptet me
+`?v=546040a-d2`, pra çdo publikim i ri detyron shkarkim të ri. Nëse ende shfaqet
+sjellje e vjetër, duhet pastruar cache-i i faqes (Ctrl+Shift+R ose dritare
+private) dhe faqja duhet rifreskuar një herë pa internet për të hequr service
+worker-in e vjetër.
