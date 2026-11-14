@@ -535,3 +535,64 @@ thoshte t’i jepte përdoruesit numra të gabuar pa paralajmërim — më keq s
 **Testet:** `tests/batch_manual.test.js` — 8 teste (pa vlera të shpikura, numri
 dhe data vetëm kur janë të qarta, 14 faqe → 7 formularë bosh, zero kërkesa
 rrjeti, aritmetika gati).
+
+---
+
+## 7.15 Matja e dytë e OCR-së lokale — motori tjetër (PaddleOCR), 2 formulare
+
+Matja e §7.14 përdori Tesseract dhe dha 0/10. Ajo matje u përsërit me një motor
+krejt tjetër — **PaddleOCR PP-OCRv4** (modelet `ch_PP-OCRv4_rec_infer.onnx`,
+11 MB) mbi **ONNX Runtime Web (WASM)** — pikërisht si do të ekzekutohej në
+shfletues, pa server dhe pa rrjet.
+
+**Përgatitja e imazhit (e njëjta për të gjitha matjet):**
+
+1. Faqja nxirret nga PDF-ja me `pymupdf` në 150 dpi (1240×1754 px).
+2. Vijat e tabelës zbulohen **me kod** (densiteti i pikselave të errët për
+   rresht/kollonë), jo me sy: 21 vija horizontale, hap 29–30 px.
+3. Prerja zgjerohet 3–4 px **jashtë** vijave (shkrimi del jashtë rreshtit; pa
+   këtë, shifra e parë pritet — shih më poshtë).
+4. Dekodimi kufizohet **vetëm në shifra** (`0123456789`), që modeli të mos
+   zgjidhë `s` kur heziton mes `5` dhe `s`.
+
+**Rezultati 1 — formulari 001, 20 rreshta (prerja më e mirë nga 27 variante):**
+
+| Metoda | Saktësi |
+|---|---|
+| Tesseract (§7.14) | 0/10 |
+| PaddleOCR, prerje brenda vijave | 8/20 |
+| PaddleOCR, prerje +4 px jashtë vijave | 16/20 |
+| **PaddleOCR, dekodim vetëm-shifra + jashtë vijave** | **16/20 = 80%** |
+
+Shembull i gabimit që u rregullua: `88 → 8`, `95 → 95` vetëm kur prerja
+zgjerohet. Shembuj të mbetur: `73 → 3`, `72 → 2`, `52 → 32`.
+
+**Rezultat 2 — formulari 004, 10 rreshta, ditë dhe shkrim tjetër:** **8/10 = 80%.**
+Gabimet: `130 → 180`, `152 → 52`.
+
+**Rezultat 3 — testi i ndershmërisë (më i rëndësishmi).** Nëse i njëjti
+rresht pritet në 10 mënyra të pavarura dhe merret vota e shumicës:
+
+| | 001 | 004 |
+|---|---|---|
+| Konsensus (≥9/10 prerje pajtohen) | 14/20 rreshta | 5/10 rreshta |
+| Saktësia **kur ka konsensus** | 13/14 = **93%** | 4/5 = **80%** |
+| Rreshta pa konsensus | 6/20 | 5/10 |
+
+Përfundim: motori **e di kur nuk është i sigurt** — rreshtat pa konsensus janë
+pikërisht ata që lexohen gabim. Kjo do të lejonte një rrugë të ndershme:
+*Auto vetëm kur ka konsensus; përndryshe `[e paqartë]` + `needsReview`.*
+
+**Pse nuk u vu në prodhim (ende):**
+
+- 80% nuk mjafton për të dhëna page reale; pragu i kërkuar është ≥95%.
+- 93% me konsensus është premtues, por konsensusi mbulon vetëm 63% të rreshtave
+  në 001 dhe 50% në 004 — mbi gjysmën e punës do të duhej të bëhej me dorë.
+- 2/30 rreshta u lexuan **gabim me vetëbesim të plotë** (88%), pra rreziku i
+  vlerës së gabuar të besuar ende ekziston.
+- Modeli është 11 MB; bashkë me ONNX Runtime Web (~10 MB WASM) faqja rritet
+  ndjeshëm, dhe `fontkit`/`pdf-lib`/`xlsx` janë tashmë në `vendor/`.
+
+**Statusi:** matje e kryer dhe e dokumentuar; rruga që punon mbetet
+“Lexo formularët” (Gemini) + “Kontrollo pa Gemini” (manual). Kalimi në prodhim
+i kërkon trajnim mbi formulare të etiketuara ose një model më të madh.
