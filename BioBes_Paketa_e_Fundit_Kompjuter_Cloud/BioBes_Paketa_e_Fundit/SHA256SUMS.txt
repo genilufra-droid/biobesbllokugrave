@@ -1,11 +1,11 @@
-b8db5347cb443d7f3c2028e3e629f94c1a4935c3375d59174223c1fd60be98d6  ./AUDITIM.md
+4760b1f425093a2c27b49eb2000c96d9f80054808ea32e0d499cb34ab353970f  ./AUDITIM.md
 7565e8ecca183674fd2f94fbb8f3c644d6088756338601714fc4d57b46c6c289  ./BioBes_Cloud/.gitignore
 d112f6e9fd30f5c1a1ecf112e3e278169216dbdd86fb643a1665210185d51e30  ./BioBes_Cloud/UDHEZUESI.md
 a24296e54891528a05b1668c075e50f957cc87eb2fb03d64e8eebe0de693f0a9  ./BioBes_Cloud/supabase/authorize_owner.sql
 1de6de5d3f18b7efe8467314e7ffcd1d6a15f91610da8154d137c353d1c67033  ./BioBes_Cloud/supabase/config.toml
 83652c4b9a258a9e8c1fcaf70b30e87839c1a51c85c3a2c53d8fde2b0527f9ad  ./BioBes_Cloud/supabase/functions/biobes-read-form/index.ts
 cf19db73f06c8f87f42cbad9515e71682ebd813a45a01b275d0179a56b88e4f2  ./BioBes_Cloud/supabase/migrations/20261104000000_biobes_daily.sql
-4b74049ead7f544a98dc484b0d4b9a4e36ec811a89510289a35c1743ec3ca946  ./BioBes_Cloud/web/app.js
+533e31e0fa5e07062600b985ece283f8c5c47488d3256edff255b6edbbca21d4  ./BioBes_Cloud/web/app.js
 6cadf31ae07de09ce95fecc1ceb528ded78415a929e3693a8223a21513b34b97  ./BioBes_Cloud/web/cloud-config.js
 38f71d845d4ba554427a684c50bfa19a87c7867c42421c509895e897ad5bc1c9  ./BioBes_Cloud/web/cloud.js
 ed9848d6e60f978d230629b83eb6eee4067e741e6a708651bd43a5e859b19f5c  ./BioBes_Cloud/web/index.html
@@ -28,7 +28,7 @@ fe1ff3e81a354801a4341a49653287a905a577d59dc73a24b0574188e3eafbe1  ./Modele_Bosh/
 a1b9b3aabbabe90958f5b13afee01981b529713cc1a54d5109e4ba88c5b0c77f  ./tests/.gitignore
 b755b0c4e981e99ab415c2091e3f5062b8ae532fa005c79bba6de489de6b10eb  ./tests/ai_record.test.js
 42bbbb7a9ad6ca818f2e6382d1874f1ab9c9b1bbe4ca697c47f939e72c1e0b6c  ./tests/attendance.test.js
-b9e50a822722045ae41ffddfa2d41cca636035d1bd8a9c20065ec348eaed880d  ./tests/batch_manual.test.js
+16985da9f708d719b0acbf625ac0e8e105e1ffe5b3bde7246041dcf22330983b  ./tests/batch_manual.test.js
 ee011570f979e3b8af97e224f60e531d9f3d585cbfb3791fae335292fc5c1910  ./tests/batch_resume.test.js
 9081b2cc598e5ca90f08418da165fd5f647a3c0342d77736b0a9e7016601c5bb  ./tests/batch_workbook.test.js
 3e7265cd96d596f6f7a1c32012603b1b257a6592d39b4c56201167fc15668711  ./tests/catalog_edit.test.js

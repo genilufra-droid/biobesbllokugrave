@@ -596,3 +596,45 @@ pikërisht ata që lexohen gabim. Kjo do të lejonte një rrugë të ndershme:
 **Statusi:** matje e kryer dhe e dokumentuar; rruga që punon mbetet
 “Lexo formularët” (Gemini) + “Kontrollo pa Gemini” (manual). Kalimi në prodhim
 i kërkon trajnim mbi formulare të etiketuara ose një model më të madh.
+
+---
+
+## 7.16 Defekti i skanimit 46-faqe: “Dokumentet japin 28 formularë; kufiri është 10”
+
+**Simptoma (raportuar në prodhim):** një skanim 46-faqesh i ndarë në grupe
+`…_faqet_1-2`, `…_faqet_3-4`, … `…_faqet_13-14` shfaqte *“Dokumentet japin 28
+formularë; kufiri është 10. Ndaji në grupe më të vogla.”*, dhe asnjë rrugë nuk
+niste — as leximi, as “Kontrollo pa Gemini”.
+
+**Shkaku (dy gabime që mblidheshin):**
+
+1. `batchManualPages()` lexonte emrin `…_faqet_13-14.pdf` dhe merrte **14**
+   (numrin e faqes së fundit) në vend të **2** faqeve të këtij grupi. Pra grupi i
+   shtatë “kishte” 14 faqe, dhe 14 ÷ 2 = 7 formularë *për një grup të vetëm*.
+   7 grupe × 7 = **49** (ose 28, sipas radhës) — pikërisht numri në ekran.
+2. Edhe kur numri ishte i saktë, rruga manuale e ngrinte kufirin e leximit me AI
+   (`BATCH_MAX = 10`) mbi 23 formularë bosh. Ky kufi mbron **kuotën e Gemini**;
+   në rrugën pa Gemini nuk ka kuotë, kërkesa rrjeti as kosto.
+
+**Rregullimi:**
+
+- `batchManualPages()` tani kthen numrin e faqeve **të këtij grupi**:
+  `pageCount` i skedarit të ndarë → emri `faqet_13-14` (= 2, jo 14) →
+  skedar i vetëm = 1 faqe. `g.pageCount` (faqet e PDF-së mëmë, p.sh. 46) nuk
+  përdoret më si faqe të grupit.
+- `batchManualBlocks()` i ri bashkon grupet që janë vazhdim i të njëjtit PDF
+  (i njëjti origjinal, faqe vijuese), që 46 faqe të japin **23** formularë dhe
+  jo 23 blloqe të pavarura. Grupet e pavarura mbeten të pavarura.
+- Kufiri 10 nuk zbatohet më në rrugën manuale; nëse kalohet, mesazhi e thotë
+  hapur: *“Mbi 10 — pa kuotë nuk ka pengesë.”*
+- `batchManualDate()` nuk lexon më `46_faqet_1-2` si datë.
+
+**Testet:** `tests/batch_manual.test.js` — nga 8 në **13** teste. Të rejat:
+- `faqet_13-14` = 2 faqe (jo 14); `faqet_9` = 1 faqe.
+- 46 faqe nga i njëjti PDF → **1 bllok**, 46 faqe.
+- 46 faqe → **23 formularë bosh**, `faqja 1–2 e 46` … `faqja 45–46 e 46`, pa
+  bllokim nga kufiri.
+- 7 formularë / 14 faqe mbeten **7** (bashkimi nuk i prish skanimet e vogla).
+- Grupe të pavarura (dita1, dita2) nuk bashkohen.
+
+**Verifikimi:** `npm test` → **24 suite, 209 teste, zero dështime**.
