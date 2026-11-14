@@ -60,6 +60,7 @@ function loadApp(appOverride = null, customHook = null) {
   aiArea, aiAreaCode, readCacheKey, readCacheGet, readCacheSet, readCacheClear,
   wordForAI, fileKind, checkImportFiles, batchHTML, updateNav, render,
   state, db, cloud, batchState, importState,
+  weighCheckCalc, weighCheckIssues, weighCheckHTML, weightsHTML, groupTotals,
 };`;
   window.eval(appCode + '\n' + cloudCode + (customHook || hook));
   return dom;

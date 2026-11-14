@@ -379,3 +379,38 @@ Tani çdo formular lexohet veçmas brenda `try`: nëse dështon, shënohet
 *“Formulari N nuk u lexua: [arsyeja]. Të tjerët e grupit u ruajtën”*, formulaрët
 e tjerë mbeten, dhe shënimi shfaqet te kartat e ruajtura (jo vetëm në listën e
 përgjithshme, ku nuk shihej).
+
+### 7.10 Kontrolli aritmetik i formularit: SHUMA = KG − AMBALAZHI
+
+**Rasti që e nxori (përdoruesi, 14 nëntor 2026).** Në një tabelë peshimi letra
+kishte KG 1476 dhe AMBALAZHI 320, pra shuma duhet të dilte 1156, kurse ishte
+shkruar 122. Sistemi e pranonte 122 pa asnjë fjalë: kontrolli që ekzistonte (7.3)
+krahasohej vetëm rreshtat me totalin e shtypur të *së njëjtës kolonë*, nuk e
+lidhte kolonën e shumës me KG − Ambalazhi.
+
+**Çfarë bën tani (në pajisje, pa model):** `weighCheckCalc(rows,printed)` llogarit
+`KG − Ambalazhi` dhe e krahason me shumën që është shkruar — për totalin e
+tabelës dhe, veçmas, për çdo rresht që ka të tre vlerat. Rezultati shfaqet në
+tri vende:
+
+1. **Nën secilën tabelë** (`weighCheckHTML`): *“Kontrolli automatik: 1476 − 320 =
+   1156 kg, por e shkruara është 122 ✗ diferenca 1034 kg. Vlera nuk u ndryshua.”*
+   Përditësohet menjëherë kur ndryshon një qelizë (`updateDerived`).
+2. **Në krye të kartës së peshimeve**: numri i mospërputhjeve dhe lista e tyre.
+3. **Në paralajmërimet e regjistrimit** (`weighCheckIssues` nga `aiReadBlock`),
+   që shfaqen te kartat e ruajtura dhe te paneli i kontrollit.
+
+**Përbërja e krahasimit:** përparësi ka totali i shtypur (SH) i kolonës *Shuma*;
+kur letra nuk e ka, krahasohet shuma e rreshtave. Nëse totali i tabelës nuk del,
+raportohet **një** herë në nivel tabele me shifrat e letrës (jo një herë për çdo
+rresht), dhe rreshtat përmenden vetëm kur tabela në tërësi del mirë.
+
+**Rregulli i paprekshëm:** kontrolli vetëm krahaso — asnjë shifër e letrës nuk
+zëvendësohet dhe as “korrigjohet” që totali të dalë. `printedTotal` (totali i
+shtypur SH i tabelës) ruhet tani edhe në regjistrim (`newGroup`, `normalizeRecord`),
+që kontrolli të punojë edhe pas rihapjes së formularit, jo vetëm në momentin e
+leximit.
+
+**Testet:** `tests/weight_arithmetic.test.js` — 12 teste, mes tyre rasti real
+(1476 − 320 ≠ 122), mungesa e KG/Ambalazhit, vlera `[e paqartë]` që nuk
+llogaritet si zero, presja dhjetore, ruajtja e vlerave pas normalizimit.
