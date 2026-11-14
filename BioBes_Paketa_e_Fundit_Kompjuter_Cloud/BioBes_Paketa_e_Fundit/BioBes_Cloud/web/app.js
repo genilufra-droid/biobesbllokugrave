@@ -470,7 +470,7 @@ async function batchRead(){
       g.status='error';g.error=str(e?.message||'Leximi nuk përfundoi.',500);errors.push(e);batchPaint();
       // Kuota e shpenzuar vlen për të gjithë llogarinë: grupet e tjera nuk
       // provohen, që të mos humbasë koha dhe të mos shpenzohet më kot.
-      if(e?.quota){quotaHit=true;batchState.quota=true;break}
+      if(e?.quota){quotaHit=true;break}
      }
     }
    };
@@ -478,10 +478,15 @@ async function batchRead(){
    // Grupet e përfunduara ruhen. Kur kuota mbaron, nuk hidhet gjithçka: thuhet
    // sa grupe u lexuan dhe sa mbeten, dhe ato mbeten gati për riprovim.
    if(errors.length&&quotaHit){
+    // Grupet që nuk u provuan fare mbeten “në pritje” (jo “gabim”), që përdoruesi
+    // ta shohë qartë se çfarë mbetet dhe riprovimi të mos duket si dështim i tyre.
+    const untried=new Set(queue);
+    for(const g of untried)if(g.status==='pending')g.error='';
     const left=groups.filter(x=>x.status!=='ready');
     if(left.length){
      const done=groups.length-left.length;
-     batchError(`${errors[0]?.message||'Leximi u ndal.'} U lexuan ${done} nga ${groups.length} grupe; ${left.length} mbeten. Shtyp “Lexo formularët” pasi të lirohet kuota dhe vetëm ato do të lexohen.`);
+     batchError(`${errors[0]?.message||'Leximi u ndal.'} U lexuan ${done} nga ${groups.length} grupe; ${left.length} mbeten të palexuar. Shtyp “Lexo formularët” pasi të lirohet kuota: vetëm të mbeturit do të lexohen dhe të lexuarit nuk preken.`);
+     batchPaint();
      return;
     }
    }

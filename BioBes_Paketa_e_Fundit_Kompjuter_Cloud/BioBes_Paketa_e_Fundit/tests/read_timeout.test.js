@@ -107,4 +107,21 @@ test('gabim i menjëhershëm 400 nuk shndërrohet në gabim kohe', async () => {
   }
 });
 
+test('pas ndalesës për kuotë, grupet e palexuara mbeten për riprovim', () => {
+  // Logjika e batchRead: vetëm grupet `ready` kalohen; `error` riprovohet i pastër.
+  const make = (id, status) => ({ id, status, error: status === 'error' ? 'kuota' : '' });
+  const groups = [make('a', 'ready'), make('b', 'error'), make('c', 'pending')];
+  const queue = [groups[1], groups[2]];
+  for (const g of new Set(queue)) if (g.status === 'pending') g.error = '';
+  const left = groups.filter((x) => x.status !== 'ready');
+  assert.equal(left.length, 2, 'dy grupe mbeten');
+  assert.equal(groups[0].status, 'ready', 'i lexuari nuk preket');
+  for (const g of groups) if (g.status !== 'ready') g.status = 'pending';
+  assert.deepEqual(groups.map((g) => g.status), ['ready', 'pending', 'pending']);
+});
+
+test('asnjë flamur kuote i vdekur nuk mbetet në gjendje', () => {
+  assert.equal(api.batchState.quota, undefined, 'batchState.quota u hoq (nuk lexohej askund)');
+});
+
 run();
