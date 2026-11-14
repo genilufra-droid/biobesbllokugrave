@@ -448,7 +448,9 @@ async function batchRead(){
  if(batchState.busy)return;batchError('');const groups=batchState.groups;if(!groups.length){batchError('Zgjidh të paktën një dokument.');return}try{if(groups.length>BATCH_MAX)throw new Error('Maksimumi është 10 grupe.');for(const g of groups)checkImportFiles(g.files)}catch(e){batchError(e.message);return}
  const anonymous=!!document.getElementById('batch-anonymous')?.checked,controller=new AbortController(),run=++batchState.run;batchState.abort=controller;batchState.cancelled=false;let began=false;
  batchSetBusy(true,'Po kontrollohen dokumentet…');try{
-  for(let i=0;i<groups.length;i++){const g=groups[i];if(g.status==='ready')continue;if(controller.signal.aborted)throw new DOMException('aborted','AbortError');g.status='pending';g.error='';batchSetBusy(true,`Po kontrollohet grupi ${i+1} nga ${groups.length}…`);
+  for(let i=0;i<groups.length;i++){const g=groups[i];if(g.status==='ready')continue;
+   // Grupi që dështoi më parë riprovohet i pastër; të lexuarit nuk preken.
+   if(g.status==='error'){g.status='pending';g.error=''}if(controller.signal.aborted)throw new DOMException('aborted','AbortError');g.status='pending';g.error='';batchSetBusy(true,`Po kontrollohet grupi ${i+1} nga ${groups.length}…`);
    if(g.files.length===1&&fileKind(g.files[0])==='excel'){
     try{g.workbook=g.workbook||await readExcelFile(g.files[0]);if(controller.signal.aborted)throw new DOMException('aborted','AbortError');const local=batchResultsFromWorkbook(g.workbook);if(local){g.results=local;g.status='ready';began=true;batchPaint()}}
     catch(e){if(e?.name==='AbortError')throw e;g.status='error';g.error=str(e.message,500);throw e}
@@ -457,16 +459,33 @@ async function batchRead(){
   const produced=groups.reduce((n,g)=>n+(g.results?.length||1),0);if(produced>BATCH_MAX)throw new Error('Dokumentet përmbajnë më shumë se 10 formularë. Ndaji në përpunime të veçanta.');const pending=groups.filter(g=>g.status!=='ready');
   if(pending.length){if(!anonymous)throw new Error('Shëno kutinë e konfirmimit te “Leximi me Gemini” (dokumente anonime dhe projekt Free Tier pa faturim).');
    const catalog=optionalCatalog(!!document.getElementById('batch-catalog')?.checked),queue=[...pending],errors=[];
+   let quotaHit=false;
    const worker=async()=>{
     while(queue.length){
      if(controller.signal.aborted)throw new DOMException('aborted','AbortError');
      const g=queue.shift(),index=groups.indexOf(g);batchSetBusy(true,`Po lexohet grupi ${index+1} nga ${groups.length} me Gemini…`);began=true;
      try{g.results=await batchGemini(g,controller.signal,catalog);if(controller.signal.aborted)throw new DOMException('aborted','AbortError');g.status='ready';g.error='';batchPaint()}
-     catch(e){if(e?.name==='AbortError')throw e;g.status='error';g.error=str(e?.message||'Leximi nuk përfundoi.',500);errors.push(e);batchPaint()}
+     catch(e){
+      if(e?.name==='AbortError')throw e;
+      g.status='error';g.error=str(e?.message||'Leximi nuk përfundoi.',500);errors.push(e);batchPaint();
+      // Kuota e shpenzuar vlen për të gjithë llogarinë: grupet e tjera nuk
+      // provohen, që të mos humbasë koha dhe të mos shpenzohet më kot.
+      if(e?.quota){quotaHit=true;batchState.quota=true;break}
+     }
     }
    };
    await Promise.all(Array.from({length:Math.min(BATCH_WORKERS,queue.length)},worker));
-   if(errors.length)throw errors[0];
+   // Grupet e përfunduara ruhen. Kur kuota mbaron, nuk hidhet gjithçka: thuhet
+   // sa grupe u lexuan dhe sa mbeten, dhe ato mbeten gati për riprovim.
+   if(errors.length){
+    const left=groups.filter(x=>x.status!=='ready');
+    if(quotaHit&&left.length){
+     const done=groups.length-left.length;
+     batchError(`${errors[0]?.message||'Leximi u ndal.'} U lexuan ${done} nga ${groups.length} grupe; ${left.length} mbeten. Shtyp “Lexo formularët” pasi të lirohet kuota dhe vetëm ato do të lexohen.`);
+     return;
+    }
+    throw errors[0];
+   }
   }
   if(run!==batchState.run)return;batchBeginReview();announceReading(true)
  }catch(e){if(run!==batchState.run)return;if(e?.name==='AbortError')batchError(batchState.cancelled?'Leximi u anulua. Rezultatet e përfunduara ruhen për këtë sesion.':'Leximi kaloi kohën. Rezultatet e përfunduara ruhen për këtë sesion.');else if(e instanceof TypeError)batchError('Nuk u lidh me shërbimin cloud. Kontrollo internetin; rezultatet e përfunduara nuk humbasin.');else batchError(str(e?.message||'Leximi nuk përfundoi.',600));if(began&&!batchState.cancelled&&state.route==='batch')announceReading(false)
@@ -476,6 +495,8 @@ function batchAssignNumbers(items){
  const used=new Set(db.records.map(r=>Number(r.nr)).filter(n=>Number.isInteger(n)&&n>0));for(const it of items)if(!it.missingNumber&&/^\d{1,9}$/.test(str(it.record.nr).trim())&&Number(it.record.nr)>0)used.add(Number(it.record.nr));let candidate=nextNr();
  for(const it of items)if(it.missingNumber){while(used.has(candidate))candidate++;it.record.nr=String(candidate).padStart(3,'0');used.add(candidate++);it.warnings=it.warnings.filter(x=>!x.startsWith('Numri nuk u lexua')&&!x.startsWith('Numri nuk ishte i plotësuar'));it.warnings.push(`Numri nuk ishte i lexueshëm; u propozua ${it.record.nr}. Kontrolloje.`)}
 }
+// Sa grupe mbeten pa u lexuar (për mesazhin e ndalesës dhe riprovimin).
+function batchPendingCount(){return batchState.groups.filter(g=>g.status!=='ready').length}
 function batchBeginReview(){
  const items=[];for(const g of batchState.groups){if(g.status!=='ready'||!g.results?.length){batchError('Jo të gjitha grupet janë lexuar.');return}for(const result of g.results){const record=normalizeRecord(result.record),warnings=[...new Set(result.warnings||[])];if(record.attachments?.length)warnings.push('Lidhjet e vjetra të dokumenteve nuk importohen; do të ruhen origjinalet e zgjedhura këtu.');record.attachments=[];record.id=uid();const sources=g.files.map(f=>({name:f.name,url:URL.createObjectURL(f)}));const originals=(g.privateFiles||g.originalFiles||g.files).map(f=>({name:f.name,file:f,uploaded:null,pendingPath:''}));items.push({record,warnings,missingNumber:!!result.missingNumber,reading:result.reading||null,formNumber:result.formNumber||null,formCount:result.formCount||null,sources,originals,confirmedDigest:''})}}
  if(items.length>BATCH_MAX){for(const it of items)for(const x of it.sources)URL.revokeObjectURL(x.url);batchError('Rezultati përmban më shumë se 10 formularë. Ndaji në grupe më të vogla.');return}batchAssignNumbers(items);batchState.items=items;batchState.phase='review';batchOpen(0)

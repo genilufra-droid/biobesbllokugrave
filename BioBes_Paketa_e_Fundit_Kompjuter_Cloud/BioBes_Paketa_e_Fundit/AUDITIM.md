@@ -235,3 +235,25 @@ e modelit, në pajisje; dokumenti nuk ruhet. Maksimumi 40 leximе, 7 ditë.
 zonës kur mungon, punonjësit e pjesshëm, cache-i (ruajtje, skadim, hash i
 ndryshëm për skedar tjetër) dhe kontrolli që skanimi real jep ende 1476/1571 kg
 me po ato data.
+
+### 7.4 Kuota e Gemini (429) nuk harxhohet kot
+
+**Simptoma.** Grupet 5–7 dolën “Nuk u lexua” me
+*“Gemini nuk e përfundoi kërkesën. (RESOURCE_EXHAUSTED #429)”*.
+
+**Diagnoza.** 429 me `RESOURCE_EXHAUSTED` është kuota e llogarisë, jo gabim i
+dokumentit. Kodi e trajtonte si kufi të përkohshëm: **1 kërkesë + 4 riprovime**
+me pritje 5, 10 e 15 s. Për tre grupe harxhoheshin deri në 11 kërkesa për zero
+rezultat, ndërsa Google thoshte “prit”. `Retry-After` nuk lexohej fare.
+
+**Rregullimi.**
+1. `RESOURCE_EXHAUSTED`/`QUOTA` → **ndalet menjëherë**, pa riprovuar, me mesazh
+   që thotë se kuota u shpenzua dhe se dokumentet nuk humbën.
+2. 429 e zakonshme (jo kuotë) → riprovohet, dhe `Retry-After` respektohet
+   (30–60 s në vend të 5 s).
+3. Kur kuota bie në një grup, **grupet e tjera nuk provohen**; raporti thotë sa u
+   lexuan dhe sa mbeten.
+4. Grupet e lexuara **nuk hidhen**: “Lexo formularët” riprovoi vetëm të mbeturit.
+
+**Prova.** `tests/quota_429.test.js` (7 teste). Matja: tre grupe me kuotë të
+shpenzuar → **3 kërkesa në vend të 11**.

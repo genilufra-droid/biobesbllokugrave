@@ -289,6 +289,17 @@ async function cloudGemini(parts,signal){
  const body=JSON.stringify({parts,consent:true,anonymous:true,freeTier:true});if(new Blob([body]).size>19000000)throw new Error('Dokumentet janë shumë të mëdha për lexim në cloud. Ndaji në skedarë më të vegjël.');
  const pause=cloudLastAiStart?Math.max(0,BATCH_AI_GAP_MS-(Date.now()-cloudLastAiStart)):0;if(pause){if(batchState.busy)batchSetBusy(true,'Pauzë për kufirin falas; leximet vazhdojnë së shpejti…');await batchWait(pause,signal)}if(signal.aborted)throw new DOMException('aborted','AbortError');cloudLastAiStart=Date.now();
  let lastError=null;
+ // Kodi i ofruesit: 429 + RESOURCE_EXHAUSTED = kuota mbaroi, jo radhë.
+ const quotaError=(status,result)=>{
+   if(status!==429)return null;
+   const provider=str(result?.providerStatus||'',80).toUpperCase();
+   const isQuota=provider.includes('RESOURCE_EXHAUSTED')||provider.includes('QUOTA');
+   const error=new Error(isQuota
+     ?'Kuota e leximit me Gemini për sot është shpenzuar (RESOURCE_EXHAUSTED). Provo më vonë ose përdor një çelës/plan tjetër. Nuk humbi asgjë: dokumentet mund të rilexohen.'
+     :'Shumë kërkesa njëherësh te Gemini; prit pak dhe provo përsëri.');
+   error.quota=Boolean(isQuota);
+   return error;
+ };
  for(let attempt=0;attempt<4;attempt++){
   let response,result={};
   try{response=await fetch(`${cloud.config.url}/functions/v1/biobes-read-form`,{method:'POST',headers:{'Content-Type':'application/json',apikey:cloud.config.key,Authorization:`Bearer ${data.session.access_token}`},body,signal,credentials:'omit',referrerPolicy:'no-referrer'});}
@@ -299,9 +310,20 @@ async function cloudGemini(parts,signal){
    const providerDetail=result.providerStatus?` (${result.providerStatus}${result.providerCode?` #${result.providerCode}`:''})`:'';
    lastError=new Error(str(result.error||'Shërbimi Gemini nuk u përgjigj.',300)+providerDetail);
    const upstream=Number(result.httpStatus),status=Number.isInteger(upstream)&&upstream>=400?upstream:response.status;
+   // Kuota e shpenzuar nuk rregullohet duke pritur 5 sekonda: ndalet menjëherë,
+   // që të mos harxhohen pesë kërkesa për asnjë rezultat.
+   const quota=quotaError(status,result);
+   if(quota&&quota.quota)throw quota;
+   if(quota)lastError=quota;
    if(status!==408&&status!==429&&(status<500||status>599))throw lastError;
   }
-  if(attempt<3){const retryAfter=Number(response?.headers?.get('retry-after'));const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.min(retryAfter*1000,30000):5000*(attempt+1);if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);await batchWait(wait,signal)}
+  if(attempt<3){
+   const header=Number(response?.headers?.get('retry-after'));
+   // 429 do të thotë "prit", dhe Google e thotë sa: Retry-After kur vjen, përndryshe 30–60 s.
+   const wait=Number.isFinite(header)&&header>0?Math.min(header*1000,120000):(429===Number(response?.status)?30000*(attempt+1):5000*(attempt+1));
+   if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);
+   await batchWait(wait,signal);
+  }
  }
  throw lastError;
 }
