@@ -18,6 +18,7 @@ const { test, run } = require('./test_runner.js');
 const api = loadApp(null, `
 ;globalThis.__M = {
   batchManualReview, batchManualItem, batchManualNumber, batchManualDate, batchManualPages,
+  batchManualBlocks, contiguousPages,
   batchState, blankRecord, normalizeRecord, weightsHTML, weighCheckIssues,
 };`).window.__M;
 
@@ -59,10 +60,14 @@ test('data merret vetëm kur është e qartë në emrin e skedarit', () => {
 });
 
 test('numri i faqeve lexohet edhe kur grupi vjen i ndarë', () => {
-  assert.equal(api.batchManualPages(fakeGroup('a_faqet_3-4.pdf')), 4);
-  assert.equal(api.batchManualPages(fakeGroup('a_faqet_9.pdf')), 9);
+  // `faqet_3-4` janë DY faqe (4 − 3 + 1). Më parë lexohej 4 — ai ishte defekti
+  // që bënte 7 grupe të japin 28 formularë dhe të bllokohej kufiri 10.
+  assert.equal(api.batchManualPages(fakeGroup('a_faqet_3-4.pdf')), 2);
+  assert.equal(api.batchManualPages(fakeGroup('a_faqet_9-10.pdf')), 2);
+  assert.equal(api.batchManualPages(fakeGroup('a_faqet_9.pdf')), 1);
+  // Numri i faqeve të skedarit ka përparësi; `pageCount` i grupit është i PDF-së mëmë.
   assert.equal(api.batchManualPages(fakeGroup('a.pdf', 14)), 14);
-  assert.equal(api.batchManualPages(fakeGroup('a.pdf')), 0);
+  assert.equal(api.batchManualPages(fakeGroup('a.pdf')), 1);
 });
 
 test('një PDF 14-faqe jep 7 formularë bosh, me faqet e tyre', () => {
@@ -103,6 +108,70 @@ test('paralajmërimet thonë qartë se formulari u krijua bosh dhe pse', () => {
   assert.match(text, /u krijua BOSH për t’u plotësuar me dorë/);
   assert.match(text, /0\/10 saktë në dorëshkrim/);
   assert.match(text, /Numri i formularit nuk u gjet/);
+});
+
+
+// --- Regresioni i skanimit 46-faqe (46 faqe → 23 blloqe, jo 28 formularë) ---
+// Defekti: emri `…_faqet_13-14.pdf` lexohej si 14 faqe, prandaj 7 grupe × 14/2
+// jepnin 28 formularë dhe kufiri 10 bllokonte gjithçka me “Ndaji në grupe”.
+
+const scanGroups = (total, original = { name: 'ZARUA JAVA 46.pdf', size: 1000 }) => {
+  const out = [];
+  for (let a = 1; a < total; a += 2) {
+    out.push({
+      id: 'g' + a,
+      files: [{ name: `ZARUA JAVA_${total}_faqet_${a}-${a + 1}.pdf`, type: 'application/pdf', size: 1000, pageCount: 2, pageOffset: a - 1 }],
+      originalFiles: [{ ...original }],
+      privateFiles: null, status: 'pending', error: '', results: null, raw: null, workbook: null, sources: [],
+      pageOffset: a - 1,
+    });
+  }
+  return out;
+};
+
+test('faqet e grupit nuk merren nga numri i fundit i emrit', () => {
+  assert.equal(api.batchManualPages(fakeGroup('a_faqet_13-14.pdf')), 2);
+  assert.equal(api.batchManualPages(fakeGroup('a_faqet_1-2.pdf')), 2);
+  assert.equal(api.batchManualPages(fakeGroup('a_faqet_45-46.pdf')), 2);
+  // Një skedar i vetëm = 1 faqe, edhe pa numra në emër.
+  assert.equal(api.batchManualPages(fakeGroup('skanim.pdf')), 1);
+});
+
+test('46 faqe nga i njëjti PDF bashkohen në një bllok, jo 23 grupe', () => {
+  const groups = scanGroups(46);
+  const blocks = api.batchManualBlocks(groups);
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].pages, 46);
+});
+
+test('46 faqe japin 23 formularë bosh, pa u bllokuar nga kufiri 10', async () => {
+  const dom = loadApp(null, `;globalThis.__M = { batchManualReview, batchState };`);
+  dom.window.fetch = async () => { throw new Error('nuk duhet të thirret'); };
+  const M = dom.window.__M;
+  M.batchState.groups = scanGroups(46);
+  M.batchState.busy = false;
+  await M.batchManualReview();
+  assert.equal(M.batchState.error, '', 'nuk duhet të bllokohet');
+  assert.equal(M.batchState.items.length, 23);
+  assert.match(M.batchState.items[0].warnings[0], /faqja 1–2 e 46/);
+  assert.match(M.batchState.items[22].warnings[0], /faqja 45–46 e 46/);
+});
+
+test('7 formularë / 14 faqe mbeten 7 (pa bashkim të gabuar)', async () => {
+  const dom = loadApp(null, `;globalThis.__M = { batchManualReview, batchState };`);
+  const M = dom.window.__M;
+  // Skanim i një PDF-je 14-faqe të vetme, i ndarë në 7 grupe.
+  M.batchState.groups = scanGroups(14, { name: 'BioBes_7_formulare_14_faqe.pdf', size: 2000 });
+  M.batchState.busy = false;
+  await M.batchManualReview();
+  assert.equal(M.batchState.items.length, 7);
+  assert.match(M.batchState.items[6].warnings[0], /faqja 13–14 e 14/);
+});
+
+test('grupe të pavarura nuk bashkohen ndërmjet tyre', () => {
+  const a = { id: 'a', files: [{ name: 'dita1_faqet_1-2.pdf', pageCount: 2 }], originalFiles: [{ name: 'dita1.pdf', size: 10 }] };
+  const b = { id: 'b', files: [{ name: 'dita2_faqet_1-2.pdf', pageCount: 2 }], originalFiles: [{ name: 'dita2.pdf', size: 20 }] };
+  assert.equal(api.batchManualBlocks([a, b]).length, 2);
 });
 
 run();

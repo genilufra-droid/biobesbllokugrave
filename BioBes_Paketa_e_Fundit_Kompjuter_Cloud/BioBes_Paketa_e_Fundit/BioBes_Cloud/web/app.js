@@ -612,7 +612,10 @@ function batchManualNumber(source,name){
 }
 // Data e lexuar nga emri i skedarit (2026-11-06, 06.11.2026, 6-11-26 …).
 function batchManualDate(name){
- const text=`${name||''}`;
+ const text=`${name||''}`
+  // “46_faqet_1-2” përmban numra që s'janë data (46 = faqet, 1-2 = faqet).
+  .replace(/faqet[_-]?\d+(?:[-–]\d+)?/gi,' ')
+  .replace(/\b\d{1,3}_(?=\d)/g,' ');
  // 1) Data ISO: 2026-11-06
  const iso=text.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
  if(iso){const value=dateFromImport(`${iso[3]}.${iso[2]}.${iso[1]}`);if(value)return value}
@@ -629,17 +632,32 @@ function batchManualDate(name){
  return '';
 }
 function batchManualPages(g){
- // Faqet e një grupi: PDF-ja e ndarë mban numrin te `pageCount`; një PDF i vetëm
- // i paprerë nuk e ka, dhe atëherë numri merret nga emri (_faqet_3-4) ose lihet 0.
- const total=g.files.reduce((n,f)=>n+(Number(f.pageCount)||Number(f.pages)||0),0)||Number(g.pageCount)||0;
- if(total)return total;
- for(const f of g.files){const m=String(f.name||'').match(/faqet[_-]?(\d+)(?:[-–](\d+))?/i);if(m)return Number(m[2]||m[1])||0}
- return 0;
+ // Numri i faqeve TË KËTIJ GRUPI, jo i PDF-së mëmë.
+ // `g.pageCount` është faqet e PDF-së ORIGJINALE (p.sh. 46 për 46 faqe), prandaj
+ // nuk duhet përdorur si faqe të grupit: 7 grupe × 46 faqe = 161 formularë.
+ // Radha e saktë: `pageCount` i skedarit të ndarë, pastaj emri `faqet_13-14`
+ // (= 2 faqe), pastaj një skedar vetëm = 1 faqe.
+ const own=g.files.reduce((n,f)=>n+(Number(f.pageCount)||Number(f.pages)||0),0);
+ if(own)return own;
+ let named=0;
+ for(const f of g.files){
+  const m=String(f.name||'').match(/faqet[_-]?(\d+)(?:[-–](\d+))?/i);
+  if(!m)continue;
+  const a=Number(m[1])||0,b=Number(m[2])||0;
+  // `faqet_13-14` janë 2 faqe (14 − 13 + 1); `faqet_9` tregon se kjo është
+  // faqja e 9-t e dokumentit, pra ky grup ka 1 faqe.
+  named+=(a&&b&&b>=a)?(b-a+1):1;
+ }
+ if(named)return named;
+ if(g.files.length)return g.files.length;
+ return Number(g.pageCount)||0;
 }
-function batchManualItem(g,index,total){
+function batchManualItem(g,index,total,pagesOverride){
  const record=blankRecord('001');
  const first=g.files[0]||{name:''};
- const pages=batchManualPages(g);
+ // `pagesOverride` vjen nga batchManualReview, ku grupet ngjitur me faqe
+ // vijuese (1-2, 3-4, …) bashkohen në një dokument të vetëm.
+ const pages=Number(pagesOverride)||batchManualPages(g);
  const perForm=2,count=pages?Math.max(1,Math.round(pages/perForm)):1;
  // Faqja PARA / PAS e këtij formulari brenda grupit.
  const front=(index*perForm)+1,back=pages?Math.min(pages,front+1):null;
@@ -657,23 +675,61 @@ function batchManualItem(g,index,total){
  if(!date)warnings.push('Data nuk u gjet në emrin e skedarit; vendose vetë.');
  return {record,warnings,missingNumber:!record.nr,reading:null,formNumber:index+1,formCount:count,groupFiles:g.files};
 }
+// Bashkon grupet që janë pjesë e të njëjtit PDF: faqja e parë e grupit N është
+// menjëherë pas faqes së fundit të grupit N−1. Kthen blloqe {groups, files, pages}.
+function batchManualBlocks(groups){
+ const blocks=[];
+ for(const g of groups){
+  const own=batchManualPages(g)||1;
+  const prev=blocks[blocks.length-1];
+  // I njëjti PDF mëmë: ose i njëjti objekt File, ose i njëjti emër + madhësi.
+  const sameFile=(a,b)=>!!a&&!!b&&(a===b||(a.name===b.name&&a.size===b.size));
+  const sameSource=prev&&prev.groups.every(x=>x.originalFiles?.length===1&&g.originalFiles?.length===1&&sameFile(x.originalFiles[0],g.originalFiles[0]));
+  const lastGroup=prev&&prev.groups[prev.groups.length-1];
+  const lastFile=lastGroup&&lastGroup.files.slice(-1)[0];
+  const nextFile=g.files[0];
+  const contiguous=!!lastFile&&contiguousPages(lastFile,nextFile)&&contiguousPages(lastGroup,g);
+  if(prev&&sameSource&&contiguous){prev.groups.push(g);prev.files.push(...g.files);prev.pages+=own}
+  else blocks.push({groups:[g],files:[...g.files],pages:own});
+ }
+ return blocks;
+}
+// A janë `b` menjëherë pas `a`? `a`/`b` mund të jenë skedar ose grup.
+// Radha e saktë: numrat te emri (`faqet_3-4` → `faqet_5-6`), pastaj `pageOffset`,
+// e në fund, kur numrat mungojnë fare, pranohet vazhdimësia.
+function contiguousPages(a,b){
+ const nameOf=x=>String((Array.isArray(x?.files)?x.files[0]:x)?.name||'');
+ const pagesOf=x=>Array.isArray(x?.files)?(x.files.reduce((n,f)=>n+(Number(f.pageCount)||0),0)||x.files.length||1):1;
+ const ra=nameOf(a).match(/faqet[_-]?(\d+)(?:[-–](\d+))?/i),rb=nameOf(b).match(/faqet[_-]?(\d+)(?:[-–](\d+))?/i);
+ if(ra&&rb)return (Number(rb[1])||0)===(Number(ra[2]||ra[1])||0)+1;
+ const oa=Number(a?.pageOffset),ob=Number(b?.pageOffset);
+ if(Number.isFinite(oa)&&Number.isFinite(ob))return ob===oa+pagesOf(a);
+ return true;
+}
 // Butoni: përgatit kontrollin manual për grupet e zgjedhura, pa asnjë kërkesë rrjeti.
 async function batchManualReview(){
  if(batchState.busy)return;
  const files=batchState.groups.filter(g=>g.files?.length);
  if(!files.length){batchError('Zgjidh të paktën një dokument.');return}
  const items=[];
- for(const g of files){
-  const pages=batchManualPages(g);
+ // Grupet që vijnë nga i njëjti PDF i ndarë (faqet 1-2, 3-4, 5-6 …) janë
+ // vazhdim i të njëjtit dokument. Bashkohen, që 46 faqe të japin 23 formularë
+ // dhe jo 7 grupe × 7 formularë. Grupet e pavarura mbeten të pavarura.
+ for(const block of batchManualBlocks(files)){
+  const pages=block.pages;
   const count=pages?Math.max(1,Math.round(pages/2)):1;
-  for(let i=0;i<count;i+=1)items.push(batchManualItem(g,i,count));
+  const group=block.pages>0?{...block.groups[0],files:block.files,pageCount:pages}:block.groups[0];
+  for(let i=0;i<count;i+=1)items.push(batchManualItem(group,i,count,pages));
  }
- if(items.length>BATCH_MAX){batchError(`Dokumentet japin ${items.length} formularë; kufiri është ${BATCH_MAX}. Ndaji në grupe më të vogla.`);return}
+ // Këtu kufiri NUK zbatohet: pa Gemini nuk ka kuotë, as kërkesa rrjeti, as
+ // kosto. Kufiri 10 ekziston për leximin me AI. 46 faqe = 23 formularë bosh,
+ // dhe përdoruesi i plotëson me radhë; bllokimi do t’i hiqte punën më të dobishme.
+ const overLimit=items.length>BATCH_MAX;
  // Origjinalet lidhen si URL lokale (jo upload), që përdoruesi ta ketë dokumentin
  // hapur pranë formularit ndërsa shkruan — pa dalë asnjë bajt nga pajisja.
  const fresh=items.map(it=>{const record=clone(it.record);record.id=uid();const sources=(it.groupFiles||[]).map(f=>{let url='';try{url=URL.createObjectURL(f)}catch(e){url=''}return {name:f.name,url}});const originals=(it.groupFiles||[]).map(f=>({name:f.name,file:f,uploaded:null,pendingPath:''}));return {...it,groupFiles:undefined,record,sources,originals,confirmedDigest:''}});
  batchState.items=fresh;batchState.phase='review';batchState.index=0;batchAssignNumbers(fresh);batchOpen(0);
- toast(`U përgatitën ${fresh.length} formularë për plotësim me dorë. Pa Gemini.`,'warn');
+ toast(`U përgatitën ${fresh.length} formularë për plotësim me dorë. Pa Gemini.${overLimit?` Mbi ${BATCH_MAX} — pa kuotë nuk ka pengesë.`:''}`,'warn');
 }
 function batchReviewed(item){return !!item.confirmedDigest&&item.confirmedDigest===JSON.stringify(item.record)}
 function batchMarkChanged(){if(!batchIsReview())return;const item=batchState.items[batchState.index];if(item.confirmedDigest){item.confirmedDigest='';const el=document.getElementById('batch-reviewed');if(el)el.checked=false;batchUpdateSummary()}}
