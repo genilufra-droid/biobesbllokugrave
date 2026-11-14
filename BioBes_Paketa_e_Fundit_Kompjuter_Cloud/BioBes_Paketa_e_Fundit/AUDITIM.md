@@ -493,3 +493,45 @@ reale pune. Në vend të tij, mesazhi i kuotës tani e drejton përdoruesin te
 **Kushti për lexim lokal që ia vlen:** duhet të mbajë të njëjtat rregulla — asnjë
 vlerë e hamendësuar, `[e paqartë]` për atë që nuk lexohet, `needsReview`, dhe
 një masë saktësie e matur mbi skanimin real përpara se të shpallet i gatshëm.
+
+### 7.14 OCR lokal i matur: 0 nga 10 — dhe çfarë u ndërtua në vend të tij
+
+Zgjedhja e përdoruesit: **B** — Gemini kryesor, lokal si rezervë. Para se të
+ndërtohej, OCR-ja u mat mbi skanimin e tij real (14 faqe, dorëshkrim shqip).
+
+**Prova.**
+
+- Faqja 1 u nxor nga PDF-ja (imazh 1754 × 1240, JPEG brenda Flate; PDF-ja nuk ka
+  asnjë `/Font`, pra nuk ka shtresë teksti).
+- Imazhi ishte i rrotulluar 180°; me orientimin e saktë (270°) u gjet rrjeta e
+  tabelës: 6 vija vertikale, 46 horizontale, hap ~29 px.
+- Tesseract.js u nis me skedarë lokalë (`tesseract.js-core` + `@tesseract.js-data/eng`)
+  dhe u provua qelizë për qelizë në kolonat e tabelës PESHIMI 1, me
+  `tessedit_char_whitelist: 0123456789` dhe `psm 7` (një rresht teksti).
+
+**Rezultati: 0 nga 10 vlera të sakta** në kolonën KG (22, 21, 22, 188, 23, 26,
+73, 95, 72, 88). Pa pritje orientimi, besueshmëria e faqes së plotë ishte 29–32%.
+
+**Përfundim:** OCR klasik nuk e lexon këtë dorëshkrim. Ta hidhte në faqe do të
+thoshte t’i jepte përdoruesit numra të gabuar pa paralajmërim — më keq se kuota.
+
+**Çfarë u ndërtua në vend të tij: “Kontrollo pa Gemini”.**
+
+- Buton pranë “Lexo formularët”. Nuk bën **asnjë** kërkesë rrjeti (test i
+  detyruar: `fetch` hedh gabim nëse thirret; thirret 0 herë).
+- Krijon formularë **bosh** — një për çdo 2 faqe të grupit, me faqet e shënuara
+  (“faqja 1–2 e 14”). Asnjë vlerë nuk shpiket.
+- Numri i formularit merret vetëm kur është i qartë në emrin e skedarit
+  (`BioBes_041.pdf`, `…formulari_7…`); numri i zhveshur nuk hamendësohet.
+- Data merret vetëm kur është e qartë; intervali `06-12.11.26` lexohet si
+  12.11.2026 (dita e mbarimit), jo si 06.12.2026. Viti 2-shifror pranohet vetëm
+  2020–2040.
+- Formulari hyn në të njëjtën faqe kontrolli: kontrolli **KG − Ambalazhi**
+  punon, origjinali hapet pranë tij si URL lokale (pa upload), dhe ruajtja bën
+  çdo kontrolle si zakonisht.
+- Paralajmërimet e thonë hapur pse: *“u krijua BOSH … as Gemini (kuota) as OCR
+  lokal (prova dha 0/10 saktë në dorëshkrim)”*.
+
+**Testet:** `tests/batch_manual.test.js` — 8 teste (pa vlera të shpikura, numri
+dhe data vetëm kur janë të qarta, 14 faqe → 7 formularë bosh, zero kërkesa
+rrjeti, aritmetika gati).

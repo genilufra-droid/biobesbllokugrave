@@ -1,11 +1,11 @@
-2e2d021afb9ceef8082694e15f663fd16ed46a61f84b4d8b92ea675a490db9ed  ./AUDITIM.md
+f6e125918cd6873c2ed5d3c81b43aa8540e95c29be133893a8747d27a8c77336  ./AUDITIM.md
 7565e8ecca183674fd2f94fbb8f3c644d6088756338601714fc4d57b46c6c289  ./BioBes_Cloud/.gitignore
 d112f6e9fd30f5c1a1ecf112e3e278169216dbdd86fb643a1665210185d51e30  ./BioBes_Cloud/UDHEZUESI.md
 a24296e54891528a05b1668c075e50f957cc87eb2fb03d64e8eebe0de693f0a9  ./BioBes_Cloud/supabase/authorize_owner.sql
 1de6de5d3f18b7efe8467314e7ffcd1d6a15f91610da8154d137c353d1c67033  ./BioBes_Cloud/supabase/config.toml
 83652c4b9a258a9e8c1fcaf70b30e87839c1a51c85c3a2c53d8fde2b0527f9ad  ./BioBes_Cloud/supabase/functions/biobes-read-form/index.ts
 cf19db73f06c8f87f42cbad9515e71682ebd813a45a01b275d0179a56b88e4f2  ./BioBes_Cloud/supabase/migrations/20261104000000_biobes_daily.sql
-090af33c307a0c1941259079b22bf88a15a0f8751b573fd8b540294dc126107f  ./BioBes_Cloud/web/app.js
+4b74049ead7f544a98dc484b0d4b9a4e36ec811a89510289a35c1743ec3ca946  ./BioBes_Cloud/web/app.js
 6cadf31ae07de09ce95fecc1ceb528ded78415a929e3693a8223a21513b34b97  ./BioBes_Cloud/web/cloud-config.js
 38f71d845d4ba554427a684c50bfa19a87c7867c42421c509895e897ad5bc1c9  ./BioBes_Cloud/web/cloud.js
 ed9848d6e60f978d230629b83eb6eee4067e741e6a708651bd43a5e859b19f5c  ./BioBes_Cloud/web/index.html
@@ -28,6 +28,7 @@ fe1ff3e81a354801a4341a49653287a905a577d59dc73a24b0574188e3eafbe1  ./Modele_Bosh/
 a1b9b3aabbabe90958f5b13afee01981b529713cc1a54d5109e4ba88c5b0c77f  ./tests/.gitignore
 b755b0c4e981e99ab415c2091e3f5062b8ae532fa005c79bba6de489de6b10eb  ./tests/ai_record.test.js
 42bbbb7a9ad6ca818f2e6382d1874f1ab9c9b1bbe4ca697c47f939e72c1e0b6c  ./tests/attendance.test.js
+b9e50a822722045ae41ffddfa2d41cca636035d1bd8a9c20065ec348eaed880d  ./tests/batch_manual.test.js
 ee011570f979e3b8af97e224f60e531d9f3d585cbfb3791fae335292fc5c1910  ./tests/batch_resume.test.js
 9081b2cc598e5ca90f08418da165fd5f647a3c0342d77736b0a9e7016601c5bb  ./tests/batch_workbook.test.js
 3e7265cd96d596f6f7a1c32012603b1b257a6592d39b4c56201167fc15668711  ./tests/catalog_edit.test.js
@@ -44,7 +45,7 @@ c161b6b509bfe568320fd6a5d6156c334384e236fa636941a906661cd2460f03  ./tests/fixtur
 fc363e5b8e3279a87f94df1d73fa7fa96fd3f4aa3db3b1d047ab97f2f32bdeca  ./tests/multi_form.test.js
 9976de762ec7322f03883897d07c7a7945a75f712bb40b20e36bd12889dae433  ./tests/ocr_p0_p1.test.js
 45373c19f0e490acc5fdf427d48ff050487c33d43c7121ecec395e8ee61194bf  ./tests/package-lock.json
-e9aaa59af7e11da1986db3c90cf9ef7e619ca71ef890a65ae243f12a395ae770  ./tests/package.json
+ba2bf28f623448134fed31b0286aa8762f94c11cc458abbfef19af1ad9c28e35  ./tests/package.json
 233e6049928a148e2b4fb741fb6d36dc0f9828069a9ceeda7bae07899fc4a7ad  ./tests/parse_ai_json.test.js
 0d3e2d798928cc71d7d5f002602a6d031d4dc17c4ed28cb667a2ea04c67f684e  ./tests/password_recovery.test.js
 152645363902dae9418d6d0cb3e3649b99d398c3b72c61f9e3467ecbdfe400c7  ./tests/performance_checks.js
