@@ -204,3 +204,34 @@ korrigjohet — vetëm shënohet.
 **Prova.** `tests/weight_row_numbers.test.js` (7 teste): rresht pa numër, numër
 i përsëritur, numër jo-numerik, dhe kontrolli që vetëm rreshtat e dyshimtë
 shënohen. Me 24 rreshta të qartë + 1 të dyshimtë, ruhen 25 nga 25.
+
+### 7.3 Shpejtësia e leximit (pa ndryshuar asnjë vlerë)
+
+Leximi zgjaste ~111 s për disa grupe. Matja e daljes tregoi se vonesa nuk vinte
+nga shikimi i figurës, por nga **sa tekst duhej të shkruante modeli**.
+
+| Burimi i tepricës | Para | Pas |
+|---|---|---|
+| `formArea` me fjalë për çdo qelizë (22% e daljes) | “PESHIMI 1 · faqja PARA · rreshti 7 · Kg” | kodi `w1.r7.kg`, zbërthehet në pajisje |
+| `confidence` për çdo qelizë, edhe kur s'kishte dyshim | e detyrueshme | vetëm kur ka pasiguri |
+| 12 punonjës për çdo formular, edhe bosh | 12 objekte × 538 bajt | vetëm rreshtat me vlera |
+| Grupe njëherësh | 2 | 4 (`BATCH_WORKERS`) |
+| Skanim i përsëritur | rilexohej gjithmonë | cache me hash SHA-256, 7 ditë |
+
+**Kursimi i matur i daljes: 31%** (92 010 → 63 473 bajt për skanimin real).
+
+**Cache-i.** Çelësi është hash-i i përmbajtjes, i lidhur me `READ_CACHE_VERSION`:
+kur ndryshon prompt-i ose skema, leximet e vjetra hidhen vetë. Ruhet vetëm dalja
+e modelit, në pajisje; dokumenti nuk ruhet. Maksimumi 40 leximе, 7 ditë.
+
+**Rreziqet që u mbyllën gjatë punës.**
+1. Faqet krejt bosh prodhojnë PDF me bajt identikë dhe cache-i i njësonte —
+   testet tani përdorin faqe me përmasa të ndryshme.
+2. Pa `crypto.subtle` (kontekst jo i sigurt) hash-i bie në FNV-1a, kështu që
+   cache-i nuk shkakton gabim.
+3. `formArea` e panjohur kalon si tekst, nuk hidhet dhe nuk shpiket.
+
+**Prova.** `tests/read_speed.test.js` (11 teste): zbërthimi i kodeve, ndërtimi i
+zonës kur mungon, punonjësit e pjesshëm, cache-i (ruajtje, skadim, hash i
+ndryshëm për skedar tjetër) dhe kontrolli që skanimi real jep ende 1476/1571 kg
+me po ato data.

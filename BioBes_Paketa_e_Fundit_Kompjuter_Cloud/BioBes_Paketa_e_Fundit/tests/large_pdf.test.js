@@ -32,6 +32,9 @@ api.cloud.client = {
 api.batchState.busy = false;
 // Gemini kthen përgjigjen si tekst JSON, ashtu si shërbimi.
 function mockGemini(payloads) {
+  // Cache-i i leximit do t'i shërbente të njëjtit skedar pa thirrje rrjeti;
+  // këta teste matin rrjedhën e rrjetit, ndaj fshihet para secilit skenar.
+  api.readCacheClear();
   const calls = [];
   dom.window.fetch = async (_url, init) => {
     const body = JSON.parse(init.body);
@@ -53,7 +56,9 @@ function mockGemini(payloads) {
 // PDF i vërtetë me N faqe (PDFLib i prodhimit, jo dokument i rremë).
 async function makePdf(pages, name) {
   const pdf = await PDFLib.PDFDocument.create();
-  for (let i = 0; i < pages; i += 1) pdf.addPage();
+  // Çdo faqe me përmasë të vet: faqet krejt bosh identike prodhojnë PDF me bajt
+  // identikë, dhe cache-i (me të drejtë) i njëson. Formularët realë ndryshojnë.
+  for (let i = 0; i < pages; i += 1) { const page = pdf.addPage(); page.setSize(400 + i, 600 + i); }
   return new File([await pdf.save()], name, { type: 'application/pdf' });
 }
 
@@ -191,6 +196,7 @@ test('readFilesWithGemini nuk e thyen leximin kur PDF-ja është e vogël', asyn
 });
 
 test('anulimi ndalon midis pjesëve', async () => {
+  api.readCacheClear();
   const file = await makePdf(14, 'skanim.pdf');
   const controller = new AbortController();
   dom.window.fetch = async () => {

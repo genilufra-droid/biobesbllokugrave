@@ -349,6 +349,9 @@ function catalogHTML(){const configs=[['responsibles','Përgjegjëset','Emër dh
 const IMPORT_LIMIT=12*1024*1024;
 const importState={files:[],abort:null,busy:false,lastRaw:null,review:null,notify:false,timer:null,startedAt:0,cancelledByUser:false,pendingNotice:null};
 const BATCH_MAX=10,BATCH_AI_GAP_MS=1000;
+// Sa grupe lexohen njëherësh. Formularët janë punë e pavarur; 4 e shkurtojnë
+// radhën pa e shtyrë kufirin e kërkesave (pauza mes fillimeve mbetet 1 s).
+const BATCH_WORKERS=4;
 const batchState={groups:[],items:[],phase:'select',index:0,busy:false,abort:null,run:0,cancelled:false,error:'',progress:'',timer:null};
 function batchIsReview(){return batchState.phase==='review'&&batchState.items.length>0&&state.route==='editor'}
 function batchReset(){
@@ -462,7 +465,7 @@ async function batchRead(){
      catch(e){if(e?.name==='AbortError')throw e;g.status='error';g.error=str(e?.message||'Leximi nuk përfundoi.',500);errors.push(e);batchPaint()}
     }
    };
-   await Promise.all(Array.from({length:Math.min(2,queue.length)},worker));
+   await Promise.all(Array.from({length:Math.min(BATCH_WORKERS,queue.length)},worker));
    if(errors.length)throw errors[0];
   }
   if(run!==batchState.run)return;batchBeginReview();announceReading(true)
@@ -676,6 +679,45 @@ const PDF_PAGES_PER_CALL=6;
 // Kufiri i faqeve varet nga numri i formularëve (2 faqe për formular).
 function pdfMaxPages(){return AI_MAX_FORMS*2}
 
+
+// ---------------------------------------------------------------------------
+// Cache i leximit. Skanimi i njëjti nuk rilexohet: hash-i i përmbajtjes vendos.
+// Ruhet vetëm dalja e modelit (jo dokumenti), në pajisje, dhe skadon. Kjo e
+// kthen riprovimin nga ~2 minuta në çast, dhe nuk dërgon gjë të re në rrjet.
+const READ_CACHE_PREFIX='biobes.read.',READ_CACHE_DAYS=7,READ_CACHE_MAX=40;
+// Ndërro këtë kur ndryshon prompt-i ose skema e leximit: cache-i i vjetër hidhet.
+const READ_CACHE_VERSION='v2-';
+async function readCacheKey(file){
+ const buffer=await file.arrayBuffer();
+ if(globalThis.crypto?.subtle){
+  const hash=await crypto.subtle.digest('SHA-256',buffer);
+  return READ_CACHE_VERSION+[...new Uint8Array(hash)].slice(0,16).map(b=>b.toString(16).padStart(2,'0')).join('');
+ }
+ // Pa crypto.subtle: hash i thjeshtë FNV-1a mbi bajtët.
+ let h=2166136261;const bytes=new Uint8Array(buffer);
+ for(let i=0;i<bytes.length;i++){h^=bytes[i];h=Math.imul(h,16777619)}
+ return `fnv${(h>>>0).toString(16)}${bytes.length.toString(16)}`;
+}
+function readCacheGet(key){
+ try{
+  const raw=localStorage.getItem(READ_CACHE_PREFIX+key);if(!raw)return null;
+  const entry=JSON.parse(raw);
+  if(!entry||typeof entry!=='object'||!entry.data)return null;
+  if(Date.now()-Number(entry.at||0)>READ_CACHE_DAYS*86400000){localStorage.removeItem(READ_CACHE_PREFIX+key);return null}
+  return entry.data;
+ }catch(e){return null}
+}
+function readCacheSet(key,data){
+ try{
+  const entry={at:Date.now(),data};
+  localStorage.setItem(READ_CACHE_PREFIX+key,JSON.stringify(entry));
+  const keys=[];
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(READ_CACHE_PREFIX))keys.push({key:k,at:Number((JSON.parse(localStorage.getItem(k)||'{}')||{}).at)||0})}
+  if(keys.length>READ_CACHE_MAX){keys.sort((a,b)=>a.at-b.at);for(const item of keys.slice(0,keys.length-READ_CACHE_MAX))localStorage.removeItem(item.key)}
+ }catch(e){/* hapësira e mbushur: cache-i është lehtësi, jo kusht */}
+}
+function readCacheClear(){try{const keys=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(READ_CACHE_PREFIX))keys.push(k)}keys.forEach(k=>localStorage.removeItem(k));return keys.length}catch(e){return 0}}
+
 // Planifikon thirrjet: një grup pa PDF të gjatë dërgohet i tëri si më parë.
 async function planReadingCalls(files){
  const oversized=[];
@@ -797,7 +839,11 @@ async function readFilesWithGemini(files,signal,catalog,warnings=[],cache=new Ma
  for(const call of calls){
   if(signal.aborted)throw new DOMException('aborted','AbortError');
   const parts=await prepareGeminiParts(call.files,signal,cache,warnings,catalog);
-  const data=parseAIJson(await geminiForParts(parts,signal));
+  // I njëjti skanim nuk dërgohet dy herë: hash-i i përmbajtjes e gjen në pajisje.
+  const cacheKey=await readCacheKey(call.files[0]);
+  const cached=cacheKey?readCacheGet(cacheKey):null;
+  const data=cached||parseAIJson(await geminiForParts(parts,signal));
+  if(!cached&&cacheKey)readCacheSet(cacheKey,data);
   if(single)return data;
   chunks.push({data,offset:call.offset});
  }
@@ -912,11 +958,70 @@ function aiConfidence(value){if(value===null||value===undefined||value==='')retu
  return Number.isFinite(number)&&number>=0?(number>1?Math.min(1,number/100):number):null;
 }
 // Vlera e një fushe me vendndodhjen e saj në formular.
+
+// ---------------------------------------------------------------------------
+// Zonat e formularit: kodi i shkurtër -> teksti njerëzor.
+// Modeli kthen "w1.r3.kg" në vend të "PESHIMI 1 · faqja PARA · rreshti 3 · Kg".
+// Emri i plotë është i shkurtër për lexuesin, por përbënte 22% të gjithë daljes
+// dhe e ngadalësonte leximin; kodi e zëvendëson pa humbur asnjë informacion,
+// sepse zona ndërtohet këtu, në pajisje.
+const AREA_PAGE={1:'PARA',2:'PAS'};
+function aiAreaCode(code){
+ const raw=String(code||'').trim().toLowerCase();
+ if(!raw)return null;
+ const row=raw.match(/^w([1-6])\.r(\d{1,4})\.(bags|kg|packaging|sum)$/);
+ if(row){
+  const group=Number(row[1]),page=AREA_PAGE[group<=3?1:2],table=group<=3?group:group-3,
+   label={bags:'Nr. thas.',kg:'Kg',packaging:'Ambalazhi',sum:'Shuma'}[row[3]];
+  return `PESHIMI ${table} · faqja ${page} · rreshti ${row[2]} · ${label}`;
+ }
+ const total=raw.match(/^w([1-6])\.sh\.(bags|kg|packaging|sum)$/);
+ if(total){
+  const group=Number(total[1]),page=AREA_PAGE[group<=3?1:2],table=group<=3?group:group-3,
+   label={bags:'Nr. thas.',kg:'Kg',packaging:'Ambalazhi',sum:'Shuma'}[total[2]];
+  return `PESHIMI ${table} · faqja ${page} · rreshti SH · ${label}`;
+ }
+ const product=raw.match(/^w([1-6])\.(product|source)$/);
+ if(product){
+  const group=Number(product[1]),table=group<=3?group:group-3;
+  return `PESHIMI ${table} · ${product[2]==='product'?'Produkti':'Burimi'}`;
+ }
+ const plan=raw.match(/^p([1-3])\.(\w+)$/);
+ if(plan){
+  const label={product:'Produkti',status:'Statusi',planned:'Sasia e porositur',actual:'Sasia e prodhuar',
+   unit:'Njësia',packaging:'Paketimi',client:'Klienti',comment:'Komenti'}[plan[2]]||plan[2];
+  return `Produkti ${plan[1]} · ${label}`;
+ }
+ const employee=raw.match(/^e(\d{1,2})\.(\w+)$/);
+ if(employee){
+  const label={name:'Emri',start:'Fillim Pune',end:'Mbarim Pune',total_hours:'Orë Gjithsej',
+   comment:'Komente',signature:'Firma'}[employee[2]]||employee[2];
+  return `Punonjësi ${employee[1]} · ${label}`;
+ }
+ const job={
+  nr:'Numri i formularit',date:'Data',weekday:'Dita',iso_week:'Java',room:'Dhoma',
+  'responsible.name':'Përgjegjësja','responsible.signature':'Firma e përgjegjëses',
+  'assistant.name':'Ndihmës përgjegjësja','assistant.signature':'Firma e ndihmëses',
+  total_hours:'Orë Gjithsej',comments:'KOMENTE',
+ }[raw];
+ if(job)return job;
+ // Format më të thjeshta që modeli i vjetër i përdorte.
+ const legacy=raw.match(/^w([1-6])\.rows?\.?(\d{1,4})\.?(\w*)$/);
+ if(legacy)return aiAreaCode(`w${legacy[1]}.r${legacy[2]}.${legacy[3]||'kg'}`);
+ return null;
+}
+// Zona e një vlere: kodi i shkurtër, ose teksti i dhënë, ose teksti i paracaktuar.
+function aiArea(value,fallback){
+ const text=aiText(value,160);
+ if(!text)return fallback;
+ return aiAreaCode(text)||text;
+}
+
 function aiField(raw,area,normalize){
  const cell=aiCell(raw);let value=cell.value,note='';
  if(nonempty(cell.value)&&normalize){const result=normalize(cell.value);value=result.value;note=result.note||''}
  return {value:nonempty(value)?value:null,page:aiPageOf(raw),
-  formArea:aiText(typeof raw==='object'?raw?.formArea??raw?.area:null,120)||area,
+  formArea:aiArea(typeof raw==='object'?raw?.formArea??raw?.area:null,area),
   confidence:aiConfidence(typeof raw==='object'?raw?.confidence:null),
   needsReview:cell.unclear===true||(nonempty(cell.value)&&!nonempty(value))||raw?.needsReview===true,
   readAs:cell.value||null,note};
@@ -936,7 +1041,7 @@ function aiFieldMap(list){
   if(!item||typeof item!=='object')continue;
   const id=aiText(item.field,80);if(!id)continue;
   map.set(id,{value:item.value===null||item.value===undefined?null:aiText(item.value,2000)||null,
-   page:positiveIndex(item.page),formArea:aiText(item.formArea,120)||null,
+   page:positiveIndex(item.page),formArea:aiArea(item.formArea,null),
    confidence:aiConfidence(item.confidence),needsReview:item.needsReview===true,readAs:aiText(item.readAs,400)||null,note:''});
  }
  return map;
@@ -947,6 +1052,8 @@ function aiPick(map,id,area,short,normalize){
  const entry=map.get(id);
  if(entry){if(normalize&&nonempty(entry.value)){const result=normalize(entry.value);entry.value=result.value||null;entry.needsReview=entry.needsReview||!entry.value}
   if(!entry.formArea)entry.formArea=area;return entry}
+ // Modeli nuk e dërgoi fare zonën: ndërtohet nga fusha që kërkojmë (id), pa e shpikur.
+ if(!map.has(id)){const built=aiAreaCode(id);if(!built)return aiField(short,area,normalize)}
  return aiField(short,area,normalize);
 }
 function aiTooMany(what){return new Error(`Dokumenti ka më shumë të dhëna nga sa mban një formular (${what}). Nuk u importua automatikisht; ndaje dokumentin ose shkarko leximin JSON.`)}
@@ -1052,7 +1159,9 @@ function aiReadBlock(block,formNumber,proposedNr,info){
   target.client=get(`plan.${i}.client`,p.client,`${area} · Klienti`).value||'';
   target.comment=get(`plan.${i}.comment`,p.comment,`${area} · Komente`).value||''});
  // Punonjësit: 12 rreshta; orët siç duken dhe Orë Gjithsej vetëm e llogaritur.
- const employees=Array.isArray(block.employees)?block.employees:[];
+ // Modeli dërgon vetëm rreshtat me vlera; rreshtat bosh mbushen këtu, pa humbur
+ // pozicionin. Kur rreshtat vijnë pa indeks, rendi i tyre është pozicioni.
+ const employees=(Array.isArray(block.employees)?block.employees:[]).filter(p=>p&&typeof p==='object');
  employees.slice(EMPLOYEE_ROWS).forEach(p=>{if(p&&Object.values(p).some(nonempty))throw aiTooMany('12 punonjës')});
  employees.forEach((p,i)=>{if(!p||typeof p!=='object')return;const area=`Punonjësi ${i+1}`,target=record.employees[i];
   target.name=get(`employees.${i}.name`,p.name,`${area} · Emri e Mbiemri`).value||'';

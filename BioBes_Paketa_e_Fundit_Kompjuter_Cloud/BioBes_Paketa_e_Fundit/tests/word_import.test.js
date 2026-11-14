@@ -89,7 +89,10 @@ test('one reading screen: no duplicate menu entry, one required confirmation, Wo
 test('Edge Function accepts Word text and keeps the reading rules', () => {
   const edge = fs.readFileSync(path.join(root, 'BioBes_Cloud/supabase/functions/biobes-read-form/index.ts'), 'utf8');
   assert.match(edge, /startsWith\('SKEDARI WORD:'\)/);
-  assert.match(edge, /saktësisht 12 objekte/);
+  // Punonjësit dërgohen vetëm kur kanë vlera; rreshtat bosh mbushen në pajisje.
+  // Kjo ruan të njëjtin rregull (12 pozicione) pa i kërkuar modelit të shkruajë
+  // 12 objekte bosh për çdo formular, që ishte kohë e humbur në dalje.
+  assert.match(edge, /VETËM rreshtat që kanë të paktën një vlerë/);
   assert.match(edge, /Asnjëherë mos ndrysho një vlerë vetëm që totali të dalë/);
   // Udhëzimet e reja shtojnë grupimin e formularëve, faqet PARA/PAS dhe
   // faqen/zonën/sigurinë për çdo vlerë; kufiri rritet me vetëdije, jo pa kufi.

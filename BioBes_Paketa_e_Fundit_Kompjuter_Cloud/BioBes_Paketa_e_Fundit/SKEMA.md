@@ -104,6 +104,13 @@ të mos ngatërrohet me peshimin 1 të faqes PARA.
   të pjesës. Kufiri i vërtetë është 20 faqe (10 formularë × 2); mbi kaq, skanimi
   ndahet në dy skedarë. Kur një formular pritet mes dy pjesëve, peshimet e tij
   bashkohen te formulari i vetëm — nuk hapet formular i rremë.
+- **Zona si kod.** Modeli e kthen zonën si kod të shkurtër (`w1.r3.kg`,
+  `p1.planned`, `e5.start`) dhe aplikacioni e shfaq të plotë (“PESHIMI 1 · faqja
+  PARA · rreshti 3 · Kg”). Kjo e shkurton daljen ~31% pa humbur asnjë informacion.
+  Kur modeli nuk e dërgon zonën, ajo ndërtohet nga fusha e kërkuar.
+- **Cache i leximit.** I njëjti skedar nuk rilexohet: hash-i SHA-256 i
+  përmbajtjes e gjen leximin në pajisje për 7 ditë (max 40). Cache-i hidhet vetë
+  kur ndryshon `READ_CACHE_VERSION`.
 - Paneli **“Vendndodhja e çdo vlere”** tregon për çdo vlerë: fushën, vlerën e lexuar,
   faqen, zonën e formularit, sigurinë dhe `needsReview`. Rreshtat për kontroll janë të
   theksuar.

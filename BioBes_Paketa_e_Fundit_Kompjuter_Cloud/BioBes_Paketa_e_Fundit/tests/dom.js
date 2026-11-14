@@ -57,6 +57,7 @@ function loadApp(appOverride = null, customHook = null) {
   cloudForgotShow, cloudForgotRequest, generatePrintablePDF, editorHTML, batchEditorHTML, cloudGemini, readApprovedExcel, blankRecord,
   normalizeRecord, generateFormWorkbook, planPrintPages,
   planReadingCalls, slicePdf, shiftPages, mergeReadingChunks, readFilesWithGemini,
+  aiArea, aiAreaCode, readCacheKey, readCacheGet, readCacheSet, readCacheClear,
   wordForAI, fileKind, checkImportFiles, batchHTML, updateNav, render,
   state, db, cloud, batchState, importState,
 };`;

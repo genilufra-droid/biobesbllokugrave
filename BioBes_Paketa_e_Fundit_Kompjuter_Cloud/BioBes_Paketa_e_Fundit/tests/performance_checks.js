@@ -17,8 +17,12 @@ test('batch gap is at most one second', () => {
   assert.match(app, /BATCH_AI_GAP_MS\s*=\s*1000/);
 });
 
-test('batch reads two groups concurrently', () => {
-  assert.match(app, /Math\.min\(2,\s*queue\.length\)/);
+test('batch reads several groups concurrently', () => {
+  // Numri jeton te BATCH_WORKERS; rëndësi ka që punëtorët nisen paralel.
+  assert.match(app, /Math\.min\(BATCH_WORKERS,\s*queue\.length\)/);
+  const workers = app.match(/const BATCH_WORKERS=(\d+)/);
+  assert.ok(workers, 'BATCH_WORKERS është i deklaruar');
+  assert.ok(Number(workers[1]) >= 2, 'të paktën dy grupe njëherësh');
 });
 
 test('multi-file preparation is parallelised', () => {
