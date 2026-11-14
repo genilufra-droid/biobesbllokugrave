@@ -326,3 +326,31 @@ Dy mbetje nga 7.4/7.5:
 
 **Prova.** `tests/read_timeout.test.js` u zgjerua në 8 teste, me kontrollin që
 grupet `ready` nuk kthehen në pritje dhe që flamuri i vdekur nuk ekziston më.
+
+### 7.7 I njëjti defekt te tabelat e peshimit
+
+**Simptoma.** Grupet 5, 6 dhe 7 dolën *“Nuk u lexua — Numrat e tabelave të
+peshimit janë të paqartë; shkarko leximin JSON”*, ndërsa grupet 1–4 u lexuan.
+
+**Shkaku.** I njëjti model si te rreshtat (7.1/7.2), por në nivel tabele: në
+**dy vende** kodi hidhte gabim sapo `weighings[].index` mungonte, përsëritej,
+ishte tekst, ose dilte jashtë 1–6:
+
+- `aiBlocks` (ndarja e dokumentit në formularë)
+- `aiReadBlock` (leximi brenda formularit)
+
+Një tabelë me numër të keq priste të gjithë grupin, edhe pse të gjashtë tabelat
+mund të ishin të sakta. Grupet 5–7 ishin formulari 005 (i grisur), 006 dhe 007,
+ku numrat e tabelave ishin më të dobët.
+
+**Rregullimi.** `aiNormalizeTables()` — e njëjta logjikë për të dyja vendet:
+tabela mbahet, merr **vendin e parë të lirë**, shënohet dhe paralajmërohet:
+*“Peshimi: numri 1 është i përsëritur për një tabelë me vlera; u vendos si
+PESHIMI 2 sipas rendit dhe duhet kontrolluar në dokument.”*
+Asnjë vlerë nuk hidhet dhe as nuk korrigjohet.
+
+**Prova.** `tests/weight_table_numbers.test.js` (9 teste): pa numër, i
+përsëritur, tekst, jashtë tabelës, vetëm tabela e keqe shënohet, gjashtë tabela
+të sakta mbeten gjashtë, dhe skanimi real pa regres. Testi i vjetër
+`rejects duplicate weighing indexes` u zëvendësua me `keeps both tables…`, sepse
+mbrojnte sjelljen që e humbte të dhënën.

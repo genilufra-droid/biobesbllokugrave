@@ -1114,12 +1114,11 @@ function aiBlocks(data){
  // e produkteve nuk shpiket si formular i dytë.
  const evidence=weighings.some(group=>positiveIndex(group.index)>6)||comments.length>1||employees.length>EMPLOYEE_ROWS;
  if(!evidence&&(plan.length>3||employees.length>EMPLOYEE_ROWS))throw aiTooMany('3 produkte, 12 punonjës');
- const groups=new Map();
- for(const group of weighings){
-  const number=positiveIndex(group.index);
-  if(!number||number>60||groups.has(number))throw new Error('Numrat e tabelave të peshimit janë të paqartë; shkarko leximin JSON dhe kontrollo dokumentin.');
-  groups.set(number,group);
- }
+ const groups=new Map(),tableWarnings=[];
+ // Tabelat me numër të paqartë marrin vendin e parë të lirë (1–60), nuk hidhen.
+ const normalized=aiNormalizeTables(weighings,tableWarnings,60);
+ for(const {group,index} of normalized)groups.set(index,group);
+ if(groups.size>60)throw aiTooMany('60 tabela peshimi');
  // Ndarja në formularë vetëm kur dokumenti e tregon vetë: tabela peshimi mbi 6,
  // komente të shumta ose më shumë se 12 punonjës. Përndryshe leximi mbetet një
  // formular dhe teprica raportohet si gabim, pa shpikur formularë.
@@ -1139,11 +1138,34 @@ function aiBlocks(data){
   const totals=printed.filter(x=>positiveIndex(x.index)>index*6&&positiveIndex(x.index)<=(index+1)*6)
    .map(x=>({...x,index:positiveIndex(x.index)-index*6}));
   return {form_number:index+1,pages:null,header:index===0?data:null,
+   warnings:index===0?[...(Array.isArray(data?.warnings)?data.warnings:[]),...tableWarnings]:null,
    plan:plan.slice(index*3,index*3+3),employees:employees.slice(index*EMPLOYEE_ROWS,(index+1)*EMPLOYEE_ROWS),
    fields:index===0?data?.fields:null,record_numbers_seen:index===0?data?.record_numbers_seen:null,dates_seen:index===0?data?.dates_seen:null,
    weighings:slices,printed_totals:totals,comments:comments[index]===undefined?null:comments[index],
-   uncertain:index===0?data?.uncertain:null,warnings:index===0?data?.warnings:null};
+   uncertain:index===0?data?.uncertain:null};
  });
+}
+
+
+// Numrat e tabelave të peshimit (1–6) janë rruga e sigurt, por nuk guxojnë të
+// hedhin poshtë gjithë grupin: një "index" i lexuar keq prej shkrimit me dorë
+// hidhte tutje edhe tabelat e sakta. Prandaj tabela pa numër të qartë mbahet,
+// vendoset sipas rendit në vendin e parë të lirë dhe shënohet për kontroll.
+function aiNormalizeTables(weighings,warnings,max=6,area='Peshimi'){
+ const used=new Set(),out=[];
+ for(const group of weighings){
+  let n=positiveIndex(group?.index);
+  if(!n||n>max||used.has(n)){
+   const reason=!n?'pa numër':n>max?`numri ${n} është jashtë tabelës`:`numri ${n} është i përsëritur`;
+   let candidate=1;
+   while(candidate<=max&&used.has(candidate))candidate+=1;
+   if(candidate>max)break; // vërtet më shumë tabela se vendet: tepricë e vërtetë
+   n=candidate;
+   warnings.push(`${area}: ${reason} për një tabelë me vlera; u vendos si PESHIMI ${n} sipas rendit dhe duhet kontrolluar në dokument.`);
+  }
+  used.add(n);out.push({group,index:n});
+ }
+ return out;
 }
 
 function aiWeightColumns(raws,area,warnings){
@@ -1217,12 +1239,11 @@ function aiReadBlock(block,formNumber,proposedNr,info){
  // Faqja PAS dhe tabelat e peshimit: numri i shtypur vendos tabelën, kolonat nuk zhvendosen.
  const weighings=(Array.isArray(block.weighings)?block.weighings:[]).filter(x=>x&&typeof x==='object');
  if(weighings.length>60)throw aiTooMany('60 tabela peshimi');
- const tables={},used=new Set(),printedTotals={};
- for(const group of weighings){
-  const local=positiveIndex(group.index);
-  if(!local||local>6)throw new Error('Numrat e tabelave të peshimit janë të paqartë; shkarko leximin JSON dhe kontrollo dokumentin.');
-  if(used.has(local))throw new Error('Numrat e tabelave të peshimit janë të paqartë; shkarko leximin JSON dhe kontrollo dokumentin.');
-  used.add(local);
+ const tables={},printedTotals={};
+ // Tabela pa numër të qartë mbahet, vendoset sipas rendit dhe shënohet — nuk
+ // hidhet poshtë bashkë me tabelat e tjera të sakta të formularit.
+ const tableList=aiNormalizeTables(weighings,warnings,6);
+ for(const {group,index:local} of tableList){
   // Tabelat 1–3 janë në faqen PARA, 4–6 në faqen PAS; numri nuk e kalon formularin.
   // Çdo formular ka 6 tabela: 1–3 në faqen PARA dhe 1–3 (4–6 në rend leximi) në faqen PAS.
   const number=local,area=`PESHIMI ${local<=3?local:local-3} · faqja ${local<=3?'PARA':'PAS'}`;
