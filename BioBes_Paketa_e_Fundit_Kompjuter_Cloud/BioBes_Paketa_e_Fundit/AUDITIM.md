@@ -440,3 +440,32 @@ të mbetet në disk pas publikimit. Tani `index.html` i thërret skriptet me
 sjellje e vjetër, duhet pastruar cache-i i faqes (Ctrl+Shift+R ose dritare
 private) dhe faqja duhet rifreskuar një herë pa internet për të hequr service
 worker-in e vjetër.
+
+### 7.12 Kuota u shpenzua: rruga për të vazhduar (15 nëntor 2026)
+
+Përdoruesi pa: *“Kuota e leximit me Gemini për sot është shpenzuar
+(RESOURCE_EXHAUSTED) … U lexuan 1 nga 7 grupe; 6 mbeten të palexuar.”*
+
+**Ky nuk është defekt.** Kuota falas e Gemini është ditore dhe ndahet për të
+gjithë çelësin; 7 grupe me nga 2 faqe = 7 kërkesa. Kur mbaron, asnjë kod nuk e
+kapërcen.
+
+**Defekti ishte tjetër:** mesazhi thoshte *“Shtyp Lexo formularët”*, por ai buton
+i riprovon **të gjithë** grupet — përfshirë ata që ishin lexuar me sukses. Pra
+udhëzimi nuk të çonte te ajo që duhej bërë.
+
+Tani:
+
+- **Buton i veçantë** *“Lexo vetëm N grupet e mbetura”* (`batchReadPending`), që
+  shfaqet vetëm kur ka grupe të palexuara pranë atyre të lexuara. Ai i kthen në
+  pritje vetëm ata që s’u lexuan, i pastron gabimet e vjetra dhe i riprovon —
+  **të lexuarit nuk preken dhe nuk harxhojnë kuotë**.
+- Mesazhi i kuotës thotë tani kur rinovohet (**pas mesnate me orën e Paqësorit,
+  rreth orës 09:00 me orën e Shqipërisë**) dhe që vetëm të mbeturit kërkojnë kuotë
+  të re.
+- Cache-i i leximit (`readCacheGet`, 7 ditë) do të thotë që edhe nëse një grup i
+  lexuar riprovohet gabimisht, përgjigjja vjen nga pajisja, pa kërkesë të re.
+
+**Testet:** `tests/batch_resume.test.js` — 6 teste: sa grupe mbeten, që
+riprovimi prek vetëm të palexuarit, që butoni shfaqet vetëm kur ka kuptim, që
+rezultatet e lexuara nuk hidhen, dhe që mesazhi thotë rrugën.

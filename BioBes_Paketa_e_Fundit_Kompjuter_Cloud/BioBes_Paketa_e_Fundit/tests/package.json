@@ -4,7 +4,7 @@
   "private": true,
   "description": "Local regression and audit checks for BioBes",
   "scripts": {
-    "test": "node core_checks.js && node catalog_edit.test.js && node timecard.test.js && node timecard_ui.test.js && node attendance.test.js && node ai_record.test.js && node parse_ai_json.test.js && node batch_workbook.test.js && node prepare_parts.test.js && node cloud_gemini.test.js && node security_checks.js && node performance_checks.js && node ocr_p0_p1.test.js && node password_recovery.test.js && node rows_layout.test.js && node word_import.test.js && node handwritten_form.test.js && node multi_form.test.js && node reading_panel.test.js && node skanim_real.test.js && node large_pdf.test.js && node weight_row_numbers.test.js && node read_speed.test.js && node quota_429.test.js && node read_timeout.test.js && node weight_table_numbers.test.js && node weight_arithmetic.test.js"
+    "test": "node core_checks.js && node catalog_edit.test.js && node timecard.test.js && node timecard_ui.test.js && node attendance.test.js && node ai_record.test.js && node parse_ai_json.test.js && node batch_workbook.test.js && node prepare_parts.test.js && node cloud_gemini.test.js && node security_checks.js && node performance_checks.js && node ocr_p0_p1.test.js && node password_recovery.test.js && node rows_layout.test.js && node word_import.test.js && node handwritten_form.test.js && node multi_form.test.js && node reading_panel.test.js && node skanim_real.test.js && node large_pdf.test.js && node weight_row_numbers.test.js && node read_speed.test.js && node quota_429.test.js && node read_timeout.test.js && node weight_table_numbers.test.js && node weight_arithmetic.test.js && node batch_resume.test.js"
   },
   "license": "ISC",
   "dependencies": {

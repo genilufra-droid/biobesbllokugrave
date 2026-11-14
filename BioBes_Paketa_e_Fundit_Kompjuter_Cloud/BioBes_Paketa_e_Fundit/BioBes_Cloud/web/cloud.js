@@ -300,7 +300,7 @@ async function cloudGemini(parts,signal,budgetMs=120000){
    const provider=str(result?.providerStatus||'',80).toUpperCase();
    const isQuota=provider.includes('RESOURCE_EXHAUSTED')||provider.includes('QUOTA');
    const error=new Error(isQuota
-     ?'Kuota e leximit me Gemini për sot është shpenzuar (RESOURCE_EXHAUSTED). Provo më vonë ose përdor një çelës/plan tjetër. Nuk humbi asgjë: dokumentet mund të rilexohen.'
+     ?'Kuota e leximit me Gemini për sot është shpenzuar (RESOURCE_EXHAUSTED). Rinovohet pas mesnate me orën e Paqësorit, rreth orës 09:00 me orën e Shqipërisë — ose përdor një çelës/plan tjetër. Nuk humbi asgjë: dokumentet mund të rilexohen, të lexuarit mbeten dhe vetëm të mbeturit kërkojnë kuotë të re.'
      :'Shumë kërkesa njëherësh te Gemini; prit pak dhe provo përsëri.');
    error.quota=Boolean(isQuota);
    return error;
