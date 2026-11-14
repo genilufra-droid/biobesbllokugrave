@@ -58,7 +58,7 @@ Ky dokument zëvendëson tre raportet e vjetra (`RAPORT_AUDITIMI.md`, `RAPORT_OC
 1. **Matje me formularë realë.** 10–20 formularë të plotësuar (të anonimizuar), të regjistruar një herë me dorë si e vërteta, pastaj të lexuar nga sistemi: përqindja e fushave të sakta për foto, PDF, Word. Pa këtë, çdo ndryshim tjetër në OCR është hamendje.
 2. **Deploy i Edge Function** (udhëzimet e reja dhe pranimi i Word-it). Deri atëherë Word-i refuzohet nga serveri me “Kërkesa e dokumentit nuk është e vlefshme”. Deploy-i bëhet para publikimit të faqes; funksioni i ri i pranon edhe kërkesat e faqes së vjetër.
 3. **Fshirja e tre funksioneve prove** në Supabase (gjetja 7), pasi pronari të konfirmojë se nuk duhen.
-4. **PDF-të e skanuara** dërgohen siç janë, pa përgatitjen që u bëhet fotove (drejtim, 2400 px, kontrast). Kthimi i faqeve në imazhe në pajisje kërkon shtimin e pdf.js (rreth 1 MB).
+4. **PDF-të e skanuara** me më shumë se dy faqe ndahen tani automatikisht në grupe nga dy faqe PARA/PAS; secili grup i vogël dërgohet si PDF dhe në panel ruhen numrat realë të faqeve. Kjo lejon një skedar të vetëm me 14 faqe / 7 formularë pa kaluar kufirin e leximit prej 6 faqesh për kërkesë. Nuk bëhet ende rasterizim në imazhe me pdf.js.
 5. **Fushat e dyshimta nuk theksohen në formular.** Gemini i kthen te `uncertain`, por përdoruesi i sheh vetëm si listë paralajmërimesh sipër; një kornizë rreth fushës përkatëse do ta shpejtonte kontrollin.
 6. **Koka CSP në GitHub Pages** (gjetja 9): ose `<meta http-equiv="Content-Security-Policy">` në `index.html`, ose kalimi i publikimit në Vercel. Kërkon provë në shfletues.
 7. **Vendimi për privatësinë** (gjetja 10): ose punohet vërtet me kopje të anonimizuara, ose kalohet në një plan Gemini me pagesë, ku të dhënat nuk përdoren për trajnim, dhe ndryshohet teksti i konfirmimit.
@@ -114,7 +114,15 @@ një formular dhe i shton faqen vetëm kur modeli e jep. Testi Deno nuk u ekzeku
 (Deno nuk ishte i disponueshëm); funksioni u përkthye dhe u kontrollua vetëm për
 sintaksë me `esbuild`. Paneli u provua në jsdom, jo në shfletues të vërtetë.
 
-## 6. Çfarë mbeti me dashje
+## 6. Zbatim i 13 nëntorit — PDF i vetëm me 7 formularë
+
+- Një PDF skanimi me 14 faqe, ku çdo formular ka dy faqe, ndahet në 7 grupe nga dy faqe në pajisje. Ndarja është automatike edhe kur zgjedhja mbetet “Çdo PDF = një formular”, nëse PDF-ja ka më shumë se dy faqe.
+- Çdo rezultat ruan `pageOffset`, `formNumber` dhe `pageCount`; faqet e paraqitura në “Vendndodhja e çdo vlere” janë faqet e PDF-së origjinale (1–14), jo faqet relative të copës së ndarë.
+- Vlerat me `confidence < 0.65` tani shënohen automatikisht `needsReview=true`, futen te `uncertain` dhe shfaqin paralajmërim; vlera nuk zëvendësohet dhe nuk hidhet poshtë pa kontroll.
+- Testi i ri sintetik kontrollon 14 faqe → 7 grupe, me offsets `0,2,4,6,8,10,12`. Dokumenti real i përdoruesit nuk futet në repository.
+- Kjo e përmirëson ndarjen dhe gjurmueshmërinë, jo garancinë e saktësisë së Gemini-t. Çdo formular duhet të kontrollohet dhe konfirmohet para ruajtjes.
+
+## 7. Çfarë mbeti me dashje
 
 - Dosjet `BioBes_Paketa_e_Fundit_Kompjuter_Cloud/BioBes_Paketa_e_Fundit/` nuk u sheshuan: workflow-i i Pages dhe ngarkimet me dorë në GitHub mbështeten te kjo rrugë.
 - Në `app.js` dhe `cloud.js` mbetën disa degë `if(importState.review)` në rrugën e ruajtjes dhe të rikuperimit. Pas heqjes së ekranit të vjetër ato nuk ekzekutohen më; nuk u hoqën sepse prekin ruajtjen në cloud dhe nuk mund të provoheshin në shfletues.
