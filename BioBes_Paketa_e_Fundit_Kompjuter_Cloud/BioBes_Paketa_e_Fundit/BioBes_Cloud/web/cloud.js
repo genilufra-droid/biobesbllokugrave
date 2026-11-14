@@ -284,7 +284,12 @@ async function cloudOpenOriginal(index){
  catch(e){toast('Dokumenti nuk u gjet ose nuk mund të shkarkohet.','error')}
  finally{cloudBusy(false)}
 }
-async function cloudGemini(parts,signal){
+async function cloudGemini(parts,signal,budgetMs=120000){
+ // Buxheti i kohës për të gjithë thirrjen (përfshirë pritjet). Pa të, pritjet e
+ // riprovimit mund të kalonin kufirin e jashtëm dhe leximi të aborterohej
+ // si "kaloi kohën", edhe pse asnjë kërkesë nuk ishte e dështuar përfundimisht.
+ const startedAt=Date.now(),KEEP_MS=15000;
+ const remaining=()=>budgetMs-(Date.now()-startedAt);
  const {data,error}=await cloud.client.auth.getSession();if(error||!data.session?.access_token)throw new Error('Sesioni ka përfunduar. Hyr përsëri.');
  const body=JSON.stringify({parts,consent:true,anonymous:true,freeTier:true});if(new Blob([body]).size>19000000)throw new Error('Dokumentet janë shumë të mëdha për lexim në cloud. Ndaji në skedarë më të vegjël.');
  const pause=cloudLastAiStart?Math.max(0,BATCH_AI_GAP_MS-(Date.now()-cloudLastAiStart)):0;if(pause){if(batchState.busy)batchSetBusy(true,'Pauzë për kufirin falas; leximet vazhdojnë së shpejti…');await batchWait(pause,signal)}if(signal.aborted)throw new DOMException('aborted','AbortError');cloudLastAiStart=Date.now();
@@ -319,8 +324,13 @@ async function cloudGemini(parts,signal){
   }
   if(attempt<3){
    const header=Number(response?.headers?.get('retry-after'));
-   // 429 do të thotë "prit", dhe Google e thotë sa: Retry-After kur vjen, përndryshe 30–60 s.
-   const wait=Number.isFinite(header)&&header>0?Math.min(header*1000,120000):(429===Number(response?.status)?30000*(attempt+1):5000*(attempt+1));
+   // 429 do të thotë "prit", dhe Google e thotë sa: Retry-After kur vjen.
+   // Pritja nuk e kalon buxhetin: mbetet gjithmonë kohë për një provë të fundit.
+   const wanted=Number.isFinite(header)&&header>0?header*1000:(429===Number(response?.status)?15000*(attempt+1):5000*(attempt+1));
+   const wait=Math.min(wanted,Math.max(0,remaining()-KEEP_MS));
+   // Nuk ka kohë për të pritur: kthe gabimin e vërtetë, mos e lër kufirin e
+   // jashtëm ta presë si "leximi kaloi kohën".
+   if(wait<1000)break;
    if(batchState.busy)batchSetBusy(true,`Kufiri i përkohshëm; riprovim pas ${Math.round(wait/1000)}s…`);
    await batchWait(wait,signal);
   }

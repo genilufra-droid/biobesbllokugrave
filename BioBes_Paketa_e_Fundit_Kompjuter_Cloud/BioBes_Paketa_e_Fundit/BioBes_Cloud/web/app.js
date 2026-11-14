@@ -477,18 +477,18 @@ async function batchRead(){
    await Promise.all(Array.from({length:Math.min(BATCH_WORKERS,queue.length)},worker));
    // Grupet e përfunduara ruhen. Kur kuota mbaron, nuk hidhet gjithçka: thuhet
    // sa grupe u lexuan dhe sa mbeten, dhe ato mbeten gati për riprovim.
-   if(errors.length){
+   if(errors.length&&quotaHit){
     const left=groups.filter(x=>x.status!=='ready');
-    if(quotaHit&&left.length){
+    if(left.length){
      const done=groups.length-left.length;
      batchError(`${errors[0]?.message||'Leximi u ndal.'} U lexuan ${done} nga ${groups.length} grupe; ${left.length} mbeten. Shtyp “Lexo formularët” pasi të lirohet kuota dhe vetëm ato do të lexohen.`);
      return;
     }
-    throw errors[0];
    }
   }
   if(run!==batchState.run)return;batchBeginReview();announceReading(true)
- }catch(e){if(run!==batchState.run)return;if(e?.name==='AbortError')batchError(batchState.cancelled?'Leximi u anulua. Rezultatet e përfunduara ruhen për këtë sesion.':'Leximi kaloi kohën. Rezultatet e përfunduara ruhen për këtë sesion.');else if(e instanceof TypeError)batchError('Nuk u lidh me shërbimin cloud. Kontrollo internetin; rezultatet e përfunduara nuk humbasin.');else batchError(str(e?.message||'Leximi nuk përfundoi.',600));if(began&&!batchState.cancelled&&state.route==='batch')announceReading(false)
+ }catch(e){if(run!==batchState.run)return;if(e?.name==='AbortError')batchError(batchState.cancelled?'Leximi u anulua. Rezultatet e përfunduara ruhen për këtë sesion.':'Leximi kaloi kohën. Rezultatet e përfunduara ruhen për këtë sesion.');
+   else if(e?.timeout)batchError(str(e.message,400));
  }finally{if(run===batchState.run){batchState.abort=null;batchSetBusy(false)}}
 }
 function batchAssignNumbers(items){
@@ -849,8 +849,19 @@ function mergeReadingChunks(chunks,totalPages){
 }
 // Një thirrje Gemini me kufi kohor, si më parë.
 async function geminiForParts(parts,signal){
- const timer=setTimeout(()=>batchState.abort?.abort(),140000);
- try{return await cloudGemini(parts,signal)}finally{clearTimeout(timer)}
+ // Kufiri i jashtëm mbetet, por gabimi që shihet nuk duhet të jetë "kaloi kohën"
+ // kur diçka tjetër dështoi më parë: ruhet arsyeja e vërtetë.
+ const outer=new AbortController(),combined=AbortSignal.any?AbortSignal.any([signal,outer.signal]):signal;
+ const timer=setTimeout(()=>outer.abort(),140000);
+ try{return await cloudGemini(parts,combined,125000)}
+ catch(e){
+  if(outer.signal.aborted&&!signal.aborted){
+   const error=new Error('Leximi zgjati mbi 2 minuta. Provo me më pak faqe njëherësh ose përsëri.');
+   error.timeout=true;throw error;
+  }
+  throw e;
+ }
+ finally{clearTimeout(timer)}
 }
 // Lexon një grup skedarësh; PDF-të e gjata ndahen dhe ribashkohen vetë.
 async function readFilesWithGemini(files,signal,catalog,warnings=[],cache=new Map()){

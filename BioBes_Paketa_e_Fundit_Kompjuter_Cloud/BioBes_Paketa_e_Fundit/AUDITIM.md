@@ -287,3 +287,27 @@ rifreskim i fortë (Ctrl+Shift+R), përndryshe shfaqet versioni i vjetër.
 pa PR të ndërmjetëm (kërkesë e përdoruesit për t'i pasur live). Për këtë arsye
 dega e punës dhe `main` janë identike dhe GitHub nuk pranon PR prej saj:
 *“No commits between main and …”*.
+
+### 7.5 “Leximi kaloi kohën” — shkaktuar nga pritjet e 429
+
+**Simptoma.** Pas rregullimit të kuotës, grupet 5–7 dolën “Në pritje” dhe në fund
+*“Leximi kaloi kohën”*, me butonin “Kontrollo të lexuarit” të zhdukur.
+
+**Shkaku — defekt i futur në 7.4.** Kur hoqa `try/finally` e vjetër, pritjet e
+429 mbetën pa kufi kohor *brenda* thirrjes: `Retry-After` i madh, ose 30 s + 60 s
++ 90 s, bënte **180 s pritje**, ndërsa kufiri i jashtëm i klientit ishte **140 s**.
+Kështu leximi aborterohej vetë dhe mesazhi i vërtetë humbte në “kaloi kohën”.
+
+**Rregullimi.**
+1. `cloudGemini` merr një **buxhet kohor** (125 s brenda kufirit 140 s). Çdo
+   pritje llogaritet brenda tij dhe mbahet gjithmonë 15 s për një provë të fundit.
+2. Kur buxheti nuk e mban një pritje, thirrja **ndalon dhe kthen gabimin e
+   vërtetë** — nuk e lë arbitrin e jashtëm ta presë si gabim kohe.
+3. Gabimi i kohës tani ka mesazh të vetin (`e.timeout`) dhe nuk mbulon arsyen e
+   vërtetë kur diçka tjetër dështoi më parë.
+4. Kur kuota bie, raporti thotë “u lexuan X nga Y, Z mbeten” dhe **grupet e
+   lexuara mbeten** për riprovim.
+
+**Prova.** `tests/read_timeout.test.js` (6 teste): buxhet zero, buxhet i vogël,
+`Retry-After` 120 s që nuk pritet, `Retry-After` 2 s që respektohet, kuota që
+mbetet kuota, dhe 400 që nuk shndërrohet në gabim kohe.
