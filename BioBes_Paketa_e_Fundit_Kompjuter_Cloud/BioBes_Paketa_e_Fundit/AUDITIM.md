@@ -311,3 +311,18 @@ Kështu leximi aborterohej vetë dhe mesazhi i vërtetë humbte në “kaloi koh
 **Prova.** `tests/read_timeout.test.js` (6 teste): buxhet zero, buxhet i vogël,
 `Retry-After` 120 s që nuk pritet, `Retry-After` 2 s që respektohet, kuota që
 mbetet kuota, dhe 400 që nuk shndërrohet në gabim kohe.
+
+### 7.6 Pastrim pas ndalesës për kuotë
+
+Dy mbetje nga 7.4/7.5:
+
+1. **Flamur i vdekur.** `batchState.quota` vendosej por nuk lexohej askund dhe
+   nuk pastrohej kurrë — shtet i fshehtë që do të ngatërronte më vonë. U hoq;
+   vendimi për ndalesë merret nga `quotaHit` brenda vetë ciklit.
+2. **Grupet e paprovuara.** Kur kuota binte në grupin 2, grupet 3–7 mbeteshin
+   “në pritje” pa asnjë shpjegim. Tani raporti thotë qartë *“u lexuan X nga Y,
+   Z mbeten të palexuar”*, lista ripikturohet menjëherë dhe riprovimi lexon
+   **vetëm** të mbeturit — grupet e lexuara nuk preken.
+
+**Prova.** `tests/read_timeout.test.js` u zgjerua në 8 teste, me kontrollin që
+grupet `ready` nuk kthehen në pritje dhe që flamuri i vdekur nuk ekziston më.
