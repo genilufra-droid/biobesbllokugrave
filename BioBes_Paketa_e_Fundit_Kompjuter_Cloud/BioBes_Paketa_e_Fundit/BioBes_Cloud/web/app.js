@@ -25,7 +25,7 @@ function icon(name,size=18){return `<svg width="${size}" height="${size}" viewBo
 document.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon,15));
 const KEY='biobes-blloku-ditor-v1';
 const VERSION=1;
-const emptyDB=()=>({version:VERSION,nextNr:1,catalog:{responsibles:[],products:[],employees:[],packages:[],statuses:[],units:[],sources:[]},records:[]});
+const emptyDB=()=>({version:VERSION,nextNr:1,catalog:{responsibles:[],products:[],employees:[],packages:[],statuses:[],units:[],sources:[],clients:[]},records:[]});
 const str=(v,max=Infinity)=>String(v??'').slice(0,max);
 const esc=v=>str(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -54,7 +54,7 @@ function normalizeRecord(r){
  n.comments=str(r?.comments);n.isDemo=!!r?.isDemo;n.attachments=Array.isArray(r?.attachments)?r.attachments.filter(a=>a&&typeof a.path==='string'&&typeof a.name==='string').map(a=>({name:str(a.name,300),path:str(a.path,600),type:str(a.type,100),size:Number(a.size)||0})):[];return n;
 }
 
-function normalizeDB(raw){const d=emptyDB();d.nextNr=Math.max(1,parseInt(raw?.nextNr,10)||1);for(const k of ['responsibles','products','employees','packages','statuses','units'])d.catalog[k]=Array.isArray(raw?.catalog?.[k])?raw.catalog[k].map(x=>str(x).trim()).filter(Boolean):[];d.catalog.sources=Array.isArray(raw?.catalog?.sources)?raw.catalog.sources.filter(x=>x&&str(x.label).trim()&&['stock','other'].includes(x.kind)).map(x=>({label:str(x.label).trim(),kind:x.kind})):[];d.records=Array.isArray(raw?.records)?raw.records.map(normalizeRecord):[];return d}
+function normalizeDB(raw){const d=emptyDB();d.nextNr=Math.max(1,parseInt(raw?.nextNr,10)||1);for(const k of ['responsibles','products','employees','packages','statuses','units','clients'])d.catalog[k]=Array.isArray(raw?.catalog?.[k])?raw.catalog[k].map(x=>str(x).trim()).filter(Boolean):[];d.catalog.sources=Array.isArray(raw?.catalog?.sources)?raw.catalog.sources.filter(x=>x&&str(x.label).trim()&&['stock','other'].includes(x.kind)).map(x=>({label:str(x.label).trim(),kind:x.kind})):[];d.records=Array.isArray(raw?.records)?raw.records.map(normalizeRecord):[];return d}
 let storageOK=true,storageNotice='';let db=emptyDB(); // Primary data are loaded from Supabase after sign-in.
 const state={route:'dashboard',tab:'details',side:0,mode:'new',draft:null,editorBase:null,dirty:false,weightOpen:new Set([0]),search:'',docSearch:'',report:{from:'',to:'',product:'',employee:'',exportType:'products'},attendance:{month:today().slice(0,7),employee:''},print:{mode:'saved',selected:new Set(),search:'',start:'',count:'15',continuationSheets:'0'}};
 const view=document.getElementById('view');let toastTimer=null;
@@ -89,6 +89,7 @@ function comboOptions(kind){
  if(kind==='statuses')return uniqueOptions([...BASE_STATUSES,...db.catalog.statuses,...db.records.flatMap(r=>r.plan.map(p=>p.status))]);
  if(kind==='units')return uniqueOptions([...BASE_UNITS,...db.catalog.units,...db.records.flatMap(r=>r.plan.map(p=>p.unit))]);
  if(kind==='sources')return uniqueOptions([...BASE_SOURCES,...db.catalog.sources,...db.records.flatMap(r=>r.weighings.filter(g=>g.source&&g.sourceLabel).map(g=>({label:g.sourceLabel,kind:g.source})))]);
+ if(kind==='clients')return uniqueOptions([...db.catalog.clients,...db.records.flatMap(r=>r.plan.map(p=>p.client))]);
  return [];
 }
 function hideCombo(){if(activeCombo)activeCombo.setAttribute('aria-expanded','false');activeCombo=null;activeOptions=[];comboBox.hidden=true;comboBox.innerHTML=''}
@@ -108,7 +109,7 @@ function chooseComboOption(i){const el=activeCombo,opt=activeOptions[i];if(el&&o
 function finishCombo(el){if(!el||!el.isConnected||activeCombo!==el)return;const value=el.value.trim(),exact=comboOptions(el.dataset.combo).find(x=>fold(x.label)===fold(value));if(exact){setComboValue(el,exact,false);return}if(el.dataset.combo==='report-products'){if(!value){state.report.product='';hideCombo();render()}else{el.value=state.report.product;hideCombo();toast('Zgjidh një produkt nga rezultatet ose shtoje shpejt.','warn')}return}hideCombo()}
 function handleComboKey(e){if(e.key==='Escape'){hideCombo();return true}if(e.key==='ArrowDown'){e.preventDefault();const first=comboBox.querySelector('[data-combo-option], [data-combo-add]');first?.focus();return true}if(e.key==='Enter'&&!comboBox.hidden){e.preventDefault();const value=e.target.value.trim(),exact=activeOptions.findIndex(o=>fold(o.label)===fold(value));if(exact>=0)chooseComboOption(exact);else if(e.target.dataset.combo==='responsibles'&&activeOptions.length){toast('Zgjidh emrin nga lista ose shtoje shpejt.','warn')}else if(activeOptions.length===1)chooseComboOption(0);else if(comboBox.querySelector('[data-combo-add]'))quickAddCombo();return true}return false}
 function chooseSourceKind(label){return new Promise(resolve=>{const root=document.getElementById('dialog-root');root.innerHTML=`<div class="modal-layer"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="source-title"><h2 id="source-title">Si llogaritet ky burim?</h2><p>“${esc(label)}” do të ruhet si burim i ri. Zgjidh nëse peshimet me këtë emër merren nga stoku apo janë burim tjetër.</p><div class="modal-actions" style="flex-wrap:wrap"><button class="btn" data-source-choice="cancel">Anulo</button><button class="btn" data-source-choice="other">Tjetër / jo nga stoku</button><button class="btn btn-primary" data-source-choice="stock">Marrë nga stoku</button></div></div></div>`;const done=v=>{root.innerHTML='';document.removeEventListener('keydown',onkey);resolve(v)};const onkey=e=>{if(e.key==='Escape')done(null)};root.querySelectorAll('[data-source-choice]').forEach(b=>b.onclick=()=>done(b.dataset.sourceChoice==='cancel'?null:b.dataset.sourceChoice));document.addEventListener('keydown',onkey);root.querySelector('[data-source-choice="stock"]').focus()})}
-async function quickAddCombo(){const el=activeCombo;if(!el)return;const label=el.value.trim(),rawKind=el.dataset.combo,kind=rawKind==='report-products'?'products':rawKind;if(!label||!['responsibles','products','employees','packages','statuses','units','sources'].includes(kind))return;const existing=comboOptions(kind).find(o=>fold(o.label)===fold(label));if(existing){setComboValue(el,existing);return}let choice=null;if(kind==='sources'){choice=await chooseSourceKind(label);if(!choice){if(el.isConnected){el.focus();showCombo(el)}return}}const next=clone(db);next.catalog[kind].push(kind==='sources'?{label,kind:choice}:label);if(!await commit(next))return;const option={label,value:label,kind:choice};if(el.isConnected)setComboValue(el,option);toast(storageOK?'U shtua dhe u ruajt në listën bazë.':'U shtua vetëm për këtë sesion; shkarko backup.',''+(storageOK?'':'warn'))}
+async function quickAddCombo(){const el=activeCombo;if(!el)return;const label=el.value.trim(),rawKind=el.dataset.combo,kind=rawKind==='report-products'?'products':rawKind;if(!label||!['responsibles','products','employees','packages','statuses','units','sources','clients'].includes(kind))return;const existing=comboOptions(kind).find(o=>fold(o.label)===fold(label));if(existing){setComboValue(el,existing);return}let choice=null;if(kind==='sources'){choice=await chooseSourceKind(label);if(!choice){if(el.isConnected){el.focus();showCombo(el)}return}}const next=clone(db);next.catalog[kind].push(kind==='sources'?{label,kind:choice}:label);if(!await commit(next))return;const option={label,value:label,kind:choice};if(el.isConnected)setComboValue(el,option);toast(storageOK?'U shtua dhe u ruajt në listën bazë.':'U shtua vetëm për këtë sesion; shkarko backup.',''+(storageOK?'':'warn'))}
 function resolveExactSources(r){for(const g of r.weighings){if(!g.sourceLabel.trim()){g.source='';continue}const exact=comboOptions('sources').find(o=>fold(o.label)===fold(g.sourceLabel));if(exact){g.sourceLabel=exact.label;g.source=exact.kind}}for(const p of r.plan){for(const [key,kind] of [['status','statuses'],['unit','units']]){const exact=comboOptions(kind).find(o=>fold(o.label)===fold(p[key]));if(exact)p[key]=exact.label}}}
 comboBox.addEventListener('mousedown',e=>e.preventDefault());
 
@@ -324,7 +325,7 @@ function historyHTML(){return `<div class="page-head"><div><div class="eyebrow">
 function renderHistoryList(){const target=document.getElementById('history-list');if(!target)return;const q=state.search.trim().toLocaleLowerCase('sq'),list=sortedRecords().filter(r=>!q||[r.nr,r.date,formatDate(r.date),r.responsible.name,...r.plan.map(p=>p.product),...r.employees.map(e=>e.name)].join(' ').toLocaleLowerCase('sq').includes(q));document.getElementById('history-count').textContent=`${list.length} regjistrime`;target.innerHTML=list.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Nr.</th><th>Data / java</th><th>Përgjegjësja</th><th>Produkti</th><th>Orët (rrumb.)</th><th>Dokumenti</th><th>Veprimi</th></tr></thead><tbody>${recordRows(list)}</tbody></table></div>`:`<div class="empty"><div class="empty-icon">${icon('book',20)}</div><h3>Nuk u gjet asnjë regjistrim</h3><p>Provo një kërkim tjetër ose krijo formularin e parë.</p><button class="btn btn-primary btn-small" data-action="new">${icon('plus',14)} Regjistrim i ri</button></div>`}
 function input(path,value,options={}){const {type='text',placeholder='',list='',extra='',disabled=false,label='',className='',step='any',combo=''}=options;const kind=combo||({'product-options':'products','employee-options':'employees','package-options':'packages'}[list]||'');const numeric=type==='number',whole=numeric&&step==='1',htmlType=numeric?'text':type;return `<input class="input ${esc(className)}" type="${htmlType}" ${numeric?`inputmode="${whole?'numeric':'decimal'}"`:''} ${kind?`data-combo="${esc(kind)}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="combo-popover" autocomplete="off"`:''} ${label?`aria-label="${esc(label)}"`:''} placeholder="${esc(placeholder)}" value="${esc(value)}" data-bind="${path}" ${disabled?'disabled':''} ${extra}>`}
 function field(label,content,hint='',extraClass=''){return `<div class="field ${extraClass}"><label>${label}</label>${content}${hint?`<small>${hint}</small>`:''}</div>`}
-function planHTML(r,off){return r.plan.map((p,i)=>`<div class="plan-card"><div class="plan-top"><span class="plan-num">0${i+1}</span><strong>Produkti ${i+1}</strong></div><div class="fields">${field('Produkti',input(`plan.${i}.product`,p.product,{list:'product-options',placeholder:'Shkruaj produktin',disabled:off,label:`Produkti ${i+1}`}))}${field('Statusi',input(`plan.${i}.status`,p.status,{combo:'statuses',placeholder:'Shkruaj statusin',disabled:off,label:`Statusi për produktin ${i+1}`}))}${field('Sasia e porositur',input(`plan.${i}.planned`,p.planned,{type:'number',placeholder:'0',disabled:off,label:`Sasia e porositur ${i+1}`}))}${field('Lloji i paketimit',input(`plan.${i}.packaging`,p.packaging,{list:'package-options',placeholder:'p.sh. thasë, kuti',disabled:off,label:`Paketimi ${i+1}`}))}</div><div class="fields" style="margin-top:12px">${field('Klienti',input(`plan.${i}.client`,p.client,{placeholder:'Klienti',disabled:off,label:`Klienti ${i+1}`}))}${field('Komente',input(`plan.${i}.comment`,p.comment,{placeholder:'Komente',disabled:off,label:`Komente për produktin ${i+1}`}),'','field-span-2')}</div><div class="form-subhead">Të dhëna shtesë për raportet</div><div class="fields">${field('Sasia e prodhuar',input(`plan.${i}.actual`,p.actual,{type:'number',placeholder:'0',disabled:off,label:`Sasia e prodhuar ${i+1}`}))}${field('Njësia',input(`plan.${i}.unit`,p.unit,{combo:'units',placeholder:'p.sh. kg, copë',disabled:off,label:`Njësia për produktin ${i+1}`}))}${field('Nr. i ambalazheve',input(`plan.${i}.packageCount`,p.packageCount,{type:'number',step:'1',placeholder:'Opsionale',disabled:off,label:`Numri i ambalazheve për produktin ${i+1}`}))}</div></div>`).join('')}
+function planHTML(r,off){return r.plan.map((p,i)=>`<div class="plan-card"><div class="plan-top"><span class="plan-num">0${i+1}</span><strong>Produkti ${i+1}</strong></div><div class="fields">${field('Produkti',input(`plan.${i}.product`,p.product,{list:'product-options',placeholder:'Shkruaj produktin',disabled:off,label:`Produkti ${i+1}`}))}${field('Statusi',input(`plan.${i}.status`,p.status,{combo:'statuses',placeholder:'Shkruaj statusin',disabled:off,label:`Statusi për produktin ${i+1}`}))}${field('Sasia e porositur',input(`plan.${i}.planned`,p.planned,{type:'number',placeholder:'0',disabled:off,label:`Sasia e porositur ${i+1}`}))}${field('Lloji i paketimit',input(`plan.${i}.packaging`,p.packaging,{list:'package-options',placeholder:'p.sh. thasë, kuti',disabled:off,label:`Paketimi ${i+1}`}))}</div><div class="fields" style="margin-top:12px">${field('Klienti',input(`plan.${i}.client`,p.client,{combo:'clients',placeholder:'Zgjidh ose shkruaj klientin',disabled:off,label:`Klienti ${i+1}`}))}${field('Komente',input(`plan.${i}.comment`,p.comment,{placeholder:'Komente',disabled:off,label:`Komente për produktin ${i+1}`}),'','field-span-2')}</div><div class="form-subhead">Të dhëna shtesë për raportet</div><div class="fields">${field('Sasia e prodhuar',input(`plan.${i}.actual`,p.actual,{type:'number',placeholder:'0',disabled:off,label:`Sasia e prodhuar ${i+1}`}))}${field('Njësia',input(`plan.${i}.unit`,p.unit,{combo:'units',placeholder:'p.sh. kg, copë',disabled:off,label:`Njësia për produktin ${i+1}`}))}${field('Nr. i ambalazheve',input(`plan.${i}.packageCount`,p.packageCount,{type:'number',step:'1',placeholder:'Opsionale',disabled:off,label:`Numri i ambalazheve për produktin ${i+1}`}))}</div></div>`).join('')}
 function detailsHTML(r,off){return `<div class="editor-stack"><div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">01</span><div><h2>Të dhënat e ditës</h2></div></div><span class="tag">Faqja 1</span></div><div class="card-body"><div class="fields">${field('Dhoma',input('room',r.room,{placeholder:'Dhoma',disabled:off,label:'Dhoma'}),'','field-span-2')}${field('Nr. i formularit',input('nr',r.nr,{placeholder:'001',disabled:off,label:'Numri i formularit',extra:'inputmode="numeric" maxlength="9"'}))}${field('Data',input('date',r.date,{type:'date',disabled:off,label:'Data'}))}${field('Dita',`<input class="input readonly" id="display-day" value="${esc(dayName(r.date))}" readonly aria-label="Dita e javës">`)}${field('Java ISO',`<input class="input readonly" id="display-week" value="${weekNumber(r.date)??'—'}" readonly aria-label="Java ISO">`)}</div><div class="form-subhead">Përgjegjëset</div><div class="fields">${field('Përgjegjësja',input('responsible.name',r.responsible.name,{combo:'responsibles',placeholder:'Zgjidh ose shkruaj emrin',disabled:off,label:'Përgjegjësja'}))}${field('Firma e përgjegjëses',input('responsible.signature',r.responsible.signature,{placeholder:'Emri / konfirmimi',disabled:off,label:'Firma e përgjegjëses'}))}${field('Ndihmës përgjegjësja',input('assistant.name',r.assistant.name,{combo:'responsibles',placeholder:'Zgjidh ose shkruaj emrin',disabled:off,label:'Ndihmës përgjegjësja'}))}${field('Firma e ndihmëses',input('assistant.signature',r.assistant.signature,{placeholder:'Emri / konfirmimi',disabled:off,label:'Firma e ndihmëses'}))}</div><div class="tip">${icon('info',15)}<span>Firmat janë tekst konfirmimi, jo nënshkrime elektronike të verifikuara.</span></div></div></div><div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">02</span><div><h2>Plani i punës</h2></div></div><span class="tag">3 produkte</span></div><div class="card-body">${planHTML(r,off)}</div></div></div>`}
 function staffHTML(r,off){const rows=r.employees.map((e,i)=>`<tr><td class="number-cell">${String(i+1).padStart(2,'0')}</td><td>${input(`employees.${i}.name`,e.name,{list:'employee-options',placeholder:'Emri dhe mbiemri',disabled:off,label:`Emri i punonjësit ${i+1}`,className:'name-input'})}</td><td>${input(`employees.${i}.start`,e.start,{type:'time',disabled:off,label:`Fillimi i punonjësit ${i+1}`})}</td><td>${input(`employees.${i}.end`,e.end,{type:'time',disabled:off,label:`Mbarimi i punonjësit ${i+1}`})}</td><td><span class="calculated" id="emp-hours-${i}">${fmtMaybe(hoursFor(e))}</span></td><td>${input(`employees.${i}.comment`,e.comment,{placeholder:'Komente',disabled:off,label:`Komente për punonjësin ${i+1}`,className:'comment-input'})}</td><td>${input(`employees.${i}.signature`,e.signature,{placeholder:'Emri / konfirmimi',disabled:off,label:`Firma e punonjësit ${i+1}`,className:'sig-input'})}</td></tr>`).join('');const total=r.employees.reduce((s,e)=>s+(hoursFor(e)||0),0);return `<div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">03</span><div><h2>Punonjësit</h2></div></div><span class="tag">${EMPLOYEE_ROWS} rreshta</span></div><div class="scroll-hint">↔ Rrëshqit tabelën anash.</div><div class="table-wrap"><table class="table staff-table"><thead><tr><th>Nr.</th><th>Emri e mbiemri</th><th>Fillim pune</th><th>Mbarim pune</th><th>Orë gjithsej</th><th>Komente</th><th>Firma e punonjësit</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="table-foot"><td colspan="4">Orë gjithsej (rrumb.)</td><td colspan="3"><span id="staff-total">${fmt(roundHoursTotal(total))}</span> orë</td></tr></tfoot></table></div></div>`}
 
@@ -576,7 +577,232 @@ function selectVisiblePrint(select){if(select){const next=new Set(state.print.se
 async function openPrintRecord(id){if(!await canLeave())return;if(!db.records.some(r=>r.id===id)){toast('Regjistrimi nuk u gjet.','error');return}state.route='print';state.draft=null;state.dirty=false;state.print.mode='saved';state.print.selected=new Set([id]);state.print.search='';render();window.scrollTo({top:0,behavior:'smooth'})}
 function printItems(){if(state.print.mode==='saved'){const rows=db.records.filter(r=>state.print.selected.has(r.id)).sort((a,b)=>(Number(a.nr)||0)-(Number(b.nr)||0)||(a.date||'').localeCompare(b.date||''));if(!rows.length){toast('Zgjidh të paktën një formular të ruajtur.','error');return null}if(rows.length>50){toast('Zgjidh maksimumi 50 formularë njëherësh.','error');return null}return rows.map(record=>({nr:record.nr,record}))}const start=Number(state.print.start||nextNr()),count=Number(state.print.count),continuationSheets=Number(state.print.continuationSheets);if(!Number.isInteger(continuationSheets)||continuationSheets<0||continuationSheets>10){toast('Zgjidh nga 0 deri në 10 fletë vazhdimi për formular.','error');return null}if(!Number.isInteger(start)||start<1||start>999999999||!Number.isInteger(count)||count<1||count>50||start+count-1>999999999){toast('Vendos një numër fillestar të vlefshëm dhe 1–50 formularë.','error');return null}return Array.from({length:count},(_,i)=>({nr:String(start+i).padStart(3,'0'),record:null,continuationSheets}))}
 
-function catalogHTML(){const configs=[['responsibles','Përgjegjëset','Emër dhe mbiemër','book'],['products','Produktet','Emër produkti','box'],['employees','Punonjësit','Emër dhe mbiemër','book'],['packages','Paketimet','Lloj paketimi','stack'],['statuses','Statuset','Status i ri','file'],['units','Njësitë','Njësi e re','grid'],['sources','Burimet e peshimit','Emër burimi','stack']];return `<div class="page-head"><div><div class="eyebrow">Listat bazë</div><h1 class="page-title">Të dhënat bazë</h1><p class="page-sub">Ruaj emra për t’i zgjedhur më shpejt gjatë plotësimit. Mund të shkruash edhe emra të tjerë direkt në formular.</p></div></div><div class="catalog-grid">${configs.map(([key,title,placeholder,ic])=>`<div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">${icon(ic,15)}</span><div><h3>${title}</h3><p>${db.catalog[key].length} të shtuara</p></div></div></div><div class="card-body"><div class="catalog-add"><label class="sr-only" for="add-${key}">${placeholder}</label><input class="input" id="add-${key}" placeholder="${placeholder}" maxlength="160"><button class="btn btn-primary btn-small" data-action="catalog-add" data-kind="${key}">${icon('plus',14)} Shto</button></div><div class="catalog-list">${db.catalog[key].length?db.catalog[key].map((entry,i)=>{const name=typeof entry==='string'?entry:entry.label;return `<div class="catalog-item"><span>${esc(name)}${key==='sources'?` <span class="tag">${entry.kind==='stock'?'Stok':'Tjetër'}</span>`:''}</span><button class="icon-btn" data-action="catalog-edit" data-kind="${key}" data-index="${i}" aria-label="Modifiko ${esc(name)}">${icon('edit',15)}</button><button class="icon-btn" data-action="catalog-delete" data-kind="${key}" data-index="${i}" aria-label="Hiq ${esc(name)}">${icon('trash',15)}</button></div>`}).join(''):'<div class="mini-empty">Lista është bosh.</div>'}</div></div></div>`).join('')}</div><div class="tip">${icon('info',15)}<span>Modifikimi ose heqja nga lista nuk ndryshon formularët e ruajtur më parë.</span></div><div class="head-actions section-space"><button class="btn" data-action="backup-export">${icon('download',15)} Shkarko backup JSON</button><button class="btn" data-action="backup-import">${icon('upload',15)} Importo backup JSON</button></div>`}
+// ---- Import i listave bazë nga Excel ------------------------------------------
+// Kërkesa: "Duhet një import nga Exceli, që të mos i shkruaj klientët e
+// punonjësit manualisht." Praktikisht të gjitha listat e klientëve vijnë si një
+// kolonë në Excel ose CSV. Këtu lexohet skedari, njihen titujt e lejuar dhe
+// çdo rresht krahasohet me listat: i re, ekzistues (bashkohet), ose i pavlefshëm.
+const CATALOG_KINDS=['responsibles','products','employees','packages','statuses','units','sources','clients'];
+const CATALOG_TITLES={responsibles:'Përgjegjëset',products:'Produktet',employees:'Punonjësit',packages:'Paketimet',statuses:'Statuset',units:'Njësitë',sources:'Burimet e peshimit',clients:'Klientët'};
+const CATALOG_PLACEHOLDERS={responsibles:'Emër dhe mbiemër',products:'Emër produkti',employees:'Emër dhe mbiemër',packages:'Lloj paketimi',statuses:'Status i ri',units:'Njësi e re',sources:'Emër burimi',clients:'Emër klienti'};
+const CATALOG_LIMIT=2000;
+// Titujt që një skedar Excel mund të ketë: në shqip dhe në anglisht, me shkurtime.
+const CATALOG_HEADERS=[
+ ['clients',['klient','klienti','klientet','kliente','klienta','konsumator','konsumatori','konsumatoret','buyer','buyers','customer','customers','client','clients']],
+ ['employees',['punonjes','punonjesi','punonjesit','punonjese','punonjeset','punetor','punetoret','puntor','puntoret','staff','employee','employees','worker','workers']],
+ ['responsibles',['pergjegjese','pergjegjesja','pergjegjeset','pergjegjesi','pergjegjesit','manager','managers','supervisor','responsibles','responsible']],
+ ['products',['produkt','produkti','produktet','produkte','mall','mallra','artikull','artikuj','product','products','item','items']],
+ ['packages',['paketim','paketimi','paketimet','paket','embalazh','embalazhi','ambalazh','ambalazhi','packaging','package','packagings']],
+ ['statuses',['status','statusi','statuset','statuses']],
+ ['units',['njesi','njesia','njesite','unit','units','uom','measure']],
+ ['sources',['burim','burimi','burimet','source','sources']],
+];
+const CATALOG_SOURCE_LABELS={'burim':'sources','burimi':'sources','burimet':'sources','source':'sources','sources':'sources'};
+function catalogHeaderKind(raw){
+ let t=fold(raw).replace(/[^a-z0-9ëç ]/g,' ').replace(/\s+/g,' ').trim();
+ if(!t||t.length>30)return '';
+ // Qeliza me numra jane te dhena (p.sh. "Klienti 12"), jo tituj kolonash.
+ if(/\d/.test(t))return '';
+ // Shenjat e shkurtimit hiqen: "Lloj paketimi" -> "paketim".
+ t=t.replace(/^(llo?j|tipi|tip)\s+/,'').trim();
+ // Fjalet e para te pergjithshme hiqen: "Emri i klientit" -> "klientit".
+ t=t.replace(/^(emri|emrat|emri i|lista|lista e|list|te dhenat)\s+(i|e|te|së|se)?\s*/,'').trim();
+ if(!t)return '';
+ for(let word of [t,...t.split(' ').filter(x=>x.length>3)])if(word){
+  // Trajta e shquar: klientit/klientit -> klient (hiqet nje mbarese e gjate).
+  if(t.indexOf(' ')!==-1)continue;
+  const stems=[word,word.replace(/(it|et|in|it|ve|t|t)$/,'')];
+  for(const [kind,list] of CATALOG_HEADERS)for(const base of list){
+   if(stems.some(x=>x===base))return kind;
+   // Perputhje me rrenje te njejte kur fjalia eshte e gjate (>=4 shkronja).
+   if(word.length>=4&&base.startsWith(word.slice(0,Math.max(4,word.length-2)))&&base.length<=word.length+2)return kind;
+  }
+ }
+ return '';
+}
+// A duket rreshti i parë si kokë tabele (jo si emër klienti)?
+function catalogLooksLikeHeader(row){
+ const filled=row.filter(x=>nonempty(x));
+ if(!filled.length)return false;
+ if(filled.length===1){
+  const t=fold(filled[0]);
+  // Titull i vetëm pa numra dhe i shkurtër: "Klientët", "Punonjësit"…
+  return t.length<=28&&!/\d/.test(t)&&(/^(klient|punonj|pergjegj|produkt|paketim|status|njesi|burim|emri|emrat|lista|list)/.test(t));
+ }
+ return row.some(x=>catalogHeaderKind(x)!=='');
+}
+function catalogCellText(v){
+ if(v===null||v===undefined)return '';
+ if(typeof v==='number')return Number.isFinite(v)?String(v):'';
+ return str(v,400).replace(/\s+/g,' ').trim();
+}
+// Leximi i skedarit: pranon .xlsx/.xls/.csv. Kthen rreshtat e fletës së parë jo bosh.
+function catalogRowsFromWorkbook(wb){
+ const names=visibleSheets(wb);
+ for(const name of names){
+  const sh=wb.Sheets[name];if(!sh)continue;
+  const rows=XLSX.utils.sheet_to_json(sh,{header:1,raw:true,defval:'',blankrows:false});
+  const useful=rows.filter(row=>Array.isArray(row)&&row.some(x=>nonempty(catalogCellText(x))));
+  if(useful.length)return {sheet:name,rows:useful};
+ }
+ return {sheet:'',rows:[]};
+}
+// Një rresht -> emri i importuar (+ lloji i burimit, kur ka).
+// Kolona e parë e plotë = emri. Kolona me tekst "stok"/"tjetër" = lloji.
+function catalogPick(row,forcedKind){
+ const cells=(row||[]).map(catalogCellText);
+ const words=cells.map(x=>fold(x));
+ let kind=forcedKind||'';
+ if(!kind)for(let i=cells.length-1;i>=0;i--){const k=catalogHeaderKind(cells[i]);if(k){kind=k;break}}
+ // Fjala e saktë (“stok”, “tjetër”) ka përparësi ndaj frazës që e përmban.
+ const exactSource=words.find(x=>x==='stok'||x==='stock'||x==='tjetër'||x==='tjeter'||x==='other');
+ const sourceWord=exactSource||words.find(x=>x.startsWith('marre nga stok')||x.startsWith('jo nga stok'))||'';
+ if(kind==='sources')return {
+  name:cells.find(x=>nonempty(x)&&fold(x)!==sourceWord&&!catalogHeaderKind(x))||'',
+  sourceKind:sourceWord?(/^(stok|stock)/.test(sourceWord)?'stock':'other'):'',
+ };
+ return {name:cells.find(x=>nonempty(x)&&!catalogHeaderKind(x))||'',sourceKind:''};
+}
+// Paraqitja: sa janë të reja, sa ekzistojnë, çfarë është e pavlefshme.
+function catalogPlan(rows,kind,existing){
+ const out={kind,add:[],have:[],bad:[],tooLong:[],overflow:0},seen=new Set(),haveSet=new Set((existing||[]).map(x=>fold(x)));
+ let index=0;
+ for(const row of rows){
+  index++;
+  const pick=catalogPick(row,kind),name=pick.name;
+  if(!name){out.bad.push({row:index,reason:'Pa emër'});continue}
+  if(name.length>160){out.tooLong.push({row:index,name:name.slice(0,40)+'…'});continue}
+  const key=fold(name);
+  if(!key||/^\d+([.,]\d+)?$/.test(key)){out.bad.push({row:index,reason:'Vetëm numra',name});continue}
+  if(key.length<2){out.bad.push({row:index,reason:'Shumë i shkurtër',name});continue}
+  if(haveSet.has(key)){if(!seen.has('h:'+key)){out.have.push(name);seen.add('h:'+key)}continue}
+  if(out.add.length>=CATALOG_LIMIT){out.overflow=(out.overflow||0)+1;continue}
+  if(seen.has('n:'+key))continue;
+  seen.add('n:'+key);
+  out.add.push(kind==='sources'?{label:name,kind:pick.sourceKind||''}:name);
+ }
+ return out;
+}
+// Përcaktimi i llojit kur skedari nuk e thotë vetë.
+function catalogGuessKind(rows,headerRow,forced){
+ if(forced&&forced!=='auto')return forced;
+ for(const cell of (headerRow||[])){const k=catalogHeaderKind(cell);if(k)return k}
+ // Pa kokë tabele: punonjësit dhe përgjegjëset kanë emra me dy fjalë.
+ const names=rows.map(r=>catalogPick(r,'auto').name).filter(Boolean);
+ if(names.length>=3&&names.filter(n=>n.trim().split(/\s+/).length>=2).length/names.length>=0.7)return 'employees';
+ return 'clients';
+}
+// ---- Import: hapja e skedarit, paraqitja dhe ruajtja -------------------------
+const catalogImport={rows:[],sheet:'',file:'',kind:'clients',headerRow:null,plan:null};
+function catalogExisting(kind){
+ const base=kind==='statuses'?BASE_STATUSES:kind==='units'?BASE_UNITS:kind==='sources'?BASE_SOURCES.map(x=>x.label):[];
+ return [...base,...db.catalog[kind].map(x=>typeof x==='string'?x:x.label)];
+}
+function catalogImportSummary(){
+ const p=catalogImport.plan;if(!p)return '';
+ return `${p.add.length} të reja · ${p.have.length} ekzistues · ${p.bad.length+p.tooLong.length} të pavlefshme`;
+}
+function catalogImportHTML(){
+ const rows=catalogImport.rows,head=rows[0]||[],body=rows.slice(0,8);
+ const preview=body.map((row,i)=>`<tr><td class="number-cell">${i+1}</td>${(catalogImport.kind==='sources'?[catalogPick(row,catalogImport.kind).name,catalogPick(row,catalogImport.kind).sourceKind==='stock'?'Stok':catalogPick(row,catalogImport.kind).sourceKind==='other'?'Tjetër':'—']:[catalogPick(row,catalogImport.kind).name]).map(v=>`<td>${esc(v||'—')}</td>`).join('')}</tr>`).join('');
+ const cols=catalogImport.kind==='sources'?['Emri','Lloji']:['Emri i importuar'];
+ const plan=catalogImport.plan||{add:[],have:[],bad:[],tooLong:[]};
+ const sample=plan.add.slice(0,12).map(x=>`<span class="doc-tag tag">${esc(typeof x==='string'?x:x.label)}</span>`).join(' ');
+ return `<div class="catalog-import">
+  <div class="import-pick">
+   <div class="field"><label for="catalog-import-kind">Këto emra janë</label>
+    <select class="input" id="catalog-import-kind">${CATALOG_KINDS.map(k=>`<option value="${k}" ${catalogImport.kind===k?'selected':''}>${esc(CATALOG_TITLES[k])}</option>`).join('')}</select></div>
+   <div class="field"><label>Skadari</label><p class="import-file">${icon('doc',15)} <strong>${esc(catalogImport.file)}</strong><span class="small-note">${esc(catalogImport.sheet?`Fleta “${catalogImport.sheet}”`:'')} · ${rows.length} rreshta</span></p></div>
+  </div>
+  <div class="import-summary">
+   <span class="tag good">${plan.add.length} të reja</span>
+   <span class="tag">${plan.have.length} ekzistojnë</span>
+   ${(plan.bad.length+plan.tooLong.length)?`<span class="tag bad">${plan.bad.length+plan.tooLong.length} të hedhura</span>`:''}
+   ${catalogImport.headerRow!==null?'<span class="small-note">Rreshti i parë u lexua si titull kolone.</span>':''}
+  </div>
+  <div class="table-wrap import-preview"><table class="table"><thead><tr><th>#</th>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${preview}</tbody></table></div>
+  ${rows.length>8?`<p class="small-note">Shfaqen 8 nga ${rows.length} rreshtat.</p>`:''}
+  ${plan.have.length?`<details class="import-have"><summary>${plan.have.length} emra ekzistojnë dhe nuk do të dublikohen</summary><p class="small-note">${plan.have.slice(0,60).map(esc).join(' · ')}${plan.have.length>60?' …':''}</p></details>`:''}
+  ${(plan.bad.length+plan.tooLong.length)?`<details class="import-bad"><summary>Çfarë u hodh poshtë dhe pse</summary><ul class="small-note">${[...plan.bad.map(x=>`Rreshti ${x.row}: ${x.reason}${x.name?` (“${x.name}”)`:''}`),...plan.tooLong.map(x=>`Rreshti ${x.row}: emri ka më shumë se 160 shkronja (“${x.name}”)`)].slice(0,25).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
+  ${plan.add.length?`<div class="import-new"><strong>Të rejat që do të shtohen:</strong><p>${sample}${plan.add.length>12?` <span class="small-note">…dhe ${plan.add.length-12} të tjera</span>`:''}</p></div>`:'<p class="notice">Nuk ka emra të reja për t’u shtuar.</p>'}
+ </div>`;
+}
+function catalogImportModal(){
+ const root=document.getElementById('dialog-root');if(!root)return;
+ const plan=catalogImport.plan||{add:[]};
+ root.innerHTML=`<div class="modal-layer" role="presentation"><div class="modal catalog-import-modal" role="dialog" aria-modal="true" aria-labelledby="catalog-import-title">
+  <h2 id="catalog-import-title">Importo listat nga Excel</h2>
+  <p>Kontrollo para se të ruash. Emrat që ekzistojnë nuk dublikohen dhe listat bazë nuk i prekin formularët e ruajtur.</p>
+  ${catalogImportHTML()}
+  <p id="catalog-import-error" role="alert" class="import-error"></p>
+  <div class="modal-actions"><button type="button" class="btn" data-import-cancel>Anulo</button><button type="button" class="btn" data-import-again>Zgjidh skedar tjetër</button><button type="button" class="btn btn-primary" data-import-save ${plan.add.length?'':'disabled'}>${icon('save',14)} Shto ${plan.add.length} emra</button></div>
+ </div></div>`;
+ const kindSel=root.querySelector('#catalog-import-kind');
+ kindSel.onchange=()=>{catalogImport.kind=kindSel.value;catalogImport.plan=catalogPlan(catalogImport.rows,catalogImport.kind,catalogExisting(catalogImport.kind));catalogImportModal()};
+ root.querySelector('[data-import-cancel]').onclick=()=>{root.innerHTML=''};
+ root.querySelector('[data-import-again]').onclick=()=>{root.innerHTML='';document.getElementById('catalog-import-file')?.click()};
+ root.querySelector('[data-import-save]').onclick=()=>catalogImportSave();
+ root.querySelector('.modal-layer').onclick=e=>{if(e.target.classList.contains('modal-layer'))root.innerHTML=''};
+ document.addEventListener('keydown',function esc(e){if(e.key==='Escape'){root.innerHTML='';document.removeEventListener('keydown',esc)}});
+ const btn=root.querySelector('[data-import-save]');if(btn&&!btn.disabled)btn.focus();
+}
+async function catalogImportSave(){
+ const btn=document.querySelector('[data-import-save]');
+ const plan=catalogImport.plan;
+ if(!plan||!plan.add.length){toast('Nuk ka emra të reja për t’u shtuar.','warn');return}
+ const kind=catalogImport.kind,limit=CATALOG_LIMIT-db.catalog[kind].length;
+ if(plan.add.length>limit){const el=document.getElementById('catalog-import-error');if(el)el.textContent=`Lista mund të mbajë edhe ${Math.max(0,limit)} emra. Zgjidh një skedar më të vogël ose shto me dorë.`;return}
+ if(btn){btn.disabled=true}
+ try{
+  const next=clone(db);
+  for(const item of plan.add)next.catalog[kind].push(kind==='sources'?{label:item.label,kind:item.kind||'other'}:item);
+  next.catalog[kind].sort((a,b)=>String(typeof a==='string'?a:a.label).localeCompare(String(typeof b==='string'?b:b.label),'sq'));
+  const ok=await commit(next);
+  if(!ok){if(btn)btn.disabled=false;return}
+  const added=plan.add.length,title=CATALOG_TITLES[kind];
+  document.getElementById('dialog-root').innerHTML='';
+  catalogImport.rows=[];catalogImport.plan=null;
+  render();
+  toast(`${added} emra u shtuan te ${title}.`,storageOK?'':'warn');
+ }catch(e){
+  if(btn)btn.disabled=false;
+  const el=document.getElementById('catalog-import-error');if(el)el.textContent=str(e?.message||'Importi nuk u ruajt.',300);
+ }
+}
+async function catalogImportFile(file){
+ if(!file)return;
+ // Mesazhi i gabimit i takon modalit; nëse s'është hapur, bëhet gati një vend.
+ let el=document.getElementById('catalog-import-error');
+ if(!el){
+  const root=document.getElementById('dialog-root');
+  if(root&&!root.querySelector('.catalog-import-modal')){
+   root.innerHTML='<div class="modal-layer" role="presentation"><div class="modal catalog-import-modal" role="dialog" aria-modal="true"><h2>Importo listat nga Excel</h2><p id="catalog-import-error" role="alert" class="import-error"></p><div class="modal-actions"><button type="button" class="btn" data-import-cancel>Anulo</button></div></div></div>';
+   root.querySelector('[data-import-cancel]').onclick=()=>{root.innerHTML=''};
+   el=root.querySelector('#catalog-import-error');
+  }
+ }
+ try{
+  if(file.size>IMPORT_LIMIT)throw new Error('Skedari është mbi 12 MB. Ndaje në pjesë më të vogla.');
+ let buffer;
+  try{buffer=await file.arrayBuffer()}
+  catch(e){throw new Error(`Skedari “${file.name}” nuk mund të lexohet (u hoq ose u mbyll). Zgjidhe përsëri.`)}
+  let wb;
+  try{wb=XLSX.read(buffer,{type:'array',cellDates:false,cellText:true,bookVBA:false})}
+  catch(e){throw new Error(`Skedari “${file.name}” nuk u hap. Eksportoji si .xlsx ose .csv dhe provo përsëri.`)}
+  const {sheet,rows}=catalogRowsFromWorkbook(wb);
+  if(!rows.length)throw new Error('Skedari nuk ka asnjë emër të lexueshëm në fletën e parë.');
+  const header=catalogLooksLikeHeader(rows[0])?rows[0]:null;
+  const data=header?rows.slice(1):rows;
+  if(!data.length)throw new Error('Skedari ka vetëm titullin e kolonës, pa emra poshtë tij.');
+  catalogImport.rows=data;catalogImport.sheet=sheet;catalogImport.file=file.name;catalogImport.headerRow=header?0:null;
+  catalogImport.kind=catalogGuessKind(data,header,'auto');
+  catalogImport.plan=catalogPlan(data,catalogImport.kind,catalogExisting(catalogImport.kind));
+  catalogImportModal();
+ }catch(e){
+  if(el)el.textContent=str(e?.message||'Importi nuk u lexua.',300);else toast(str(e?.message||'Importi nuk u lexua.',300),'error');
+ }
+}
+function catalogHTML(){const configs=[['responsibles','Përgjegjëset','Emër dhe mbiemër','book'],['products','Produktet','Emër produkti','box'],['employees','Punonjësit','Emër dhe mbiemër','book'],['packages','Paketimet','Lloj paketimi','stack'],['statuses','Statuset','Status i ri','file'],['units','Njësitë','Njësi e re','grid'],['sources','Burimet e peshimit','Emër burimi','stack'],['clients','Klientët','Emër klienti','grid']];return `<div class="page-head"><div><div class="eyebrow">Listat bazë</div><h1 class="page-title">Të dhënat bazë</h1><p class="page-sub">Ruaj emra për t’i zgjedhur më shpejt gjatë plotësimit. Klientët dhe punonjësit mund t’i importosh nga Excel-i, pa i shkruar një për një.</p></div></div><div class="catalog-grid">${configs.map(([key,title,placeholder,ic])=>`<div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">${icon(ic,15)}</span><div><h3>${title}</h3><p>${db.catalog[key].length} të shtuara</p></div></div></div><div class="card-body"><div class="catalog-add"><label class="sr-only" for="add-${key}">${placeholder}</label><input class="input" id="add-${key}" placeholder="${placeholder}" maxlength="160"><button class="btn btn-primary btn-small" data-action="catalog-add" data-kind="${key}">${icon('plus',14)} Shto</button></div><div class="catalog-list">${db.catalog[key].length?db.catalog[key].map((entry,i)=>{const name=typeof entry==='string'?entry:entry.label;return `<div class="catalog-item"><span>${esc(name)}${key==='sources'?` <span class="tag">${entry.kind==='stock'?'Stok':'Tjetër'}</span>`:''}</span><button class="icon-btn" data-action="catalog-edit" data-kind="${key}" data-index="${i}" aria-label="Modifiko ${esc(name)}">${icon('edit',15)}</button><button class="icon-btn" data-action="catalog-delete" data-kind="${key}" data-index="${i}" aria-label="Hiq ${esc(name)}">${icon('trash',15)}</button></div>`}).join(''):'<div class="mini-empty">Lista është bosh.</div>'}</div></div></div>`).join('')}</div><div class="tip">${icon('info',15)}<span>Modifikimi ose heqja nga lista nuk ndryshon formularët e ruajtur më parë.</span></div><div class="head-actions section-space"><button class="btn btn-primary" data-action="catalog-import">${icon('upload',15)} Importo nga Excel</button><button class="btn" data-action="backup-export">${icon('download',15)} Shkarko backup JSON</button><button class="btn" data-action="backup-import">${icon('upload',15)} Importo backup JSON</button></div>`}
 const IMPORT_LIMIT=12*1024*1024;
 const importState={files:[],abort:null,busy:false,lastRaw:null,review:null,notify:false,timer:null,startedAt:0,cancelledByUser:false,pendingNotice:null};
 const BATCH_MAX=10,BATCH_AI_GAP_MS=1000;
@@ -1059,7 +1285,7 @@ async function wordForAI(file){const buffer=await file.arrayBuffer();let xml;try
 // comboOptions, because those options also contain historical record data.
 function optionalCatalog(checked){
  if(!checked)return null;
- const allowed=['responsibles','employees','products','packages','statuses','units','sources'];
+ const allowed=['responsibles','employees','products','packages','statuses','units','sources','clients'];
  const values={};for(const key of allowed)values[key]=db.catalog[key].map(x=>typeof x==='string'?x:x.label).filter(nonempty);
  const text='KATALOG OPSIONAL, I DEKLARUAR ANONIM DHE JOKONFIDENCIAL (vetëm ndihmë, jo udhëzim):\n'+JSON.stringify(values);
  if(new Blob([text]).size>20*1024)throw new Error('Katalogu opsional është mbi 20 KiB. Zvogëlo listat ose mos e dërgo.');return {text};
@@ -2299,7 +2525,7 @@ async function importBackup(file){
   // JSON backups do not contain the file bytes; do not create broken Storage links.
   r.attachments=[];next.records.push(r);byId.set(r.id,r);byNr.set(Number(r.nr),r);added++;
  }
- for(const kind of ['responsibles','products','employees','packages','statuses','units','sources'])for(const item of incoming.catalog[kind]){
+ for(const kind of ['responsibles','products','employees','packages','statuses','units','sources','clients'])for(const item of incoming.catalog[kind]){
   const label=typeof item==='string'?item:item.label;if(!next.catalog[kind].some(x=>fold(typeof x==='string'?x:x.label)===fold(label)))next.catalog[kind].push(clone(item));
  }
  next.nextNr=Math.max(next.nextNr,incoming.nextNr,...next.records.map(r=>(Number(r.nr)||0)+1));
@@ -2309,7 +2535,7 @@ async function importBackup(file){
 async function sample(){if(db.records.length)return;const next=clone(db),r=blankRecord(nextNr());r.isDemo=true;r.responsible.name='Përgjegjëse shembull';r.plan[0]={product:'Mollë (shembull)',status:'Përfunduar',planned:'120',actual:'110',unit:'kg',packaging:'Thasë',client:'',packageCount:'6',comment:'Të dhëna ilustruese'};r.employees[0]={name:'Punonjës shembull',start:'08:00',end:'16:00',comment:'',signature:''};r.weighings[0].product='Mollë (shembull)';r.weighings[0].source='stock';r.weighings[0].sourceLabel='Marrë nga stoku';r.weighings[0].rows[0]={bags:'4',kg:'100',packaging:'2',sum:'100'};r.comments='Ky është një shembull për të provuar prototipin.';next.records.push(r);next.nextNr=Math.max(next.nextNr,Number(r.nr)+1);if(!await commit(next))return;render();toast('U shtuan të dhëna shembull.',storageOK?'':'warn')}
 async function clearDemo(){if(!db.records.some(r=>r.isDemo))return;if(!await modal({title:'Fshi të dhënat shembull?',body:'Do të fshihen vetëm regjistrimet e shënuara si shembull. Të dhënat e tjera nuk preken.',confirm:'Fshi shembullin',danger:true}))return;const n=clone(db);n.records=n.records.filter(r=>!r.isDemo);if(!n.records.length)n.nextNr=1;if(!await commit(n))return;render();toast('Shembulli u fshi.')}
 async function addCatalog(kind){
- if(!['responsibles','products','employees','packages','statuses','units','sources'].includes(kind))return;const el=document.getElementById('add-'+kind),name=el?.value.trim();if(!name){toast('Shkruaj një emër për ta shtuar.','error');el?.focus();return}
+ if(!['responsibles','products','employees','packages','statuses','units','sources','clients'].includes(kind))return;const el=document.getElementById('add-'+kind),name=el?.value.trim();if(!name){toast('Shkruaj një emër për ta shtuar.','error');el?.focus();return}
  const defaults=kind==='statuses'?BASE_STATUSES:kind==='units'?BASE_UNITS:kind==='sources'?BASE_SOURCES.map(x=>x.label):[],present=[...defaults,...db.catalog[kind].map(x=>typeof x==='string'?x:x.label)];if(present.some(x=>fold(x)===fold(name))){toast('Ky emër ekziston tashmë.','error');return}let choice=null;if(kind==='sources'){choice=await chooseSourceKind(name);if(!choice)return}
  const next=clone(db);next.catalog[kind].push(kind==='sources'?{label:name,kind:choice}:name);next.catalog[kind].sort((a,b)=>String(typeof a==='string'?a:a.label).localeCompare(String(typeof b==='string'?b:b.label),'sq'));if(!await commit(next))return;render();document.getElementById('add-'+kind)?.focus();toast(savedMessage(),storageOK?'':'warn')
 }
@@ -2320,7 +2546,7 @@ function editCatalogDialog(kind,entry){return new Promise(resolve=>{
  root.querySelector('[data-edit-cancel]').onclick=()=>done(null);root.querySelector('.modal-layer').onclick=e=>{if(e.target.classList.contains('modal-layer'))done(null)};root.querySelector('[data-edit-save]').onclick=()=>{const value=input.value.trim();if(!value){root.querySelector('#catalog-edit-error').textContent='Shkruaj një emër.';input.focus();return}done({name:value,sourceKind:root.querySelector('#catalog-edit-source')?.value})};document.addEventListener('keydown',onkey);input.focus();input.select();
 })}
 async function editCatalog(kind,index){
- if(!['responsibles','products','employees','packages','statuses','units','sources'].includes(kind))return;
+ if(!['responsibles','products','employees','packages','statuses','units','sources','clients'].includes(kind))return;
  const entry=db.catalog[kind][index];if(entry===undefined)return;
  const result=await editCatalogDialog(kind,entry);if(!result)return;
  const defaults=kind==='statuses'?BASE_STATUSES:kind==='units'?BASE_UNITS:kind==='sources'?BASE_SOURCES.map(x=>x.label):[];
@@ -2331,7 +2557,7 @@ async function editCatalog(kind,index){
  if(!await commit(next))return;render();toast('Ndryshimi u ruajt në listën bazë.');
 }
 async function deleteCatalog(kind,index){
- if(!['responsibles','products','employees','packages','statuses','units','sources'].includes(kind))return;const entry=db.catalog[kind][index],name=typeof entry==='string'?entry:entry?.label;if(name===undefined)return;if(!await modal({title:'Hiq nga lista?',body:`“${name}” do të hiqet vetëm nga lista bazë. Regjistrimet e vjetra nuk ndryshojnë.`,confirm:'Hiq',danger:true}))return;const next=clone(db);next.catalog[kind].splice(index,1);if(!await commit(next))return;render();toast('Emri u hoq nga lista.')
+ if(!['responsibles','products','employees','packages','statuses','units','sources','clients'].includes(kind))return;const entry=db.catalog[kind][index],name=typeof entry==='string'?entry:entry?.label;if(name===undefined)return;if(!await modal({title:'Hiq nga lista?',body:`“${name}” do të hiqet vetëm nga lista bazë. Regjistrimet e vjetra nuk ndryshojnë.`,confirm:'Hiq',danger:true}))return;const next=clone(db);next.catalog[kind].splice(index,1);if(!await commit(next))return;render();toast('Emri u hoq nga lista.')
 }
 
 
@@ -2379,9 +2605,9 @@ document.addEventListener('click',async e=>{const suggestion=e.target.closest('[
  const dlib=e.target.closest('[data-doc-lib]');if(dlib){await docOpenLibrary(dlib.dataset.docLib,dlib.dataset.docName);return}
  const dopen=e.target.closest('[data-doc-open],[data-doc-record]');if(dopen){await docOpenFromClick(dopen);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',employee:'',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='export-report-pro')await exportReportExcelPro();else if(a==='export-report-xlsx')exportReportXlsx(btn.dataset.type||'products');else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
   else if(a==='batch-read-pending')await batchReadPending()
-  else if(a==='batch-manual')await batchManualReview();else if(a==='batch-cancel')batchCancel();else if(a==='batch-review-ready')await batchReviewCompleted();else if(a==='batch-reset')await batchStartOver();else if(a==='batch-raw')batchRawDownload();else if(a==='batch-up')batchMove(Number(btn.dataset.index),-1);else if(a==='batch-down')batchMove(Number(btn.dataset.index),1);else if(a==='batch-swap')batchSwap(Number(btn.dataset.index));else if(a==='batch-split')batchSplit(Number(btn.dataset.index));else if(a==='batch-join')batchJoin(Number(btn.dataset.index));else if(a==='batch-remove')await batchRemove(Number(btn.dataset.index));else if(a==='batch-original-reset')batchPrivateReset(btn.dataset.id);else if(a==='batch-open')batchOpen(Number(btn.dataset.index));else if(a==='batch-remove-review')await batchRemoveReview();else if(a==='batch-draft')batchDraftDownload();else if(a==='batch-save')await batchSave();else if(a==='cloud-open-original')await cloudOpenOriginal(Number(btn.dataset.index));else if(a==='sample')await sample();else if(a==='clear-demo')await clearDemo();else if(a==='catalog-add')await addCatalog(btn.dataset.kind);else if(a==='catalog-edit')await editCatalog(btn.dataset.kind,Number(btn.dataset.index));else if(a==='catalog-delete')await deleteCatalog(btn.dataset.kind,Number(btn.dataset.index))});
+  else if(a==='batch-manual')await batchManualReview();else if(a==='batch-cancel')batchCancel();else if(a==='batch-review-ready')await batchReviewCompleted();else if(a==='batch-reset')await batchStartOver();else if(a==='batch-raw')batchRawDownload();else if(a==='batch-up')batchMove(Number(btn.dataset.index),-1);else if(a==='batch-down')batchMove(Number(btn.dataset.index),1);else if(a==='batch-swap')batchSwap(Number(btn.dataset.index));else if(a==='batch-split')batchSplit(Number(btn.dataset.index));else if(a==='batch-join')batchJoin(Number(btn.dataset.index));else if(a==='batch-remove')await batchRemove(Number(btn.dataset.index));else if(a==='batch-original-reset')batchPrivateReset(btn.dataset.id);else if(a==='batch-open')batchOpen(Number(btn.dataset.index));else if(a==='batch-remove-review')await batchRemoveReview();else if(a==='batch-draft')batchDraftDownload();else if(a==='batch-save')await batchSave();else if(a==='cloud-open-original')await cloudOpenOriginal(Number(btn.dataset.index));else if(a==='sample')await sample();else if(a==='clear-demo')await clearDemo();else if(a==='catalog-import')document.getElementById('catalog-import-file').click();else if(a==='catalog-add')await addCatalog(btn.dataset.kind);else if(a==='catalog-edit')await editCatalog(btn.dataset.kind,Number(btn.dataset.index));else if(a==='catalog-delete')await deleteCatalog(btn.dataset.kind,Number(btn.dataset.index))});
 document.addEventListener('input',e=>{const el=e.target;if(el.dataset.combo==='sources'&&state.route==='editor'){setPath(state.draft,el.dataset.bind.replace(/sourceLabel$/,'source'),'')}if(el.dataset.combo)showCombo(el);if(el.id==='history-search'){state.search=el.value;renderHistoryList();return}if(el.id==='doc-search'){state.docSearch=el.value;renderDocList();return}if(el.id==='print-search'){state.print.search=el.value;renderPrintList();return}if(el.dataset.printSetting){state.print[el.dataset.printSetting]=el.value;return}if(el.dataset.bind&&state.route==='editor'&&state.mode!=='view'){setPath(state.draft,el.dataset.bind,el.value);state.dirty=true;batchMarkChanged();updateDerived(el.dataset.bind)}});
-document.addEventListener('change',e=>{const el=e.target;if(el.id==='batch-files'){batchAddFiles(el);return}if(el.dataset.batchOriginal){batchPrivateChanged(el);return}if(el.id==='batch-review-original'){batchReviewPrivateChanged(el);return}if(el.id==='batch-device-notice'){setDeviceNotice(el);return}if(el.id==='batch-reviewed'&&batchIsReview()){const it=batchState.items[batchState.index];it.confirmedDigest=el.checked?JSON.stringify(it.record):'';batchUpdateSummary();return}if(el.id==='confirm-import-review'&&importState.review){importState.review.confirmed=el.checked;return}if(el.dataset.printId){if(el.checked)state.print.selected.add(el.dataset.printId);else state.print.selected.delete(el.dataset.printId);updatePrintCount();return}if(el.dataset.attendance){state.attendance[el.dataset.attendance]=el.value;render();return}if(el.dataset.report){state.report[el.dataset.report]=el.value;render()}if(el.id==='import-file'){const file=el.files&&el.files[0];el.value='';importBackup(file)}});
+document.addEventListener('change',e=>{const el=e.target;if(el.id==='batch-files'){batchAddFiles(el);return}if(el.dataset.batchOriginal){batchPrivateChanged(el);return}if(el.id==='batch-review-original'){batchReviewPrivateChanged(el);return}if(el.id==='batch-device-notice'){setDeviceNotice(el);return}if(el.id==='batch-reviewed'&&batchIsReview()){const it=batchState.items[batchState.index];it.confirmedDigest=el.checked?JSON.stringify(it.record):'';batchUpdateSummary();return}if(el.id==='confirm-import-review'&&importState.review){importState.review.confirmed=el.checked;return}if(el.dataset.printId){if(el.checked)state.print.selected.add(el.dataset.printId);else state.print.selected.delete(el.dataset.printId);updatePrintCount();return}if(el.dataset.attendance){state.attendance[el.dataset.attendance]=el.value;render();return}if(el.dataset.report){state.report[el.dataset.report]=el.value;render()}if(el.id==='catalog-import-file'){const file=el.files&&el.files[0];el.value='';catalogImportFile(file);return}if(el.id==='import-file'){const file=el.files&&el.files[0];el.value='';importBackup(file)}});
 document.addEventListener('toggle',e=>{const el=e.target;if(el.isConnected&&el.matches('.weight-card')&&state.route==='editor'){const i=Number(el.dataset.weightIndex);if(el.open)state.weightOpen.add(i);else state.weightOpen.delete(i)}},true);document.addEventListener('focusin',e=>{if(e.target.dataset.combo&&!suppressComboFocus)showCombo(e.target)});document.addEventListener('focusout',e=>{if(e.target.dataset.combo)setTimeout(()=>{if(activeCombo===e.target&&!document.activeElement?.closest('#combo-popover'))finishCombo(e.target)},160)});window.addEventListener('scroll',()=>{if(activeCombo)positionCombo(activeCombo)},true);window.addEventListener('resize',()=>{if(activeCombo)positionCombo(activeCombo)});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&e.target.closest('#combo-popover')){e.preventDefault();const el=activeCombo;hideCombo();if(el&&el.isConnected){suppressComboFocus=true;el.focus();suppressComboFocus=false}return}if(e.target.dataset.combo&&handleComboKey(e))return;if(e.key==='Enter'&&e.target.id?.startsWith('add-')){e.preventDefault();addCatalog(e.target.id.slice(4))}});
 window.addEventListener('beforeunload',e=>{if((state.route==='editor'&&state.dirty&&state.mode!=='view')||cloud.busy||cloud.uncertain||batchState.busy||batchIsReview()||(state.route==='batch'&&batchState.groups.some(g=>g.results?.length))){e.preventDefault();e.returnValue=''}});
 

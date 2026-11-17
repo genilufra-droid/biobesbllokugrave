@@ -111,6 +111,8 @@ begin
      or jsonb_array_length(p_upserts) > 5000 or cardinality(p_deletes) > 5000 then
     raise exception using message = 'BIOBES_INPUT_TOO_LARGE', errcode = '22023';
   end if;
+  -- 'clients' nuk kontrollohet: versionet e mëparshme të këtij funksioni nuk e
+  -- njihnin, dhe një listë e re nuk duhet ta bëjë të pamundur ruajtjen.
   if exists (select 1 from pg_catalog.unnest(array['products','employees','packages','statuses','units','sources']) k
              where jsonb_typeof(p_catalog -> k) is distinct from 'array')
      or ((p_catalog ? 'responsibles') and jsonb_typeof(p_catalog -> 'responsibles') is distinct from 'array') then
