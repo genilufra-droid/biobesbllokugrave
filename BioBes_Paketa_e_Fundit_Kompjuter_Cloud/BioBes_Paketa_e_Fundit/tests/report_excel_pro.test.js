@@ -15,7 +15,7 @@ const { test, run } = require('./test_runner.js');
 const api = loadApp(null, `
 ;globalThis.__M = {
   xlsxBytes, xlsxFiles, xlSummarySheet, xlProductsSheet, xlPackagesSheet,
-  xlHoursSheet, xlWeightsSheet, metrics, reportRecords, normalizeRecord,
+  xlHoursSheet, xlWeightsSheet, xlStockSheet, metrics, reportRecords, normalizeRecord,
   blankRecord, db, state, roundHoursTotal, weighCheckIssues,
 };`).window.__M;
 
@@ -177,5 +177,99 @@ test('formula SUM tregon saktësisht rreshtat e të dhënave, jo të tjera', () 
   // dhe totali nuk është brenda vetes
   assert.ok(!(valuesIn.some(([r]) => r === to + 1 && false)), 'totali nuk duhet të hyjë në SUM');
 });
+
+// --- Regresioni i "We found a problem with some content" -------------------
+// Excel-i e hodhi poshtë skedarin sepse radha e elementeve në <worksheet> dhe
+// <styleSheet> është e detyruar nga schema OOXML. Këto teste e mbrojnë atë.
+
+const SHEET_ORDER = ['sheetPr','dimension','sheetViews','sheetFormatPr','cols','sheetData',
+  'sheetCalcPr','sheetProtection','protectedRanges','scenarios','autoFilter','sortState',
+  'dataConsolidate','customSheetViews','mergeCells','phoneticPr','conditionalFormatting',
+  'dataValidations','hyperlinks','printOptions','pageMargins','pageSetup','headerFooter'];
+const STYLE_ORDER = ['numFmts','fonts','fills','borders','cellStyleXfs','cellXfs','cellStyles','dxfs','tableStyles'];
+
+const topLevel = (xml) => {
+  const out = [];
+  const re = /<(\/?)([a-zA-Z][\w:.-]*)([^>]*?)(\/?)>/g;
+  let depth = 0; let m;
+  while ((m = re.exec(xml))) {
+    const [, close, tag, , selfClose] = m;
+    if (close) { depth -= 1; continue; }
+    if (depth === 1) out.push(tag);
+    if (!selfClose && !/^\?/.test(tag)) depth += 1;
+  }
+  return out;
+};
+
+test('radha e elementeve në worksheet respekton schema-n OOXML', () => {
+  const files = unzip(build().bytes);
+  const sheets = Object.keys(files).filter((k) => /^xl\/worksheets\/sheet\d+\.xml$/.test(k));
+  assert.ok(sheets.length >= 5);
+  for (const name of sheets) {
+    const top = topLevel(files[name]).filter((t) => SHEET_ORDER.includes(t));
+    const idx = top.map((t) => SHEET_ORDER.indexOf(t));
+    assert.deepEqual(idx, [...idx].sort((a, b) => a - b),
+      `${name}: radha e gabuar e elementeve → ${top.join(', ')} (Excel e hedh poshtë skedarin)`);
+  }
+});
+
+test('radha e elementeve në styles.xml respekton schema-n', () => {
+  const files = unzip(build().bytes);
+  const top = topLevel(files['xl/styles.xml']).filter((t) => STYLE_ORDER.includes(t));
+  const idx = top.map((t) => STYLE_ORDER.indexOf(t));
+  assert.deepEqual(idx, [...idx].sort((a, b) => a - b),
+    `styles.xml: radha e gabuar → ${top.join(', ')}`);
+  // count-et duhet të përputhen me përmbajtjen
+  const st = files['xl/styles.xml'];
+  for (const el of ['fonts', 'fills', 'borders', 'cellXfs']) {
+    const m = st.match(new RegExp(`<${el} count="(\\d+)"`));
+    assert.ok(m, `mungon count për ${el}`);
+    const declared = Number(m[1]);
+    const tag = el === 'cellXfs' ? 'xf' : el.replace(/s$/, '');
+    const body = st.slice(st.indexOf(`<${el} `), st.indexOf(`</${el}>`));
+    const actual = (body.match(new RegExp(`<${tag}[ />]`, 'g')) || []).length;
+    assert.equal(declared, actual, `${el}: count="${declared}" por ka ${actual}`);
+  }
+});
+
+test('çdo stil i referuar ekziston në cellXfs', () => {
+  const files = unzip(build().bytes);
+  const st = files['xl/styles.xml'];
+  const count = Number(st.match(/<cellXfs count="(\d+)"/)[1]);
+  for (const name of Object.keys(files).filter((k) => /^xl\/worksheets\/sheet\d+\.xml$/.test(k))) {
+    const used = new Set([...files[name].matchAll(/<c r="[A-Z]+\d+" s="(\d+)"/g)].map((m) => Number(m[1])));
+    for (const s of used) assert.ok(s < count, `${name}: stili ${s} >= cellXfs ${count}`);
+  }
+});
+
+test('raportet individuale: një skedar, një fletë, i vlefshëm', () => {
+  const types = ['products', 'packages', 'hours', 'stock', 'weights'];
+  const builders = {
+    products: () => api.xlProductsSheet(metricsOf().m),
+    packages: () => api.xlPackagesSheet(metricsOf().m),
+    hours: () => api.xlHoursSheet(metricsOf().m),
+    stock: () => api.xlStockSheet(metricsOf().m),
+    weights: () => api.xlWeightsSheet(metricsOf().m),
+  };
+  for (const t of types) {
+    const sheet = builders[t]();
+    assert.ok(sheet && sheet.name, `${t}: mungon fleta`);
+    const bytes = api.xlsxBytes({ title: 'BioBes', sheets: [sheet] });
+    const files = unzip(bytes);
+    const sheetFiles = Object.keys(files).filter((k) => /^xl\/worksheets\/sheet\d+\.xml$/.test(k));
+    assert.equal(sheetFiles.length, 1, `${t}: duhet një fletë e vetme`);
+    assert.match(files['xl/workbook.xml'], new RegExp(sheet.name), `${t}: emri i fletës mungon`);
+    // radha e saktë edhe këtu
+    const top = topLevel(files[sheetFiles[0]]).filter((x) => SHEET_ORDER.includes(x));
+    const idx = top.map((x) => SHEET_ORDER.indexOf(x));
+    assert.deepEqual(idx, [...idx].sort((a, b) => a - b), `${t}: radha e gabuar`);
+  }
+});
+
+const metricsOf = () => {
+  api.db.records = records();
+  const rs = api.reportRecords();
+  return { rs, m: api.metrics(rs, '') };
+};
 
 run();
