@@ -813,4 +813,9 @@ saktë privat; nuk mbetet asnjë URL `supabase.co` në faqe; dokumenti i një
 projekti tjetër refuzohet; skedarët e lexuar hapen drejt nga kujtesa; formulari
 pa dokument e thotë qartë; tabelat kanë 7 kolona në krye dhe 7 qeliza në rresht
 (regresion për kolonën e re); numri është link vetëm kur ka dokument; Escape e
-mbyll. **`npm test` → 26 suite, 214 teste, zero dështime.**
+mbyll. **Fotot që shfletuesi nuk dekodon** (HEIC/HEIF ose skedar i dëmtuar) nuk lënë
+kuti bosh: shfaqet mesazhi “Ky dokument nuk shfaqet në shfletues” me emrin e
+skedarit dhe butoni **Shkarko** mbetet i dukshëm. Lidhja bëhet me dëgjues, jo me
+`onerror` inline — CSP `script-src 'self'` e ndalon skriptin brenda atributit.
+
+**`npm test` → 26 suite, 215 teste, zero dështime.**

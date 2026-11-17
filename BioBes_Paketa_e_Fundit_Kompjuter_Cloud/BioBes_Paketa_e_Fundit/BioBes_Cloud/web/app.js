@@ -358,11 +358,23 @@ function docKey(e){if(e.key==='Escape'){e.stopPropagation();docClose()}}
 function docFrame(entry){
  const kind=entry.kind||docKind(entry.name,''),url=entry.url||'';
  const body=kind==='image'
-  ?`<img class="doc-image" src="${esc(url)}" alt="${esc(entry.name)}">`
+  ?`<img class="doc-image" src="${esc(url)}" alt="${esc(entry.name)}" data-doc-image>`
   :`<iframe class="doc-frame" src="${esc(url)}" title="${esc(entry.name)}" loading="eager" referrerpolicy="no-referrer"></iframe>`;
  const note=(kind==='pdf'||kind==='image')?''
   :`<p class="small-note doc-note">Ky lloj skedari shfaqet më mirë me programin e vet. Përdor <strong>Shkarko</strong> dhe hape.</p>`;
  return body+note;
+}
+// Lidhja bëhet me dëgjues, jo me onerror inline: CSP 'self' i faqes nuk lejon
+// skript brenda atributit.
+function docBindImage(scope){
+ scope.querySelectorAll('[data-doc-image]').forEach(img=>img.addEventListener('error',()=>docImageFailed(img),{once:true}));
+}
+// Një foto HEIC/HEIF ose një skedar i dëmtuar nuk shfaqet dot në shfletues. Në atë
+// rast nuk mbetet një kuti bosh: thuhet qartë dhe jepet rruga e shkarkimit.
+function docImageFailed(img){
+ const stage=img?.closest?.('[data-doc-stage]');if(!stage)return;
+ const name=img.getAttribute('alt')||'dokumenti';
+ stage.innerHTML=`<div class="doc-wait"><p><strong>Ky dokument nuk shfaqet në shfletues.</strong><br>“${esc(name)}” mund të jetë HEIC ose i dëmtuar. Përdor butonin <strong>Shkarko</strong> dhe hape me programin e vet.</p></div>`;
 }
 // --- Shikuesi i dokumenteve: një dokument ose një listë me disa ---
 // lista: çdo element {name,kind,size,path,type,url,local}. Kur jepen disa,
@@ -374,7 +386,7 @@ function docShowList(entries,index=0,meta=''){
  root.innerHTML=`<div class="modal-layer doc-layer" role="presentation"><div class="modal doc-modal" role="dialog" aria-modal="true" aria-labelledby="doc-title"><div class="doc-head"><div><h2 id="doc-title">${esc(entry.name)}</h2><p class="doc-meta">${esc(meta||(DOC_GLYPH[entry.kind]||'Skedar'))}${entries.length>1?` · ${i+1} nga ${entries.length}`:''}</p></div><button type="button" class="icon-btn doc-close" data-doc-close aria-label="Mbyll dokumentin">${icon('close',18)}</button></div><div class="doc-body">${entry.loading?`<div class="doc-wait"><span class="read-spinner" aria-hidden="true"></span><p>Po hapet dokumenti…</p></div>`:''}<div class="doc-stage" data-doc-stage></div>${entries.length>1?`<div class="doc-nav">${entries.map((x,k)=>`<button type="button" class="btn btn-small ${k===i?'btn-primary':''}" data-doc-pick="${k}" aria-label="Hap ${esc(x.name)}">${k+1} ${esc(x.name)}</button>`).join('')}</div>`:''}</div><div class="modal-actions doc-actions">${entry.url?`<a class="btn btn-small" href="${esc(entry.url)}" download="${esc(entry.name)}" rel="noopener">${icon('download',14)} Shkarko</a>`:''}<button type="button" class="btn" data-doc-close>Mbyll</button></div></div></div>`;
  docView.entries=entries;docView.index=i;docView.meta=meta;docView.owns=false;
  const stage=root.querySelector('[data-doc-stage]');
- if(entry.url){stage.innerHTML=docFrame(entry);docView.url=entry.url;docView.kind=entry.kind}
+ if(entry.url){stage.innerHTML=docFrame(entry);docBindImage(stage);docView.url=entry.url;docView.kind=entry.kind}
  else stage.innerHTML='<div class="doc-wait"><span class="read-spinner" aria-hidden="true"></span><p>Po hapet dokumenti…</p></div>';
  root.querySelectorAll('[data-doc-close]').forEach(b=>b.onclick=docClose);
  root.querySelector('.doc-layer').onclick=e=>{if(e.target.classList.contains('doc-layer'))docClose()};
@@ -393,6 +405,7 @@ function docReveal(url){
  if(docView.owns&&docView.url)URL.revokeObjectURL(docView.url);
  docView.owns=true;docView.url=url;entry.url=url;
  stage.innerHTML=docFrame(entry);
+ docBindImage(stage);
  const dl=root.querySelector('.doc-actions a[download]');
  if(dl){dl.href=url}
 }
