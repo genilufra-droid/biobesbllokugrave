@@ -773,3 +773,44 @@ e raporteve.
 Gabimi u riprodhua qëllimisht gjatë zhvillimit: me radhën e vjetër testi jep
 *"radha e gabuar e elementeve → … (Excel e hedh poshtë skedarin)"*; me të
 rejtën, të 13 kalojnë. **`npm test` → 25 suite, 198 teste, zero dështime.**
+
+## §7.20 Një link: klikon dhe dokumenti hapet (jo shkarkim i heshtur)
+
+**Kërkesa.** “Duhet një link, p.sh. ku thotë formular, klikon e hap dokumentin.”
+
+**Gjendja e mëparshme.** Dokumenti origjinal ishte vetëm një buton
+“Shkarko” te formulari i hapur. Në listën e regjistrimeve nuk kishte as atë:
+numri i formularit nuk të çonte askund. Klikimi shkarkonte skedarin; në telefon
+ai shkonte në dosjen e shkarkimeve dhe përdoruesi humbte gjurmën. Për të
+krahasuar një lexim me origjinalin, duhej dalë nga faqja dhe hapur skedari me
+një program tjetër.
+
+**Çfarë u bë.**
+
+1. **Numri i formularit është vetë linku.** Te Pamja kryesore, Regjistrimet dhe
+   lista e Printimit, numri (`041`) shfaqet si lidhje e nënvizuar kur formulari
+   ka dokument. Një klik dhe dokumenti hapet. Pa dokument, numri mbetet tekst —
+   pa lidhje që nuk bën asgjë.
+2. **Kolonë e re “Dokumenti”** në tabela: `Hap dokumentin` / `Hap 3 dokumente`.
+   Kështu rruga është e dukshme edhe pa ditur se numri është link.
+3. **Shikues brenda faqes.** PDF hapet në `<iframe>`, fotografitë si imazh, në
+   një dritare të gjerë mbi faqe. Ka “1 nga 3” kur formulari ka disa skedarë,
+   buton **Shkarko** të veçantë, dhe **Escape** ose klik jashtë e mbyll.
+4. **Biblioteka e dokumenteve** te Printim & Excel: të gjitha dokumentet e
+   ruajtura, me kërkim sipas numrit, datës, emrit të skedarit ose përgjegjëses.
+5. **Gjatë kontrollit të leximit** (“Krahasoje me dokumentin e lexuar”), skedari
+   hapet menjëherë nga kujtesa lokale — pa internet, pa u shkarkuar.
+
+**Si ruhet privatësia.** Dokumenti nuk merr lidhje publike: skedari shkarkohet
+me sesionin e përdoruesit nga bucket-i privat dhe i jepet një `blob:` URL që
+jeton vetëm brenda këtij tab-i. Lidhja lirohet në mbyllje (`URL.revokeObjectURL`),
+edhe kur dritarja mbyllet ndërsa skedari po vinte. Rruga kontrollohet të fillojë
+me `user.id` para se të niset çdo kërkesë.
+
+**Testet (16, `tests/document_link.test.js`).** Emri është link dhe jo
+`download`; klikimi e shfaq dokumentin brenda faqes; skedari vjen nga bucket-i i
+saktë privat; nuk mbetet asnjë URL `supabase.co` në faqe; dokumenti i një
+projekti tjetër refuzohet; skedarët e lexuar hapen drejt nga kujtesa; formulari
+pa dokument e thotë qartë; tabelat kanë 7 kolona në krye dhe 7 qeliza në rresht
+(regresion për kolonën e re); numri është link vetëm kur ka dokument; Escape e
+mbyll. **`npm test` → 26 suite, 214 teste, zero dështime.**

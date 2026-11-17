@@ -279,11 +279,24 @@ async function cloudCleanupUnsavedReview(review){
 }
 async function cloudOpenOriginal(index){
  const a=state.draft?.attachments?.[index];if(!a||!a.path.startsWith(`${cloud.user?.id}/`)){toast('Dokumenti nuk është i disponueshëm në këtë projekt.','error');return}
- cloudBusy(true,'Po shkarkohet dokumenti privat…');
+ // Shkarkimi mbetet i veçantë; klikimi i parë e hap dokumentin brenda faqes.
+ cloudBusy(true,'Po hapet dokumenti privat…');
  try{const {data,error}=await cloud.client.storage.from(CLOUD_BUCKET).download(a.path,{}, {cache:'no-store'});if(error||!data)throw error||new Error('missing');download(a.name||'dokument',data,a.type||'application/octet-stream');toast('Dokumenti u shkarkua.')}
  catch(e){toast('Dokumenti nuk u gjet ose nuk mund të shkarkohet.','error')}
  finally{cloudBusy(false)}
 }
+// Hap dokumentin privat brenda aplikacionit. Skedari shkarkohet në kujtesën e
+// këtij tab-i dhe i jepet një URL lokale (blob) — nuk krijohet asnjë lidhje e
+// përhershme, nuk skadon, dhe asgjë nuk del jashtë sesionit të hapur.
+async function cloudFetchOriginal(path){
+ // Kontrolli i pronësisë vjen i pari: asnjë kërkesë nuk niset për një rrugë të huaj.
+ if(!str(path).startsWith(`${cloud.user?.id}/`))throw new Error('Dokumenti nuk është i disponueshëm në këtë projekt.');
+ if(!cloud.client)throw new Error('Lidhja me cloud nuk është gati. Hyr përsëri.');
+ const {data,error}=await cloud.client.storage.from(CLOUD_BUCKET).download(path,{}, {cache:'no-store'});
+ if(error||!data)throw new Error('Dokumenti nuk u gjet.');
+ return data;
+}
+// Hapja e dokumenteve ndodh në app.js (docOpen), që përdor cloudFetchOriginal.
 async function cloudGemini(parts,signal,budgetMs=120000){
  // Buxheti i kohës për të gjithë thirrjen (përfshirë pritjet). Pa të, pritjet e
  // riprovimit mund të kalonin kufirin e jashtëm dhe leximi të aborterohej
