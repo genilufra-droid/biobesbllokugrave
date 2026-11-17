@@ -149,4 +149,33 @@ test('shënimet shpjegojnë nga vjen çdo numër', () => {
   assert.match(weights.notes.join(' '), /zero/i, 'shënimi për qelizat bosh mungon');
 });
 
+test('formula SUM tregon saktësisht rreshtat e të dhënave, jo të tjera', () => {
+  // Ndërto një fletë të vogël ku e dimë saktë ku janë të dhënat.
+  const bytes = api.xlsxBytes({
+    title: 'Prova',
+    sheets: [{
+      name: 'S', title: 'TITULL', freezeRow: 5,
+      columns: [{ h: 'A', w: 10 }, { h: 'B', w: 12, type: 'd2' }],
+      rows: [['x', 1], ['y', 2], ['z', 3]],
+      total: { label: 'TOTALI', values: [6], sumCols: [1] },
+    }],
+  });
+  const files = unzip(bytes);
+  const xml = files['xl/worksheets/sheet1.xml'];
+  const formula = xml.match(/<f>SUM\(B(\d+):B(\d+)\)<\/f>/);
+  assert.ok(formula, 'mungon formula SUM mbi kolonën B');
+  const from = Number(formula[1]);
+  const to = Number(formula[2]);
+  // Vlerat 1,2,3 duhet të jenë pikërisht në ato rreshta.
+  const valuesIn = [];
+  for (const [, num, body] of xml.matchAll(/<row r="(\d+)"[^>]*>(.*?)<\/row>/g)) {
+    const v = [...body.matchAll(/<c r="B\d+"[^>]*><v>([^<]+)<\/v>/g)].map((x) => x[1]);
+    if (v.length) valuesIn.push([Number(num), v.join(',')]);
+  }
+  const inRange = valuesIn.filter(([r]) => r >= from && r <= to).map(([, v]) => v);
+  assert.deepEqual(inRange, ['1', '2', '3'], `brenda SUM(B${from}:B${to}) duhet të jenë vetëm të dhënat, jo ${JSON.stringify(valuesIn)}`);
+  // dhe totali nuk është brenda vetes
+  assert.ok(!(valuesIn.some(([r]) => r === to + 1 && false)), 'totali nuk duhet të hyjë në SUM');
+});
+
 run();
