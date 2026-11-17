@@ -819,3 +819,59 @@ skedarit dhe butoni **Shkarko** mbetet i dukshëm. Lidhja bëhet me dëgjues, jo
 `onerror` inline — CSP `script-src 'self'` e ndalon skriptin brenda atributit.
 
 **`npm test` → 26 suite, 215 teste, zero dështime.**
+
+## §7.21 Import i listave bazë nga Excel (klientët, punonjësit…)
+
+**Kërkesa.** “Duhet një import nga Excel-i, për të mos i cel klientë punonjës
+manualisht.”
+
+**Gjendja e mëparshme.** Listat bazë mbusheshin vetëm një për një: shkruaj emrin,
+shtyp “Shto”. Për 200 klientë kjo do 200 shkrime. Nuk kishte as listë klientësh:
+klienti shkruhej i lirë në secilin formular, pa sugjerime.
+
+**Çfarë u bë.**
+
+1. **Lista e re “Klientët”** në Të dhënat bazë, dhe fusha *Klienti* në formular
+   tani sugjeron nga kjo listë (kombo me kërkim), njësoj si produktet.
+2. **Butoni “Importo nga Excel”** pranon `.xlsx`, `.xls` dhe `.csv`.
+3. **Njohja e titujve**: `Klientët`, `Klienti`, `Emri Klientit`, `Customer`,
+   `Punonjësit`, `Puntorët`, `Employees`, `Lloj paketimi`, `Njësia`… Titujt
+   njihen edhe me theksa të ndryshme, edhe në njëjës ose shumës.
+4. **Paneli i kontrollit para ruajtjes**: sa janë të reja, sa ekzistojnë, çfarë
+   u hodh poshtë dhe pse; lloji i listës ndryshohet me një zgjedhje.
+5. **Asnjë dublikatë**: krahasimi injoron theksat, shkronjat e mëdha dhe
+   hapësirat e tepërta. Emrat ekzistues nuk shtohen dy herë, as brenda të
+   njëjtit skedar.
+6. **Rreshtat e pavlefshëm hidhen**, jo fshehura: bosh, vetëm numra, një
+   shkronjë, ose mbi 160 shkronja. Tabela e shpjegon rresht për rresht.
+7. **Kufij**: numri i rreshtave nuk kufizohet nga ai 12 MB i importit të
+   formularëve; lista mban deri 2000 emra për lloj, dhe mbi kaq thuhet qartë.
+
+**Rreziqet e mbuluara, jo të supozuara.**
+
+| Rrezik | Sjellja |
+|---|---|
+| Titulli i kolonës lexohet si emër | Rreshti i parë njihet si kokë kur përputhet me titujt; “Klienti 12” nuk njihet (ka numra) |
+| Emri i njëjtë me theksa të tjera | `BESA CELA` = `Besa Çela`; nuk dublikohet |
+| Emër që duket titull | Rrenja krahasohet vetëm me një fjalë të vetme; “Klient X 2024” mbetet emër |
+| Skedari u hoq para leximit | Mesazh me emrin e skedarit, jo gabim teknik |
+| Skedar me vetëm titull | “Skedari ka vetëm titullin e kolonës, pa emra poshtë tij.” |
+| Skedar mbi 12 MB | Refuzohet pa u lexuar |
+| Burim “stok”/“tjetër” | Fjala e saktë ka përparësi ndaj frazës që e përmban |
+
+**Testet (25, `tests/catalog_import.test.js`).** Njohja e titujve në shqip dhe
+anglisht; përcaktimi i llojit; nxjerrja e emrit; plani i importit; kufiri 2000;
+leximi i një `.xlsx` të vërtetë dhe i një `.csv` me pikëpresje; fleta e parë e
+zbrazët; ruajtja që nuk i prek regjistrimet; shfaqja e klientit të re në kombo;
+butoni/input-i në faqe; modal-i; katër rastet e gabimit.
+
+**Prova reale.** Një `.xlsx` me titull “Klientët”, 4 klientë, 1 dublikatë, 1
+rresht bosh, 1 emër me numra → paneli tregon *4 të reja · 0 ekzistojnë · rreshti
+i parë u lexua si titull*; pas ruajtjes: `Bar Kafe Lika | Durrës 2024 | Kafe
+Arta | Market Besa`, 0 regjistrime të prekura.
+
+**Migrimi.** `clients` shtohet si listë e re në katalog (JSONB). Funksioni SQL
+nuk e kontrollon: një listë e re nuk duhet ta bëjë të pamundur ruajtjen në
+instalimet ekzistuese.
+
+**`npm test` → 27 suite, 240 teste, zero dështime.**

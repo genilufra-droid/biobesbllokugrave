@@ -70,6 +70,20 @@ input[data-combo="responsibles"]{padding-right:34px;background-image:url("data:i
 .doc-open-hint{color:#4a7590;font-size:11px;white-space:nowrap}
 .doc-tag{background:#eef3f6;color:#54708a;font-size:9.5px}
 .doc-inline{margin-top:9px}
+/* ---- Import i listave bazë nga Excel ---- */
+.modal.catalog-import-modal{width:min(100%,760px);max-height:calc(100vh - 40px);display:flex;flex-direction:column;overflow:auto}
+.catalog-import{display:flex;flex-direction:column;gap:12px}
+.import-pick{display:grid;grid-template-columns:minmax(190px,1fr) minmax(200px,1.4fr);gap:12px;align-items:end}
+.import-file{display:flex;align-items:center;gap:7px;margin:0;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fafcfd;font-size:12px;overflow-wrap:anywhere}
+.import-file strong{font-weight:750;color:#22394b}
+.import-summary{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+.import-summary .tag.good{background:#e9f5ee;color:#2c6b45}
+.import-summary .tag.bad{background:var(--redbg);color:var(--red)}
+.import-preview{max-height:230px;border:1px solid var(--line);border-radius:8px}
+.import-have,.import-bad{border:1px solid var(--line2);border-radius:8px;padding:8px 11px;background:#fcfdfe}
+.import-have summary,.import-bad summary{cursor:pointer;font-size:12px;font-weight:700;color:#3f5a6e}
+.import-new p{margin:6px 0 0;display:flex;flex-wrap:wrap;gap:5px}
+.import-error{margin:0;color:var(--red);font-size:12px;font-weight:700;min-height:1px}
 .doc-nr{border:0;background:transparent;padding:0;color:#1f5d87;font-weight:800;font-size:12.5px;text-decoration:underline;text-decoration-color:#a8c6d9;text-decoration-thickness:1.5px;text-underline-offset:3px;border-radius:3px}
 .doc-nr:hover{color:#123d5b;text-decoration-color:#1f5d87}
 .doc-nr:focus-visible{outline:3px solid #a2c1d5;outline-offset:2px}
@@ -156,6 +170,7 @@ input[data-combo="responsibles"]{padding-right:34px;background-image:url("data:i
   </div>
 </div>
 <input type="file" id="import-file" accept=".json,application/json" hidden>
+<input type="file" id="catalog-import-file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden>
 <div id="combo-popover" class="combo-popover" role="listbox" aria-label="Rezultatet e kërkimit" hidden></div>
 <div id="dialog-root"></div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script type="text/plain" id="third-party-licenses">fflate
@@ -499,8 +514,8 @@ License: GPL-2+
 <script src="vendor/fontkit.min.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/supabase.min.js"></script>
-<script src="cloud-config.js?v=83098dc-doc"></script>
-<script src="app.js?v=83098dc-doc"></script>
-<script src="cloud.js?v=83098dc-doc"></script>
+<script src="cloud-config.js?v=8f6ad41-imp"></script>
+<script src="app.js?v=8f6ad41-imp"></script>
+<script src="cloud.js?v=8f6ad41-imp"></script>
 </body>
 </html>
