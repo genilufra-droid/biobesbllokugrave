@@ -55,7 +55,7 @@ ceca863f9e98ed34322d2c4bb20ea7971783d7cabb3b98114ddc64c65c7e3c50  ./tests/prepar
 f7af7e2a184120ae4561556a74282886dea94378fb522d5160efe728e0671099  ./tests/read_speed.test.js
 07dbaedb0bed70b83ef9c7d2e1e0238f8d2460cdb545a7a78967919d8357a900  ./tests/read_timeout.test.js
 c1b493c50c1022ad62068c23d6b31f3f2f47f695a5e298816ba95fbbdd501dba  ./tests/reading_panel.test.js
-96a4af277f5e118bf95690b2ee5f5e37cbc3e57a474bf7a986c69aa73ed5a0fa  ./tests/report_excel_pro.test.js
+17d85555138514bd49d4490325bced9da5353f200b500d59d566c1ea84a7823d  ./tests/report_excel_pro.test.js
 e91c8f97d5b257b9ef6f0e6f9ac503a0fff6deb2829bb8ceab94563b65644fbb  ./tests/rows_layout.test.js
 266b92cdbd3d8c490850702f37df50e0ce739083f44b7a15fc411678c2243ebf  ./tests/security_checks.js
 2a30d430e0aabf14b60b99718eeecdfc4b7b2fde616b351c5422e63faea49d7b  ./tests/skanim_real.js
