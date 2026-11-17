@@ -997,3 +997,117 @@ pretendon. `ocr_p0_p1` u kthye te rasti origjinal dhe tani **e ruan** rregullimi
 
 **`npm test` → 28 suite, 260 teste, zero dështime** (edhe pse `main` para këtij
 bashkimi kishte 7 suite të kuqe).
+
+## 7.23 Raporti ditor, kohëzgjatja e procesit dhe gjurmimi i punonjësit
+
+**Kërkesa.** *"Sa prodhohet në një ditë — ku shkruan 64 thasë × 20 kg", "sa kohë
+zgjati një proces", "sa orë shkuan për një produkt"* dhe *"sa kohë procesi kaloi te
+një produkt tjetër"*. Plus një raport i veçantë për punonjësin: *"X punoi 07:00–13:00,
+pastaj te cila dhomë kaloi"* — vetëm nga format e regjistruara.
+
+**Vendimet që u morën me përdoruesin** (pyetur përpara ndërtimit):
+
+1. Kohëzgjatja e procesit shkruhet si **minuta të plota** për çdo produkt, pa orë
+   fillimi/mbarimi për rresht. Ora e ditës mbetet te punonjësi dhe te intervalet.
+2. Punonjësi mund të ketë **disa intervale në ditë** (07:00–13:00 Dhoma A,
+   13:30–17:00 Dhoma B), jo vetëm një hyrje–dalje.
+3. Filtrat duhet të mbulojnë **produktin, ambalazhin, statusin, klientin, dhomën,
+   punonjësin dhe datat** — të gjithë bashkë.
+
+### Modeli i të dhënave (i “migrueshëm”, pa e prishur të vjetrën)
+
+| Fusha e re | Ku | Trajtimi i të dhënave të vjetra |
+|---|---|---|
+| `plan[].minutes` | rreshti i planit | `planSchema:3`; mungon → `''` (jo zero) |
+| `employees[].room` | rreshti i punonjësit | mungon → `''` |
+| `employees[].intervals[]` | `{name,start,end,room}` | `intervalSchema:1`; lista bosh hiqet, `employees[].start/end` mbetet |
+| `record.room` | formulari | ekzistonte; tani përdoret si burim i fundit i dhomës |
+
+`normalizeRecord` i pastron intervalet dhe i hedh poshtë vetëm nëse janë krejt bosh;
+regjistrimet e vjetra lexohen pa gabim dhe pa humbur orët e tyre.
+
+### Raporti i kohëzgjatjes
+
+Rreshtat grupohen sipas `produkt + ambalazh + njësi`; mblidhen minutat, sasia e
+prodhuar dhe numri i rreshtave. **Koha për njësi është raport i shumave**
+(`Σ minuta ÷ Σ sasi`), jo mesatare e mesatareve — ndryshe produktet e vegjël e
+shtrembërojnë rezultatin. Ndarja `%` tregon pjesën e minutave të produktit ndaj
+totalit. Rreshtat pa minuta **nuk hyjnë** në total dhe numërohen veç në një njoftim,
+që raporti të mos duket më i plotë nga ç'është.
+
+Provë me dy formularë realë (Saj Mali 90 + 60 min / 305 + 290 kg; Boronicë 45 min /
+175 kg; Mollë pa minuta):
+
+| Produkti | Minuta | Kohë / njësi | Sasia | Pa kohë | Ndarja |
+|---|---|---|---|---|---|
+| Saj Mali | 150 | 0,25 min | 595 kg | 0 | 71% |
+| Boronicë | 45 | 0,26 min | 175 kg | 0 | 21% |
+| Dardhë | 15 | — | — | 0 | 7% |
+| Mollë | 0 | — | 50 kg | **1** | 0% |
+| **Gjithsej** | **210** | **0,26 min** | **820 kg** | **1** | 100% |
+
+### Raporti i gjurmimit (punonjësi dhe dhoma)
+
+`trackingSegments()` kthen një segment për çdo interval, të renditur kronologjikisht
+(data, pastaj ora). Kur formulari **nuk** ka intervale, kthehet **një** segment i
+ditës (07:00–15:00) me shenjën `(dita)` — raporti nuk pretendon më shumë detaj nga
+ç'ka të dhëna. Dhoma zgjidhet me radhë: **intervali → punonjësi → formulari**.
+Orari që kalon mesnatën llogaritet (`22:00 → 02:00` = 240 min). Një interval pa
+orë mbarimi jep `—`, jo `0 min`.
+
+Prova e kërkesës fjalë për fjalë (*"07:00–13:00, pastaj te cila dhomë"*):
+
+| Data | Punonjësi | Nga | Deri | Kohë | Dhoma |
+|---|---|---|---|---|---|
+| 12.11.2026 | Arta Hoxha | 07:00 | 13:00 | 6:00 orë | Dhoma A |
+| 12.11.2026 | Arta Hoxha | 13:30 | 17:00 | 3:30 orë | Dhoma B |
+
+Totalet: **8:30 orë** për Artën, **3:30 orë** për Dhoma B, **6:00 orë** për Dhoma A.
+
+### Filtrat
+
+Një regjistrim hyn në raport vetëm nëse **një** rresht plani i plotëson **të gjitha**
+filtrat — jo nëse produkti godet një rresht e statusi një tjetër. Krahasimi është
+kërkim (jo barazi), pa dallim shkronjash të mëdha, theksash ose hapësirash, prandaj
+“saj  mali” gjen “Saj Mali”. Karta e filtrave shfaq numrin e regjistrimeve dhe cilët
+filtra janë aktivë; kur rezultati është zero, e thotë hapur — nuk duket si gabim.
+
+### Prova në skedarë të vërtetë
+
+Klikime reale në jsdom (`data-nav`, `data-action`, `report-tab`, `export-report-xlsx`)
+dhe **tre skedarë .xlsx u shkarkuan vërtet**, pastaj u hapën me **openpyxl 3.1.5**
+(një motor i pavarur nga kodi që i prodhoi):
+
+| Skedari | Fletët | Prova |
+|---|---|---|
+| `BioBes_koh_zgjatja_*.xlsx` | Kohëzgjatja | `D12 == "=SUM(D10:D11)"` mbi `[90, 45]` → 135; `F12` mbi `[305, 175]` → 480 |
+| `BioBes_gjurmimi_*.xlsx` | Gjurmimi | `F12 == "=SUM(F10:F11)"` mbi `[360, 210]` → 570; rreshtat 07:00→13:00 / 13:30→17:00 |
+| `BioBes_raportet_*.xlsx` | 7 fletë | Përmbledhje, Prodhimi, Paketimet, Orët, Peshimet, **Kohëzgjatja**, **Gjurmimi** |
+
+Kontroll aritmetik i pavarur: `135 min ÷ 480 kg = 0,2812` — e njëjta vlerë që
+shkruan skedari (`0.28`). Gjatë kësaj prove u gjetën dhe u rregulluan **tre gabime
+reale**: formula e totalit binte në kolonën fqinje (`values[i]` shkon te kolona
+`i+1`), rreshti total i gjurmimit tregonte numrin e intervaleve si “Formularë”, dhe
+kolona “Minuta” e fletës së kohëzgjatjes mbeti jashtë `sumCols`.
+
+### Gabime të tjera reale të gjetura nga testet e reja
+
+| Gabimi | Si u pa | Rregullimi |
+|---|---|---|
+| Dispeçeri i veprimeve përdorte `b.dataset` në vend të `btn.dataset` | `ReferenceError: b is not defined` në klikim | `btn` në `report-tab` dhe `del-interval` |
+| Filtrat e raportit vepronin vetëm në `change`; te tab-i i gjurmimit fusha nuk reagonte fare | shkrimi nuk filtroi | `input` i raportit rindërton vetëm zonën e rezultateve |
+| Rreshti i punonjësit pa emër por me intervale të emërtuara hidhej në heshtje | 0 segmente për “Arta” | emri merret nga intervali |
+| Filtri i dhomës shfaqte të gjithë ditën e formularit | Dhoma B → 2 segmente | filtri aplikohet edhe mbi segmentet |
+| `fmtMinutesLabel(null)` kthente `'—'` dhe jepte `“— orë”` | tabela e totals | kthen `''`; thirrësi vendos vijën |
+| Butonat e shkarkimit jetonin vetëm te tab-i i përmbledhjes | klikimi në kohëzgjatje nuk gjente butonin | shirit i përbashkët `reportExportBar()` |
+
+### Testet e reja
+
+`reports_filters.test.js` (18), `duration.test.js` (10), `tracking.test.js` (12).
+Dy suite ekzistuese (`performance_checks`) u përditësuan për seksionin e ri
+“Intervalet dhe dhomat” në editor — testi vazhdon të kontrollojë të njëjtën gjë:
+gjithçka në një ekran, pa tab-e.
+
+**`npm test` → 31 suite, 300 teste, zero dështime.** CSV-ja e plotë kaloi nga 35 në
+38 kolona (`Kohëzgjatja (min)`, `Dhoma e punonjësit`, `Intervalet`), me të gjitha
+rreshtat e njëjtë gjatësi.

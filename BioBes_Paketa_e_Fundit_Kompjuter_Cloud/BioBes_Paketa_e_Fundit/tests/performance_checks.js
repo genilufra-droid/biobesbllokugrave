@@ -63,14 +63,14 @@ test('editor renders all sections on one screen without tabs', () => {
   const editor = app.split(/\r?\n/).find((line) => line.startsWith('function editorHTML('));
   assert.ok(editor, 'editorHTML must exist');
   assert.doesNotMatch(editor, /editor-tabs/, 'editorHTML must not render the tab bar');
-  assert.match(editor, /detailsHTML\(r,off\)\+staffHTML\(r,off\)\+weightsHTML\(r,off\)\+commentsHTML\(r,off\)/);
+  assert.match(editor, /detailsHTML\(r,off\)\+staffHTML\(r,off\)\+intervalsHTML\(r,off\)\+weightsHTML\(r,off\)\+commentsHTML\(r,off\)/);
 });
 
 test('batch review renders all sections on one screen without tabs', () => {
   const editor = app.split(/\r?\n/).find((line) => line.startsWith('function batchEditorHTML('));
   assert.ok(editor, 'batchEditorHTML must exist');
   assert.doesNotMatch(editor, /editor-tabs/, 'batchEditorHTML must not render the tab bar');
-  assert.match(editor, /detailsHTML\(r,false\)\+staffHTML\(r,false\)\+weightsHTML\(r,false\)\+commentsHTML\(r,false\)/);
+  assert.match(editor, /detailsHTML\(r,false\)\+staffHTML\(r,false\)\+intervalsHTML\(r,false\)\+weightsHTML\(r,false\)\+commentsHTML\(r,false\)/);
 });
 
 run();
