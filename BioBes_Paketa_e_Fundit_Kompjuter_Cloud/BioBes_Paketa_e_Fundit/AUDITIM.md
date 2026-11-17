@@ -681,3 +681,52 @@ vetmja që nuk shpik vlera, dhe ky tubacion **nuk** hyn në faqen live. Ai do t�
 kishte kuptim vetëm si *parapopullim* me `needsReview` të detyruar për 90% —
 që është më shumë punë se plotësimi nga zero, sepse përdoruesi duhet të
 kontrollojë edhe atë që sistemi “pranoi”.
+
+---
+
+## 7.18 Raportet profesionale Excel dhe tabelat e faqes
+
+**Problemi:** eksportet ishin CSV të thjeshtë — pa tituj, pa total, pa formatim,
+dhe tabelat e raporteve kishin krye të zbehtë e numra të parreshtuar.
+
+### Excel-i i ri (5 fletë)
+
+Butoni **“Excel i plotë”** në faqen Raportet ndërton një skedar me:
+
+| Fleta | Përmbajtja |
+|---|---|
+| Përmbledhje | 8 tregues kryesorë + **4 kontrolle cilësie** (OK / KUJDES / GABIM) |
+| Prodhimi | produkt, paketim, sasi, njësi, sa formularë — me total |
+| Paketimet | ambalazhet e përdorura — me total |
+| Orët | orët sipas punonjësit — me total |
+| Peshimet | Σ thasë/KG/ambalazh/shuma për çdo tabelë — me total |
+
+**Dizajni (i ndërtuar me XML OOXML, pa varësi të re):**
+
+- Titull 16 pt në ngjyrën e markës, nëntitull, dhe **6 rreshta meta** me
+  periudhën, formularët, filtrin e produktit dhe kohën e eksportit.
+- Krye me sfond `#192F45` dhe tekst të bardhë, **e fiksuar** (freeze panes).
+- **Autofilter** mbi tabelë, rreshta me rrip `#F3F7FA`, rrjetë e hollë.
+- **Total bold** me sfond dhe vijë të dyfishtë sipër.
+- **Formula reale `=SUM(...)`** nën kolonat shumë: nëse ndryshon një qelizë,
+  Excel-i e rillogarit vetë (`fullCalcOnLoad`).
+- Numrat me format `#,##0` / `#,##0.00`, datat `dd/mm/yyyy`.
+- **Formatim i kushtëzuar**: “GABIM” bëhet i kuq, “KUJDES” i verdhë.
+- Qelizat bosh **nuk shkruhen fare** — pa kolona të fryra, pa zero të rreme.
+- Shënime në fund të çdo flete që shpjegojnë **nga vjen secili numër**.
+
+### Tabelat e faqes
+
+- Krye sticky me sfond të ngurtë, gërma të vogla të mëdha.
+- Rreshta alternues + hover, numra me **shifra barazore** (`tabular-nums`) dhe
+  rreshtim djathtas; vlerat që mungojnë të zbehta, jo `0`.
+- Rreshti i parë (emri) më i theksuar, që syri ta gjejë shpejt.
+
+### Testet
+
+`tests/report_excel_pro.test.js` — **8 teste**, që verifikojnë skedarin real:
+xlsx i vlefshëm me 5 fletë, stilet e ruajtura, numra të vërtetë (jo tekst),
+formulë SUM dhe **asnjë qelizë e dyfishuar**, dimensioni i saktë i kolonave,
+kryet i fiksuar + autofilter, kontrolli i cilësisë në tabelë, shënimet e pranishme.
+
+**Verifikimi:** `npm test` → **25 suite, 193 teste, zero dështime**.

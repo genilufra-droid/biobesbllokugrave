@@ -321,7 +321,16 @@ function commentsHTML(r,off){return `<div class="card"><div class="card-head"><d
 function cloudAttachmentsHTML(record){const items=record.attachments||[];if(!items.length)return '';return `<div class="card cloud-documents"><div class="card-head"><h2>Dokumentet origjinale</h2></div><div class="card-body cloud-file-list">${items.map((a,i)=>`<button type="button" class="btn btn-small" data-action="cloud-open-original" data-index="${i}">${icon('download',14)} ${esc(a.name)}</button>`).join('')}</div></div>`}
 function editorHTML(){const r=state.draft,off=state.mode==='view',body=detailsHTML(r,off)+staffHTML(r,off)+weightsHTML(r,off)+commentsHTML(r,off);return `<div class="page-head"><div><div class="eyebrow">Formular ditor · Nr. ${esc(r.nr||'—')}</div><h1 class="page-title">${state.mode==='new'?'Regjistrim i ri':state.mode==='edit'?'Modifiko regjistrimin':'Formulari i ditës'}</h1><p class="page-sub">Plotëso të dhënat si në bllokun e punës. Të gjitha seksionet janë në një ekran; rrotullo për të kontrolluar planin, punonjësit, peshimet dhe komentet.</p></div><div class="head-actions"><button class="btn" data-action="new">${icon('plus',15)} I ri</button><button class="btn" data-action="print-record" data-id="${esc(r.id)}" ${state.mode==='new'?'disabled':''}>${icon('printer',15)} Printo</button><button class="btn" data-action="enable-edit" ${off?'':'disabled'}>${icon('edit',15)} Modifiko</button><button class="btn btn-primary" data-action="save" ${off?'disabled':''}>${icon('save',15)} Ruaj</button><button class="btn btn-soft" data-action="save-next" ${off?'disabled':''}>${icon('plus',15)} Ruaj dhe i radhës</button></div></div><div class="editor-bar"><div class="editor-status"><span class="tag ${off?'good':''}">${off?'I RUAJTUR':state.mode==='new'?'FORMULAR I RI':'NË NDRYSHIM'}</span> </div><button class="btn btn-small btn-quiet" data-nav="records">← Te regjistrimet</button></div>${importReviewHTML()}${cloudAttachmentsHTML(r)}<div class="editor-stack editor-all">${body}</div><div class="head-actions" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-nav="records">Kthehu</button><button class="btn btn-primary" data-action="save" ${off?'disabled':''}>${icon('save',15)} Ruaj</button><button class="btn btn-soft" data-action="save-next" ${off?'disabled':''}>${icon('plus',15)} Ruaj dhe i radhës</button></div>`}
 function reportRecords(){return db.records.filter(r=>(!state.report.from||r.date>=state.report.from)&&(!state.report.to||r.date<=state.report.to))}
-function reportTable(headers,rows){return rows.length?`<div class="table-wrap"><table class="table"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${esc(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<div class="mini-empty">Nuk ka të dhëna për këtë përzgjedhje.</div>'}
+// Tabela raporti: numrat në stil tabelar, vlerat që mungojnë të zbehta (jo zero).
+function reportTable(headers,rows,totals){
+ const cell=(x,i)=>{
+  const raw=x==null?'':String(x);
+  const num=/^-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?$/.test(raw.replace(/\s/g,''))&&raw!=='';
+  const cls=[num?'num':'',raw===''||raw==='—'?'muted':'',i===0?'strong':''].filter(Boolean).join(' ');
+  return `<td class="${cls}">${esc(x)}</td>`;
+ };
+ const foot=totals?`<tfoot><tr>${totals.map(x=>`<td>${esc(x)}</td>`).join('')}</tr></tfoot>`:'';
+ return rows.length?`<div class="table-wrap"><table class="table"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell).join('')}</tr>`).join('')}</tbody>${foot}</table></div>`:'<div class="mini-empty">Nuk ka të dhëna për këtë përzgjedhje.</div>'}
 function timecardData(records, employee){
  const key=str(employee).trim().toLocaleLowerCase('sq');
  const rows=[];
@@ -407,7 +416,7 @@ async function exportAttendancePDF(){
  pageStart();for(const row of data.rows){if(y<40)pageStart();text(row.name,left+3,y,nameWidth-6,8);for(let i=0;i<data.days;i++){const x=left+nameWidth+i*dayWidth;if(data.sundays[i])page.drawRectangle({x,y:y-7,width:dayWidth,height:rowHeight,color:rgb(1,.98,.87)});text(attendanceCell(row.days[i]),x+2,y,dayWidth-3,7)}text(durationText(row.total),left+nameWidth+data.days*dayWidth+3,y,totalWidth-5,8,bold);page.drawLine({start:{x:left,y:y-8},end:{x:width-left,y:y-8},thickness:.4,color:rgb(.8,.84,.87)});y-=rowHeight}
  download('BioBes_listeprezenca_'+data.month+'.pdf',await pdf.save(),'application/pdf');toast('PDF-ja u shkarkua.')}catch(e){console.error(e);toast('PDF-ja nuk u përgatit.','error')}
 }
-function reportsHTML(){const rs=reportRecords(),m=metrics(rs,state.report.product),products=allProducts(),invalid=state.report.from&&state.report.to&&state.report.from>state.report.to;const prod=m.products.map(x=>[x.product,x.packaging,fmt(x.qty),x.unit,String(x.records.size)]),packs=m.packageCounts.map(x=>[x.packaging,fmt(x.count),String(x.records.size)]),staff=m.employees.map(x=>[x.name,fmt(roundHoursTotal(x.hours)),String(x.records.size)]),stock=m.stock.map(x=>[x.product,fmt(x.kg),'kg',fmt(x.bags),String(x.rows)]),weightRows=m.tables.map(x=>[formatDate(x.date),x.nr,String(x.group),x.product,x.source,...['bags','kg','packaging','sum'].map(k=>x.totals.seen[k]?fmt(x.totals[k]):'—')]);return `<div class="page-head"><div><div class="eyebrow">Nga të dhënat e ruajtura</div><h1 class="page-title">Raportet</h1><p class="page-sub">Shiko prodhimin, paketimet, orët dhe peshimet e marra nga stoku.</p></div></div>${demoNotice()}<div class="card" style="margin-bottom:16px"><div class="card-body"><div class="report-filters">${field('Nga data',`<input class="input" type="date" data-report="from" value="${esc(state.report.from)}" aria-label="Nga data">`)}${field('Deri më',`<input class="input" type="date" data-report="to" value="${esc(state.report.to)}" aria-label="Deri më">`)}${field('Produkti',`<input class="input" data-combo="report-products" value="${esc(state.report.product)}" role="combobox" aria-label="Filtro produktin" aria-autocomplete="list" aria-expanded="false" aria-controls="combo-popover" autocomplete="off" placeholder="Shkruaj për të kërkuar">`)}<button class="btn" data-action="clear-filters">Pastro filtrat</button></div>${invalid?'<div class="notice" style="margin:14px 0 0">Data e fillimit është pas datës së mbarimit.</div>':''}</div></div><div class="stat-grid">${stat('Formularë',String(rs.length),'','Sipas datave të zgjedhura','file')}${stat('Prodhim i regjistruar',fmt(m.producedKg),'kg','Vetëm sasitë e prodhuara në kg','box')}${stat('Orë pune (rrumb.)',fmt(roundHoursTotal(m.hours)),'orë','Për gjithë ditët e filtruara','clock')}${stat('Marrë nga stoku',fmt(m.stockKg),'kg','Vetëm peshime të shënuara si stok','stack')}</div>${m.unknownKg||m.stockMissingKg?`<div class="notice">${icon('alert',15)}<span>${m.unknownKg?`${fmt(m.unknownKg)} kg pa burim.`:''} ${m.stockMissingKg?`${m.stockMissingKg} rreshta pa KG.`:''}</span></div>`:''}<div class="list-tools"><div><span class="eyebrow">Përmbledhje</span></div><div class="report-actions"><span class="small-note">Eksporto CSV:</span>${[['products','Prodhimi'],['packages','Paketimet'],['hours','Orët'],['stock','Stoku'],['weights','Peshimet']].map(([value,label])=>`<button class="btn btn-small" data-action="export-report" data-type="${value}">${icon('download',13)} ${label}</button>`).join('')}</div></div><div class="report-grid">${attendanceHTML()}${timecardHTML(rs)}<div class="card"><div class="card-head"><div><h3>Prodhimi sipas produktit</h3><p>Sasitë e prodhuara, të ndara sipas njësisë</p></div></div>${reportTable(['Produkti','Paketimi','Sasia','Njësia','Formularë'],prod)}</div><div class="card"><div class="card-head"><div><h3>Paketimet e përdorura</h3><p>Numri i ambalazheve, i futur veçmas në formular</p></div></div>${reportTable(['Paketimi','Nr. ambalazheve','Formularë'],packs)}</div><div class="card"><div class="card-head"><div><h3>Orët e punës</h3></div></div>${reportTable(['Punonjësi','Orë (rrumb.)','Formularë'],staff)}</div><div class="card"><div class="card-head"><div><h3>Marrjet nga stoku</h3><p>Vetëm peshimet e shënuara si stok</p></div></div>${reportTable(['Produkti','Pesha','Njësia','Thasë','Rreshta'],stock)}</div><div class="card report-wide"><div class="card-head"><div><h3>Totalet e tabelave të peshimit</h3><p>Σ për çdo tabelë, si në formular; ambalazhi dhe shuma janë vlera të futura manualisht</p></div></div>${reportTable(['Data','Nr.','Peshimi','Produkti','Burimi','Σ thasë','Σ KG','Σ ambalazhi','Σ shuma'],weightRows)}</div></div>`}
+function reportsHTML(){const rs=reportRecords(),m=metrics(rs,state.report.product),products=allProducts(),invalid=state.report.from&&state.report.to&&state.report.from>state.report.to;const prod=m.products.map(x=>[x.product,x.packaging,fmt(x.qty),x.unit,String(x.records.size)]),packs=m.packageCounts.map(x=>[x.packaging,fmt(x.count),String(x.records.size)]),staff=m.employees.map(x=>[x.name,fmt(roundHoursTotal(x.hours)),String(x.records.size)]),stock=m.stock.map(x=>[x.product,fmt(x.kg),'kg',fmt(x.bags),String(x.rows)]),weightRows=m.tables.map(x=>[formatDate(x.date),x.nr,String(x.group),x.product,x.source,...['bags','kg','packaging','sum'].map(k=>x.totals.seen[k]?fmt(x.totals[k]):'—')]);return `<div class="page-head"><div><div class="eyebrow">Nga të dhënat e ruajtura</div><h1 class="page-title">Raportet</h1><p class="page-sub">Shiko prodhimin, paketimet, orët dhe peshimet e marra nga stoku.</p></div></div>${demoNotice()}<div class="card" style="margin-bottom:16px"><div class="card-body"><div class="report-filters">${field('Nga data',`<input class="input" type="date" data-report="from" value="${esc(state.report.from)}" aria-label="Nga data">`)}${field('Deri më',`<input class="input" type="date" data-report="to" value="${esc(state.report.to)}" aria-label="Deri më">`)}${field('Produkti',`<input class="input" data-combo="report-products" value="${esc(state.report.product)}" role="combobox" aria-label="Filtro produktin" aria-autocomplete="list" aria-expanded="false" aria-controls="combo-popover" autocomplete="off" placeholder="Shkruaj për të kërkuar">`)}<button class="btn" data-action="clear-filters">Pastro filtrat</button></div>${invalid?'<div class="notice" style="margin:14px 0 0">Data e fillimit është pas datës së mbarimit.</div>':''}</div></div><div class="stat-grid">${stat('Formularë',String(rs.length),'','Sipas datave të zgjedhura','file')}${stat('Prodhim i regjistruar',fmt(m.producedKg),'kg','Vetëm sasitë e prodhuara në kg','box')}${stat('Orë pune (rrumb.)',fmt(roundHoursTotal(m.hours)),'orë','Për gjithë ditët e filtruara','clock')}${stat('Marrë nga stoku',fmt(m.stockKg),'kg','Vetëm peshime të shënuara si stok','stack')}</div>${m.unknownKg||m.stockMissingKg?`<div class="notice">${icon('alert',15)}<span>${m.unknownKg?`${fmt(m.unknownKg)} kg pa burim.`:''} ${m.stockMissingKg?`${m.stockMissingKg} rreshta pa KG.`:''}</span></div>`:''}<div class="list-tools"><div><span class="eyebrow">Përmbledhje</span></div><div class="report-actions"><button class="btn btn-primary btn-small" data-action="export-report-pro" title="Excel me 5 fletë: përmbledhje, prodhim, paketime, orë, peshime">${icon('download',13)} Excel i plotë</button><span class="small-note">ose CSV sipas tabelës:</span>${[['products','Prodhimi'],['packages','Paketimet'],['hours','Orët'],['stock','Stoku'],['weights','Peshimet']].map(([value,label])=>`<button class="btn btn-small" data-action="export-report" data-type="${value}">${icon('download',13)} ${label}</button>`).join('')}</div></div><div class="report-grid">${attendanceHTML()}${timecardHTML(rs)}<div class="card"><div class="card-head"><div><h3>Prodhimi sipas produktit</h3><p>Sasitë e prodhuara, të ndara sipas njësisë</p></div></div>${reportTable(['Produkti','Paketimi','Sasia','Njësia','Formularë'],prod)}</div><div class="card"><div class="card-head"><div><h3>Paketimet e përdorura</h3><p>Numri i ambalazheve, i futur veçmas në formular</p></div></div>${reportTable(['Paketimi','Nr. ambalazheve','Formularë'],packs)}</div><div class="card"><div class="card-head"><div><h3>Orët e punës</h3></div></div>${reportTable(['Punonjësi','Orë (rrumb.)','Formularë'],staff)}</div><div class="card"><div class="card-head"><div><h3>Marrjet nga stoku</h3><p>Vetëm peshimet e shënuara si stok</p></div></div>${reportTable(['Produkti','Pesha','Njësia','Thasë','Rreshta'],stock)}</div><div class="card report-wide"><div class="card-head"><div><h3>Totalet e tabelave të peshimit</h3><p>Σ për çdo tabelë, si në formular; ambalazhi dhe shuma janë vlera të futura manualisht</p></div></div>${reportTable(['Data','Nr.','Peshimi','Produkti','Burimi','Σ thasë','Σ KG','Σ ambalazhi','Σ shuma'],weightRows)}</div></div>`}
 function printHTML(){const saved=state.print.mode==='saved';return `<div class="page-head"><div><div class="eyebrow">Modeli i fundit i miratuar</div><h1 class="page-title">Printim & Excel</h1><p class="page-sub">Përgatit formularë të plotësuar ose bosh, me nga dy faqe A4 për secilin.</p></div></div>${demoNotice()}<div class="tab-line"><button class="pill-tab ${saved?'active':''}" data-action="print-mode" data-mode="saved">Formularë të ruajtur</button><button class="pill-tab ${!saved?'active':''}" data-action="print-mode" data-mode="blank">Formularë bosh, me numra</button></div><div class="print-grid"><div class="card"><div class="card-head"><div><h2>${saved?'Zgjidh regjistrimet':'Formularë bosh'}</h2><p>${saved?'Zgjidh një ose disa formularë për t’i përgatitur së bashku.':'Vendos numrin e parë dhe sa formularë dëshiron.'}</p></div><span class="tag">2+ faqe / formular</span></div><div class="card-body">${saved?`<div class="list-tools"><div class="search">${icon('search',15)}<label class="sr-only" for="print-search">Kërko formular</label><input class="input" id="print-search" placeholder="Kërko nr., datë ose produkt..." value="${esc(state.print.search)}"></div><span class="small-note" id="print-count"></span></div><div class="head-actions" style="margin-bottom:12px"><button class="btn btn-small" data-action="print-select-all">Zgjidh të dukshmet</button><button class="btn btn-small" data-action="print-select-none">Pastro përzgjedhjen</button></div><div class="table-wrap" id="print-list"></div>`:`<div class="fields three">${field('Nr. i parë',`<input class="input" type="number" min="1" max="999999999" step="1" data-print-setting="start" value="${esc(state.print.start||String(nextNr()))}" aria-label="Numri i parë">`)}${field('Sa formularë?',`<input class="input" type="number" min="1" max="50" step="1" data-print-setting="count" value="${esc(state.print.count)}" aria-label="Numri i formularëve">`,'Për shembull 10 ose 15; maksimumi 50 njëherësh.')}${field('Fletë vazhdimi (dy anë)',`<input class="input" type="number" min="0" max="10" step="1" data-print-setting="continuationSheets" value="${esc(state.print.continuationSheets)}" aria-label="Fletë vazhdimi për formular">`)}</div><p class="small-note">Numrat bosh nuk rezervohen automatikisht.</p>`}</div></div><div class="card"><div class="card-head"><div><h2>Gati për përgatitje</h2><p>Modeli i miratuar, me të dyja faqet</p></div></div><div class="card-body"><div class="tag" style="margin-bottom:16px">A4 · Dy anë · Ana e gjatë</div><div class="head-actions"><button class="btn btn-primary" data-action="print-pdf">${icon('printer',15)} Hap PDF për printim</button><button class="btn" data-action="print-xlsx">${icon('download',15)} Eksporto Excel .xlsx</button></div><div id="print-result" class="print-result" aria-live="polite"></div></div></div></div>`}
 function printFiltered(){const q=fold(state.print.search);return sortedRecords().filter(r=>!q||fold([r.nr,r.date,formatDate(r.date),r.responsible.name,...r.plan.map(p=>p.product)].join(' ')).includes(q))}
 function updatePrintCount(){const e=document.getElementById('print-count');if(e)e.textContent=`${[...state.print.selected].filter(id=>db.records.some(r=>r.id===id)).length} të zgjedhur`}
@@ -1652,6 +1661,419 @@ function csvCell(v){let s=v===null||v===undefined?'':typeof v==='number'?String(
 function download(name,contents,type){const blob=new Blob([contents],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
 function csv(name,rows){download(name,'\ufeff'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n')+'\r\n','text/csv;charset=utf-8')}
 function exportAll(){const rows=[['Lloji','Nr.','Data','Dita','Java ISO','Përgjegjësja','Firma përgjegjëses','Ndihmësja','Firma ndihmëses','Komente ditore','Produkti','Statusi','Sasia e planifikuar','Sasia e prodhuar','Njësia','Paketimi','Koment produkti','Punonjësi','Fillim','Mbarim','Orë','Firma punonjësit','Faqja','Peshimi','Burimi','Rreshti','Nr. thasëve','KG','Ambalazhi','Shuma','Nr. ambalazheve të përdorura','Shembull','Dhoma','Klienti','Komente punonjësi']];for(const r of sortedRecords()){const base=[r.nr,r.date,dayName(r.date),weekNumber(r.date)??'',r.responsible.name,r.responsible.signature,r.assistant.name,r.assistant.signature,r.comments];const add=(kind,fields={})=>{const x=Array(35).fill('');x[0]=kind;x[31]=r.isDemo?'Po':'Jo';x[32]=r.room;base.forEach((v,i)=>x[i+1]=v);for(const [idx,value] of Object.entries(fields))x[Number(idx)]=value;rows.push(x)};add('DITA');for(const p of r.plan)if([p.product,p.status,p.planned,p.actual,p.unit,p.packaging,p.client,p.comment,p.packageCount].some(nonempty))add('PLAN',{10:p.product,11:p.status,12:num(p.planned)??'',13:num(p.actual)??'',14:p.unit,15:p.packaging,16:p.comment,30:num(p.packageCount)??'',33:p.client});for(const e of r.employees)if([e.name,e.start,e.end,e.comment,e.signature].some(nonempty))add('PUNONJES',{17:e.name,18:e.start,19:e.end,20:hoursFor(e)??'',21:e.signature,34:e.comment});const layouts=planPrintPages([{nr:r.nr,record:r}]),pageFor=(i,row=null)=>{const matches=layouts.filter(l=>l.stages.some(stage=>stage?.groups.some(part=>part&&part.index===i&&(row===null||(row>=stage.offset&&row<stage.offset+part.rows.length))))).map(l=>l.recordPage);return row===null?matches.join(', '):matches[0]??''};r.weighings.forEach((g,i)=>{if(!g.product&&!g.source&&!g.sourceLabel&&!g.rows.some(x=>Object.values(x).some(nonempty)))return;const baseg={10:g.product,22:pageFor(i),23:i+1,24:g.sourceLabel?`${g.sourceLabel} (${g.source==='stock'?'stok':g.source==='other'?'tjetër':'i papërcaktuar'})`:g.source==='stock'?'Marrë nga stoku':g.source==='other'?'Tjetër':'I papërcaktuar'};add('PESHIM_META',baseg);g.rows.forEach((x,j)=>{if(Object.values(x).some(nonempty))add('PESHIM',{...baseg,22:pageFor(i,j),25:j+1,26:num(x.bags)??'',27:num(x.kg)??'',28:num(x.packaging)??'',29:num(x.sum)??''})})})}csv('BioBes_te_dhenat.csv',rows);toast('U përgatit CSV-ja. Për kopje të plotë përdor backup-in JSON.')}
+
+'use strict';
+// Ndërtues xlsx me stil, pa varësi: OOXML i plotë + zip.
+const XL = {
+  brand:'FF192F45', brand2:'FF29445D', headText:'FFFFFFFF',
+  band:'FFF3F7FA', totalBg:'FFE4EDF3', line:'FFD5E0E7',
+  muted:'FF72808D', badBg:'FFFFF3F2', warnBg:'FFFFF7E8', white:'FFFFFFFF',
+};
+function colName(i){let s='',n=i;do{s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)-1}while(n>=0);return s}
+const xlEsc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+
+// Stilet: 20 xf të paracaktuara
+function stylesXml(){
+  const F=[
+    [16,1,XL.brand],[10,0,XL.muted],[10,1,XL.headText],[10,0,'FF1B1B1B'],
+    [10,1,XL.brand],[10,0,XL.muted],[10,1,XL.brand],[10,1,'FF1B1B1B'],[10,0,XL.brand],
+  ].map(([sz,b,color],i)=>`<font><sz val="${sz}"/>${b?'<b/>':''}${i===5?'<i/>':''}<color rgb="${color}"/><name val="Calibri"/><family val="2"/></font>`).join('');
+  const fills=[
+    '<fill><patternFill patternType="none"/></fill>',
+    '<fill><patternFill patternType="gray125"/></fill>',
+    `<fill><patternFill patternType="solid"><fgColor rgb="${XL.brand}"/><bgColor indexed="64"/></patternFill></fill>`,
+    `<fill><patternFill patternType="solid"><fgColor rgb="${XL.band}"/><bgColor indexed="64"/></patternFill></fill>`,
+    `<fill><patternFill patternType="solid"><fgColor rgb="${XL.totalBg}"/><bgColor indexed="64"/></patternFill></fill>`,
+    `<fill><patternFill patternType="solid"><fgColor rgb="${XL.white}"/><bgColor indexed="64"/></patternFill></fill>`,
+    `<fill><patternFill patternType="solid"><fgColor rgb="${XL.badBg}"/><bgColor indexed="64"/></patternFill></fill>`,
+    `<fill><patternFill patternType="solid"><fgColor rgb="${XL.warnBg}"/><bgColor indexed="64"/></patternFill></fill>`,
+  ].join('');
+  const b = (all,extra='')=>`<border>${all?`<left style="thin"><color rgb="${XL.line}"/></left>`:'<left/>'}<right style="thin"><color rgb="${XL.line}"/></right>${all?`<top style="thin"><color rgb="${XL.line}"/></top>`:'<top/>'}<bottom style="${extra||'thin'}"><color rgb="${XL.line}"/></bottom><diagonal/></border>`;
+  const borders=[
+    '<border><left/><right/><top/><bottom/><diagonal/></border>',
+    b(false),
+    b(true),
+    `<border><left/><right/><top/><bottom style="double"><color rgb="${XL.brand}"/></bottom><diagonal/></border>`,
+  ].join('');
+  // xf: font,fill,border,numFmt,align,wrap
+  const X=[
+    [0,0,0,0,'left',0],    // 0 titull
+    [1,0,0,0,'left',0],    // 1 nëntitull
+    [2,2,2,0,'center',1],  // 2 kryet
+    [3,0,2,0,'left',0],    // 3 tekst
+    [8,0,0,0,'left',0],    // 4 etiketë meta
+    [5,0,0,0,'left',0],    // 5 vlerë meta
+    [4,0,0,0,'left',1],    // 6 shënim
+    [7,4,3,0,'left',0],    // 7 total etiketë (bold)
+    [7,4,3,164,'right',0], // 8 total numër
+    [3,3,2,0,'left',0],    // 9 rrip tekst
+    [3,0,2,164,'right',0], // 10 numër
+    [3,3,2,164,'right',0], // 11 numër me rrip
+    [3,0,2,165,'right',0], // 12 dhjetore
+    [3,3,2,165,'right',0], // 13 dhjetore me rrip
+    [3,0,2,166,'center',0],// 14 datë
+    [3,3,2,166,'center',0],// 15 datë me rrip
+    [7,4,3,164,'right',0], // 16 (rezervë)
+    [7,4,3,0,'center',0],  // 17 total qendër (bold)
+    [3,5,2,0,'center',0],  // 18 qendër
+    [3,3,2,167,'right',0], // 19 orë me rrip
+    [3,0,2,167,'right',0], // 20 orë
+  ];
+  const xfs=X.map(([f,fi,bd,nf,al,wr])=>`<xf numFmtId="${nf}" fontId="${f}" fillId="${fi}" borderId="${bd}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="${al}" vertical="center" ${wr?'wrapText="1"':''}/></xf>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="4"><numFmt numFmtId="164" formatCode="#,##0"/><numFmt numFmtId="165" formatCode="#,##0.00"/><numFmt numFmtId="166" formatCode="dd/mm/yyyy"/><numFmt numFmtId="167" formatCode="[h]:mm"/></numFmts>
+<fonts count="9">${F}</fonts><fills count="8">${fills}</fills><borders count="4">${borders}</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="${X.length}">${xfs}</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+<dxfs count="2"><dxf><font><b/><color rgb="FF9A3B3B"/></font><fill><patternFill patternType="solid"><fgColor rgb="${XL.badBg}"/><bgColor indexed="64"/></patternFill></fill></dxf><dxf><font><color rgb="FF8A6520"/></font><fill><patternFill patternType="solid"><fgColor rgb="${XL.warnBg}"/><bgColor indexed="64"/></patternFill></fill></dxf></dxfs>
+</styleSheet>`;
+}
+
+// -------- ndërtimi i një sheet-i -------------------------------------------
+// spec: {name,title,subtitle,meta:[[k,v]],columns:[{h,w,type,fmt}],rows,total:{label,values},
+//        notes:[],freezeRow,autoFilter,landscape}
+function sheetSpec(spec){
+  const cols=spec.columns||[];
+  const lastCol=Math.max(0,cols.length-1);
+  const cells=[]; // rows -> [ {c,v,s,t,f} ]
+  const R=[];     // rreshtat si vargje xml
+  let r=0;
+  const put=(row,ci,value,style,opt={})=>{
+    if(!cells[row])cells[row]=[];
+    const ref=colName(ci)+String(row+1);
+    // Një qelizë shkruhet VETËM një herë: nëse vendoset sërish (p.sh. formula e
+    // totalit mbi vlerën e llogaritur), zëvendësohet — dyfishimi e bën skedarin
+    // të pavlefshëm për Excel.
+    const existing=cells[row].findIndex(c=>c.ref===ref);
+    const cell={ref,value,style,...opt};
+    if(existing>=0)cells[row][existing]=cell; else cells[row].push(cell);
+  };
+  const widths=cols.map(c=>c.w||14);
+
+  // 1) Titull i bashkuar
+  if(spec.title){
+    put(r,0,spec.title,0); r++;
+  }
+  if(spec.subtitle){ put(r,0,spec.subtitle,1); r++; }
+  r++; // bosh
+
+  // 2) Meta (filtra, periudha, data e eksportit)
+  if(spec.meta&&spec.meta.length){
+    for(const [k,v] of spec.meta){
+      put(r,0,k,4); put(r,1,v==null?'':v,5); r++;
+    }
+    r++;
+  }
+
+  // 3) Kryet e kolonave
+  const headRow=r;
+  cols.forEach((c,ci)=>put(r,ci,c.h,2));
+  r++;
+
+  // 4) Të dhënat
+  const firstData=r;
+  (spec.rows||[]).forEach((row,ri)=>{
+    const band=ri%2===1;
+    row.forEach((v,ci)=>{
+      const c=cols[ci]||{};
+      let style=3, type='s';
+      // Qeliza plotësisht bosh NUK shkruhen: përndryshe Excel-i hap kolona shtesë
+      // dhe tabela duket e zhvendosur. Stili i rreshtit ruhet te qelizat me vlerë.
+      if(v==null||v==='')return;
+      if(typeof v==='number'){
+        type='n';
+        style=c.type==='date'? (band?15:14)
+             : c.type==='d2'? (band?13:12)
+             : c.type==='hours'? 20
+             : (band?11:10);
+      } else if(c.type==='date'){
+        // datë si tekst ISO → serik xlsx
+        const t=xlDate(v); if(t!=null){v=t;type='n';style=band?15:14}
+        else style=band?9:3;
+      } else {
+        style=band?9:3;
+      }
+      if(c.align==='c'&&type==='s')style=band?9:18;
+      put(r,ci,v,style,{t:type});
+    });
+    r++;
+  });
+  const lastData=r-1;
+
+  // 5) Totali
+  if(spec.total&&spec.total.values){
+    // `values[i]` i përket kolonës i+1 (B, C, …), që totalet të rrinë nën kolonën
+    // e vetë pa u zhvendosur. null = qelizë bosh nën atë kolonë.
+    const vals=spec.total.values;
+    put(r,0,spec.total.label||'TOTALI',7);
+    vals.forEach((v,i)=>{
+      if(v==null||v==='')return;
+      const isFormula=typeof v==='string'&&v.startsWith('=');
+      put(r,i+1,v,typeof v==='number'||isFormula?8:17,
+        isFormula?{t:'n',f:true}:{t:typeof v==='number'?'n':'s'});
+    });
+    // Për kolonat shumë, formula REALE =SUM(...) nën të dhënat: Excel-i e
+    // rillogarit vetë nëse përdoruesi ndryshon një qelizë.
+    for(const ci of spec.total.sumCols||[]){
+      if(lastData<=firstData)continue;
+      const L=colName(ci);
+      put(r,ci,`=SUM(${L}${firstData+1}:${L}${lastData+1})`,8,{t:'n',f:true});
+    }
+    r++;
+  }
+  r++;
+
+  // 6) Shënime
+  for(const n of spec.notes||[]){ put(r,0,n,6); r++; }
+
+  // -------- XML i fletës --------
+  let xml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${colName(lastCol)}${Math.max(1,r)}"/>`;
+  xml+=`<sheetViews><sheetView workbookViewId="0"${spec.freezeRow?`><pane ySplit="${spec.freezeRow}" topLeftCell="A${spec.freezeRow+1}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft"/></sheetView>`:'/>'}</sheetViews>`;
+  xml+=`<sheetFormatPr defaultRowHeight="15"/>`;
+  xml+=`<cols>${widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols>`;
+  xml+=`<sheetData>`;
+  for(let i=0;i<cells.length;i++){
+    const rowCells=cells[i]||[];
+    if(!rowCells.length){continue}
+    const ht = i===0&&spec.title? 24 : i===headRow? 22 : 16;
+    xml+=`<row r="${i+1}" ht="${ht}" customHeight="1">`;
+    rowCells.sort((a,b)=>a.ref.localeCompare(b.ref,(undefined),{numeric:true}));
+    for(const c of rowCells){
+      if(c.f&&c.f===true){
+        // formulë reale (=SUM(...)), që Excel-i ta rillogarisë vetë
+        xml+=`<c r="${c.ref}" s="${c.style}"><f>${xlEsc(String(c.value).replace(/^=/,''))}</f></c>`;
+      }
+      else if(c.t==='n'){ xml+=`<c r="${c.ref}" s="${c.style}"><v>${c.value}</v></c>`; }
+      else { xml+=`<c r="${c.ref}" s="${c.style}" t="inlineStr"><is><t xml:space="preserve">${xlEsc(c.value)}</t></is></c>`; }
+    }
+    xml+=`</row>`;
+  }
+  xml+=`</sheetData>`;
+  // bashkime: titulli + nëntitulli mbi të gjitha kolonat
+  const merges=[];
+  if(spec.title)merges.push(`A1:${colName(lastCol)}1`);
+  if(spec.subtitle)merges.push(`A2:${colName(lastCol)}2`);
+  if(merges.length)xml+=`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`;
+  // Formatim i kushtëzuar: qelizat "GABIM" bëhen të kuqe, "KUJDES" të verdha.
+  if(spec.conditional&&lastData>=firstData){
+    const L=colName(spec.conditional.col);
+    const r1=firstData+1,r2=lastData+1;
+    xml+=`<conditionalFormatting sqref="${L}${r1}:${L}${r2}">
+<cfRule type="containsText" dxfId="0" priority="1" operator="containsText" text="GABIM"><formula>NOT(ISERROR(SEARCH("GABIM",${L}${r1})))</formula></cfRule>
+<cfRule type="containsText" dxfId="1" priority="2" operator="containsText" text="KUJDES"><formula>NOT(ISERROR(SEARCH("KUJDES",${L}${r1})))</formula></cfRule>
+</conditionalFormatting>`;
+  }
+  if(spec.autoFilter&&lastData>=firstData){
+    xml+=`<autoFilter ref="A${headRow+1}:${colName(lastCol)}${lastData+1}"/>`;
+  }
+  xml+=`<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>`;
+  xml+=`<pageSetup orientation="${spec.landscape?'landscape':'portrait'}" paperSize="9" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+  return xml;
+}
+function xlDate(v){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v||''));
+  if(!m)return null;
+  const d=Date.UTC(+m[1],+m[2]-1,+m[3]);
+  return d/86400000+25569;
+}
+
+
+// -------- paketimi në .xlsx (zip i vlefshëm) --------------------------------
+function xlsxFiles(spec){
+  const n=spec.sheets.length;
+  const names=spec.sheets.map((sh,i)=>sh.name||('Fleta'+(i+1)));
+  const now=new Date().toISOString().replace(/\.\d+Z$/,'Z');
+  const f={};
+  f['[Content_Types].xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+${names.map((x,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}
+<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>`;
+  f['_rels/.rels']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+  f['docProps/core.xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:title>${xlEsc(spec.title||'BioBes')}</dc:title><dc:creator>BioBes</dc:creator><cp:lastModifiedBy>BioBes</cp:lastModifiedBy>
+<dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
+  f['docProps/app.xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>BioBes</Application></Properties>`;
+  f['xl/workbook.xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<workbookPr/><sheets>${names.map((x,i)=>`<sheet name="${xlEsc(x)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`;
+  f['xl/_rels/workbook.xml.rels']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+${names.map((x,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}
+<Relationship Id="rId${n+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+  f['xl/styles.xml']=stylesXml();
+  spec.sheets.forEach((sh,i)=>{f[`xl/worksheets/sheet${i+1}.xml`]=sheetSpec(sh)});
+  return f;
+}
+
+// Paketon spec-in në bajt .xlsx duke përdorur fflate (i pranishëm në vendor/).
+function xlsxBytes(spec){
+  const files=xlsxFiles(spec);
+  const zipped=fflate.zipSync(
+    Object.fromEntries(Object.entries(files).map(([k,v])=>[k,fflate.strToU8(v)])),
+    {level:6}
+  );
+  return zipped;
+}
+
+
+// ============================================================================
+// RAPORTET PROFESIONALE (Excel me stil ERP)
+// ----------------------------------------------------------------------------
+// Krijon një skedar me 5 fletë: Përmbledhje, Prodhimi, Paketimet, Orët, Peshimet.
+// Çdo fletë ka titull, filtra të printuar, kryet e fiksuar, autofilter, total
+// dhe shënime që shpjegojnë nga vjen secili numër. Pa vlera të shpikura.
+// ============================================================================
+function xlPeriodLabel(){
+  const f=state.report.from,t=state.report.to;
+  if(f&&t)return `${formatDate(f)} – ${formatDate(t)}`;
+  if(f)return `Nga ${formatDate(f)}`;
+  if(t)return `Deri më ${formatDate(t)}`;
+  return 'Të gjitha të dhënat';
+}
+function xlMetaExtra(recordCount){
+  const meta=[
+    ['Periudha',xlPeriodLabel()],
+    ['Formularë',String(recordCount)],
+    ['Filtri i produktit',state.report.product||'(të gjitha)'],
+    ['Eksportuar më',new Date().toLocaleString('sq-AL',{dateStyle:'short',timeStyle:'short'})],
+  ];
+  return meta;
+}
+// Fleta 1: përmbledhje me numrat kryesorë + kontroll cilësie.
+function xlSummarySheet(rs,m){
+  const hasDemo=rs.some(r=>r.isDemo);
+  const rows=[
+    ['Formularë të regjistruar',rs.length,'numër','Periudha e zgjedhur'],
+    ['Prodhim i regjistruar (kg)',Math.round(m.producedKg*100)/100,'kg','Vetëm sasitë e prodhuara në kg'],
+    ['Orë pune (rrumbullakosur)',roundHoursTotal(m.hours),'orë','Nga regjistrat e punonjësve'],
+    ['Marrë nga stoku (kg)',Math.round(m.stockKg*100)/100,'kg','Vetëm peshimet e shënuara si stok'],
+    ['Produkte të ndryshme',m.products.length,'numër','Sipas emrit të produktit'],
+    ['Punonjës të përfshirë',m.employees.length,'numër','Sipas emrit të punonjësit'],
+    ['Tabela peshimi',m.tables.length,'numër','Peshimi 1–3 për çdo formular'],
+  ];
+  // Kontrolle cilësie — vetëm raste reale, pa hamendje.
+  const noResponsible=rs.filter(r=>!str(r.responsible?.name).trim()).length;
+  let rowsNoKg=0,tablesMismatch=0;
+  for(const t of m.tables){
+    if(t.totals?.rows!=null&&t.totals.rows>0&&!t.totals.seen?.kg)rowsNoKg+=1;
+  }
+  for(const r of rs)for(const g of r.weighings||[]){
+    const issues=weighCheckIssues(g.rows,g.printedTotal,'');
+    if(issues.length)tablesMismatch+=1;
+  }
+  const quality=[
+    ['Formularë pa përgjegjëse',noResponsible,noResponsible===0?'OK':noResponsible<=2?'KUJDES':'GABIM','Duhet plotësuar para ruajtjes'],
+    ['Tabela pa asnjë KG',rowsNoKg,rowsNoKg===0?'OK':rowsNoKg<=2?'KUJDES':'GABIM','Kontrollo skanimin origjinal'],
+    ['Tabela me aritmetikë që nuk përputhet',tablesMismatch,tablesMismatch===0?'OK':tablesMismatch<=2?'KUJDES':'GABIM','KG − Ambalazhi ≠ Shuma e shkruar'],
+    ['Formularë shembull në periudhë',hasDemo?'Po':'Jo',hasDemo?'KUJDES':'OK','Të dhëna demonstrimi, jo reale'],
+  ];
+  return {
+    name:'Përmbledhje',title:'PËRMBLEDHJE E RAPORTEVE',
+    subtitle:'BioBes · Blloku ditor i prodhimit',
+    meta:xlMetaExtra(rs.length),freezeRow:5,autoFilter:false,conditional:{col:2},
+    columns:[{h:'Treguesi',w:42},{h:'Vlera',w:16,type:'d2'},{h:'Njësia / Gjendja',w:18,align:'c'},{h:'Shpjegim',w:52}],
+    rows:[...rows,...quality.map(([label,count,state,note])=>[label,count,`${state}${typeof count==='number'?` · ${count}`:''}`,note])],
+    notes:[
+      'Të gjitha vlerat vijnë nga regjistrat e ruajtur; asnjë numër nuk është vlerësuar.',
+      'Kontrolli i cilësisë shënon: OK = asnjë rast, KUJDES = 1–2 raste, GABIM = më shumë.',
+    ],
+  };
+}
+
+
+// Fleta e dytë: prodhimi sipas produktit.
+function xlProductsSheet(m){
+  const total=m.products.reduce((n,x)=>n+(Number(x.qty)||0),0);
+  return {
+    name:'Prodhimi',title:'PRODHIMI SIPAS PRODUKTIT',
+    subtitle:'Sasitë e prodhuara, të ndara sipas njësisë dhe paketimit',
+    meta:xlMetaExtra(reportRecords().length),freezeRow:5,autoFilter:true,
+    columns:[{h:'Nr.',w:6,align:'c'},{h:'Produkti',w:34},{h:'Paketimi',w:20},{h:'Sasia e prodhuar',w:18,type:'d2'},{h:'Njësia',w:10,align:'c'},{h:'Formularë',w:12}],
+    rows:m.products.map((x,i)=>[i+1,x.product||'(pa emër)',x.packaging||'—',Math.round((Number(x.qty)||0)*100)/100,x.unit||'',x.records.size]),
+    total:{label:'TOTALI I PRODHIMIT',values:[null,null,Math.round(total*100)/100,'',m.products.reduce((n,x)=>n+x.records.size,0)],sumCols:[3,5]},
+    notes:['“Formularë” tregon në sa formularë të ndryshëm u regjistrua produkti.','Produktet pa paketim shënohen me “—”, jo me zero.'],
+  };
+}
+// Fleta e tretë: paketimet.
+function xlPackagesSheet(m){
+  const total=m.packageCounts.reduce((n,x)=>n+(Number(x.count)||0),0);
+  return {
+    name:'Paketimet',title:'PAKETIMET E PËRDORURA',
+    subtitle:'Numri i ambalazheve i futur veçmas në çdo formular',
+    meta:xlMetaExtra(reportRecords().length),freezeRow:5,autoFilter:true,
+    columns:[{h:'Nr.',w:6,align:'c'},{h:'Paketimi',w:30},{h:'Nr. ambalazheve',w:18},{h:'Formularë',w:12}],
+    rows:m.packageCounts.map((x,i)=>[i+1,x.packaging||'—',Number(x.count)||0,x.records.size]),
+    total:{label:'TOTALI I AMBALAZHEVE',values:[null,total,m.packageCounts.reduce((n,x)=>n+x.records.size,0)]},
+    notes:['Totali është shuma e vlerave të shkruara në formularë, jo numër i llogaritur nga pesha.'],
+  };
+}
+// Fleta e katërt: orët e punës.
+function xlHoursSheet(m){
+  const total=roundHoursTotal(m.hours);
+  return {
+    name:'Orët',title:'ORËT E PUNËS',
+    subtitle:'Nga intervalet hyrje–dalje të shënuara për çdo punonjës',
+    meta:xlMetaExtra(reportRecords().length),freezeRow:5,autoFilter:true,
+    columns:[{h:'Nr.',w:6,align:'c'},{h:'Punonjësi',w:30},{h:'Orë pune',w:14,type:'d2'},{h:'Formularë',w:12}],
+    rows:m.employees.map((x,i)=>[i+1,x.name||'(pa emër)',roundHoursTotal(x.hours),x.records.size]),
+    total:{label:'TOTALI I ORËVE',values:[null,total,m.employees.reduce((n,x)=>n+x.records.size,0)]},
+    notes:['Orët rrumbullakosen në orën më të afërt, si në faqen e Raporteve.','Pushimet nuk zbriten automatikisht.','Dalja para hyrjes llogaritet si ditë pasuese.'],
+  };
+}
+// Fleta e pestë: totalet e tabelave të peshimit.
+function xlWeightsSheet(m){
+  const sum=(k)=>m.tables.reduce((n,x)=>n+(x.totals.seen[k]?Number(x.totals[k])||0:0),0);
+  return {
+    name:'Peshimet',title:'TOTALET E TABELAVE TË PESHIMIT',
+    subtitle:'Σ për çdo tabelë, siç është shkruar në formular',
+    meta:xlMetaExtra(reportRecords().length),freezeRow:5,autoFilter:true,landscape:true,
+    columns:[
+      {h:'Data',w:13,type:'date'},{h:'Nr.',w:8,align:'c'},{h:'Peshimi',w:10,align:'c'},
+      {h:'Produkti',w:26},{h:'Burimi',w:16},
+      {h:'Σ thasë',w:11},{h:'Σ KG',w:13},{h:'Σ ambalazhi',w:13},{h:'Σ shuma',w:13},
+    ],
+    rows:m.tables.map(x=>[
+      x.date,x.nr,x.group,x.product||'—',x.source||'—',
+      x.totals.seen.bags?Number(x.totals.bags)||0:null,
+      x.totals.seen.kg?Number(x.totals.kg)||0:null,
+      x.totals.seen.packaging?Number(x.totals.packaging)||0:null,
+      x.totals.seen.sum?Number(x.totals.sum)||0:null,
+    ]),
+    total:{label:'TOTALI',values:[null,null,null,null,null,sum('bags'),sum('kg'),sum('packaging'),sum('sum')]},
+    notes:['Qelizat bosh nuk shënohen me zero: kolona pa vlerë të shkruar mbetet bosh.','“Σ” është shuma e rreshtave të tabelës, e kontrolluar kundrejt totalit të shkruar.'],
+  };
+}
+// Butoni: ndërton dhe shkarkon raportin e plotë me stil.
+async function exportReportExcelPro(){
+  try{
+    const rs=reportRecords(),m=metrics(rs,state.report.product);
+    if(!rs.length){toast('Nuk ka formularë për periudhën e zgjedhur.','warn');return}
+    toast('Po përgatitet Excel-i profesional…');
+    const sheets=[xlSummarySheet(rs,m),xlProductsSheet(m),xlPackagesSheet(m),xlHoursSheet(m),xlWeightsSheet(m)];
+    const bytes=xlsxBytes({title:'BioBes — Raportet',sheets});
+    const stamp=new Date().toISOString().slice(0,10);
+    download(`BioBes_raportet_${stamp}.xlsx`,bytes,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast(`Raporti u shkarkua: ${sheets.length} fletë, ${rs.length} formularë.`);
+  }catch(e){console.error(e);toast('Excel-i nuk u përgatit. Provo me më pak formularë.','error')}
+}
+
 function exportReport(type='products'){const m=metrics(reportRecords(),state.report.product);let rows,name;
  if(type==='products'){rows=[['Produkti','Paketimi','Sasia e prodhuar','Njësia','Formularë'],...m.products.map(x=>[x.product,x.packaging,x.qty,x.unit,x.records.size])];name='BioBes_raport_prodhimi.csv'}
  else if(type==='packages'){rows=[['Paketimi','Nr. ambalazheve të përdorura','Formularë'],...m.packageCounts.map(x=>[x.packaging,x.count,x.records.size])];name='BioBes_raport_paketimi.csv'}
@@ -1725,7 +2147,7 @@ async function deleteCatalog(kind,index){
 
 
 for(const type of ['click','keydown','beforeinput','input','change','paste','drop'])document.addEventListener(type,e=>{if((cloud.busy||cloud.uncertain||cloud.conflict)&&e.target instanceof Element&&e.target.closest('#app,#combo-popover')){e.preventDefault();e.stopImmediatePropagation()}},true);
-document.addEventListener('click',async e=>{const suggestion=e.target.closest('[data-combo-option]');if(suggestion){chooseComboOption(Number(suggestion.dataset.comboOption));return}const add=e.target.closest('[data-combo-add]');if(add){await quickAddCombo();return}if(!e.target.closest('[data-combo]')&&!e.target.closest('#combo-popover')&&activeCombo)finishCombo(activeCombo);const nav=e.target.closest('[data-nav]');if(nav){await go(nav.dataset.nav);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',employee:'',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
+document.addEventListener('click',async e=>{const suggestion=e.target.closest('[data-combo-option]');if(suggestion){chooseComboOption(Number(suggestion.dataset.comboOption));return}const add=e.target.closest('[data-combo-add]');if(add){await quickAddCombo();return}if(!e.target.closest('[data-combo]')&&!e.target.closest('#combo-popover')&&activeCombo)finishCombo(activeCombo);const nav=e.target.closest('[data-nav]');if(nav){await go(nav.dataset.nav);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',employee:'',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='export-report-pro')await exportReportExcelPro();else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
   else if(a==='batch-read-pending')await batchReadPending()
   else if(a==='batch-manual')await batchManualReview();else if(a==='batch-cancel')batchCancel();else if(a==='batch-review-ready')await batchReviewCompleted();else if(a==='batch-reset')await batchStartOver();else if(a==='batch-raw')batchRawDownload();else if(a==='batch-up')batchMove(Number(btn.dataset.index),-1);else if(a==='batch-down')batchMove(Number(btn.dataset.index),1);else if(a==='batch-swap')batchSwap(Number(btn.dataset.index));else if(a==='batch-split')batchSplit(Number(btn.dataset.index));else if(a==='batch-join')batchJoin(Number(btn.dataset.index));else if(a==='batch-remove')await batchRemove(Number(btn.dataset.index));else if(a==='batch-original-reset')batchPrivateReset(btn.dataset.id);else if(a==='batch-open')batchOpen(Number(btn.dataset.index));else if(a==='batch-remove-review')await batchRemoveReview();else if(a==='batch-draft')batchDraftDownload();else if(a==='batch-save')await batchSave();else if(a==='cloud-open-original')await cloudOpenOriginal(Number(btn.dataset.index));else if(a==='sample')await sample();else if(a==='clear-demo')await clearDemo();else if(a==='catalog-add')await addCatalog(btn.dataset.kind);else if(a==='catalog-edit')await editCatalog(btn.dataset.kind,Number(btn.dataset.index));else if(a==='catalog-delete')await deleteCatalog(btn.dataset.kind,Number(btn.dataset.index))});
 document.addEventListener('input',e=>{const el=e.target;if(el.dataset.combo==='sources'&&state.route==='editor'){setPath(state.draft,el.dataset.bind.replace(/sourceLabel$/,'source'),'')}if(el.dataset.combo)showCombo(el);if(el.id==='history-search'){state.search=el.value;renderHistoryList();return}if(el.id==='print-search'){state.print.search=el.value;renderPrintList();return}if(el.dataset.printSetting){state.print[el.dataset.printSetting]=el.value;return}if(el.dataset.bind&&state.route==='editor'&&state.mode!=='view'){setPath(state.draft,el.dataset.bind,el.value);state.dirty=true;batchMarkChanged();updateDerived(el.dataset.bind)}});
