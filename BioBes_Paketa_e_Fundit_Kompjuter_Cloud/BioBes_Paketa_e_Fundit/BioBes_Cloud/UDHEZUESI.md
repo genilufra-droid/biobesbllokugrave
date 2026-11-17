@@ -31,21 +31,59 @@ Faqja **Raportet** ka tri tab-e dhe të njëjtat filtra sipër:
 
 - **Përmbledhje** — sa u prodhua në ditë (sasia dhe ambalazhet e shënuara në
   formular), orët, stoku dhe totalet e peshimeve.
-- **Kohëzgjatja e proceseve** — sa minuta zgjati secili produkt dhe sa kohë
-  hyri për një njësi (`minuta ÷ sasi`). Rreshtat pa minuta numërohen veç dhe
-  nuk hyjnë në total.
-- **Gjurmimi i punonjësit** — kur punoi secili dhe te cila dhomë kaloi. Kur
-  formulari ka intervale (07:00–13:00 Dhoma A, 13:30–17:00 Dhoma B), secili
-  interval del si rresht më vete; kur nuk ka, del dita e plotë e shënuar
-  `(dita)`.
+- **Kohëzgjatja e proceseve** — sa zgjati secili produkt, e shkruar në
+  **ditë dhe orë** (`2 ditë 4:00 orë`, `5 orë`, `45 min`), dhe sa kohë hyri për
+  një njësi (`minuta ÷ sasi`). Rreshtat pa kohë numërohen veç, shfaqen me `—`
+  te ndarja përqind dhe nuk hyjnë në total.
+- **Gjurmimi i punonjësit** — gjurma e plotë: hyrje, dalje, sa kohë, te cila
+  dhomë ishte, **ku shkoi më pas**, ndërprerja mes dy dhomave dhe **linku i
+  formularit** ku u shënua. Poshtë tabelës, karta *Kalimet nga një dhomë në
+  tjetrën* përmbledh çdo kalim: sa herë ndodhi, sa kohë qëndroi në dhomën e
+  parë dhe në sa ditë. Kur formulari ka intervale (07:00–13:00 Dhoma A,
+  13:30–17:00 Dhoma B), secili interval del si rresht më vete; kur nuk ka, del
+  dita e plotë e shënuar `(dita)`.
 
-Minutat e procesit shkruhen te formulari, te fusha **Kohëzgjatja (min)** e çdo
-produkti; intervalet dhe dhomat te kartela **Intervalet dhe dhomat**, ku ora
-llogaritet vetë. Filtrat (produkt, ambalazh, status, klient, punonjës, dhomë,
-data) kërkojnë edhe pjesë të tekstit dhe nuk dallojnë shkronjat e mëdha.
+### Kohëzgjatja: ditë dhe orë, jo minuta
+
+Te formulari, fusha **Kohëzgjatja** pranon të dyja mënyrat:
+
+- Shkruaj lirisht `2.5 ditë`, `5 orë`, `2 ditë 4 orë`, `90 min` ose vetëm një
+  numër (`3` = 3 orë). Presja dhjetore pranohet (`2,5 ditë`).
+- Ose plotëso dy fushat **Ditë** dhe **Orë**; ato e mbajnë të njëjtën vlerë me
+  fushën e lirë. Nën to shfaqet përkthimi (`2 ditë 4:00 orë · 1200 min`), që
+  të shohësh menjëherë se çfarë kuptoi sistemi. Nëse shkruan diçka që nuk
+  kuptohet, fusha shënohet me të kuq dhe **vlera e ruajtur nuk ndryshon**.
+
+Sa orë ka një ditë pune e zgjedh vetë përdoruesi te **Të dhënat bazë → Dita e
+punës** (butonat 8 / 10 / 12 orë ose vlerë e lirë). Zgjedhja vlen për këtë
+pajisje dhe zbatohet menjëherë në të gjitha raportet dhe eksportet; ajo nuk
+ruhet në cloud, sepse cloud-i pranon vetëm listat e katalogut. Parazgjedhja
+është 8 orë, pra `2.5 ditë` = `20:00 orë`.
+
+### Gjurma e punonjësit dhe linku i formularit
+
+Tabela e gjurmimit ka një rresht për çdo pjesë të ditës së një punonjësi:
+
+`Data · Formulari · Punonjësi · Hyrje · Dalje · Kohë · Dhoma · Shkoi te · Ndërprerja`
+
+Te **Formulari** shkruhet numri (p.sh. `001`) dhe pranë tij butoni
+**dokumenti**; të dy hapin pikërisht atë formular në regjistrimet e ruajtura,
+në mënyrë leximi, që të kontrollosh vetë hyrjen, daljen dhe dhomën. Kolona
+**Shkoi te** tregon dhomën tjetër të së njëjtës ditë, dhe **Ndërprerja**
+shfaqet si `13:00 → 13:30 (30 min)`. Rreshti i fundit i ditës e ka me `—`, sepse
+nuk ka kalim brenda ditës; ditët nuk lidhen me njëra-tjetrën.
+
+Intervalet dhe dhomat shkruhen te kartela **Intervalet dhe dhomat** në
+formular, ku ora llogaritet vetë. Filtrat (produkt, ambalazh, status, klient,
+punonjës, dhomë, data) kërkojnë edhe pjesë të tekstit dhe nuk dallojnë
+shkronjat e mëdha — edhe gjurmimi edhe eksportet i ndjekin të njëjtat filtra.
 
 Butoni **Të gjitha** shkarkon një Excel me 7 fletë, përfshirë *Kohëzgjatja* dhe
-*Gjurmimi*; secili tab ka edhe butonin e vet.
+*Gjurmimi*; secili tab ka edhe butonin e vet. Fleta *Kohëzgjatja* shfaq
+`Kohëzgjatja` në ditë/orë dhe pranë saj `Minuta` si numër; totalet mblidhen vetëm
+mbi kolonat numerike (`Minuta`, `Kohë / njësi`, `Sasia`, `Rreshta`), kurrë mbi
+tekstin e ditëve. Fleta *Gjurmimi* ka po ato 11 kolona si tabela e faqes dhe,
+poshtë totalit, bllokun **KALIMET NGA NJË DHOMË NË TJETRËN**.
 
 ## Privatësia dhe kostot e Gemini
 

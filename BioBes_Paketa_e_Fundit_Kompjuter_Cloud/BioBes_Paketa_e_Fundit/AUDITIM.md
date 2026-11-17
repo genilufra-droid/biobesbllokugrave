@@ -1111,3 +1111,53 @@ gjithçka në një ekran, pa tab-e.
 **`npm test` → 31 suite, 300 teste, zero dështime.** CSV-ja e plotë kaloi nga 35 në
 38 kolona (`Kohëzgjatja (min)`, `Dhoma e punonjësit`, `Intervalet`), me të gjitha
 rreshtat e njëjtë gjatësi.
+
+### 7.24 Kohëzgjatja në ditë/orë dhe gjurma e plotë me link
+
+**Kërkesa (fjalë për fjalë).** *"Kohëzgjatja është në ditë dhe orë — ose 2 ditë
+ose 5 orë, 8 orë, 2.5 ditë etj. Të gjurmimi i punonjësit duhet traceability: ku
+ishte, ku shkoi, te kush formular ka bërë hyrje, te kush dalje, dhe link me ato
+formular për t'i hapur t'i shikosh lëvizjet e punonjësit."*
+
+**Vendimet.** Dita e punës **e zgjedh vetë përdoruesi** (default 8 orë), sepse
+"2.5 ditë" s'kthehet në orë pa të. Kohëzgjatja pranohet **në të dyja mënyrat**:
+fushë e lirë dhe dy fusha (Ditë + Orë). Gjurmimi mbetet **linjë kohe +
+përmbledhje kalimesh**, tani me link te formulari.
+
+**Shembull real i provuar** (dy formularë, Arta Hoxha, 10–11.11.2026):
+
+| Data | Formulari | Punonjësi | Hyrje | Dalje | Kohë | Dhoma | Shkoi te | Ndërprerja |
+|---|---|---|---|---|---|---|---|---|
+| 10.11.2026 | 001 | Arta Hoxha | 07:00 | 13:00 | 6:00 orë | Dhoma A | → Dhoma B | 13:00 → 13:30 (30 min) |
+| 10.11.2026 | 001 | Arta Hoxha | 13:30 | 17:00 | 3:30 orë | Dhoma B | — | — |
+
+Karta e kalimeve: `Dhoma A → Dhoma B` — 1 herë, 6:00 orë në dhomën e parë, 1
+ditë; `Dhoma B → Dhoma C` — 1 herë, 5:00 orë. Klikimi i linkut `002` hap
+formularin 002, `mode=view`, me datën 11.11.2026 (provuar me jsdom, jo vetëm
+lexuar kodin).
+
+**Konvertimi.** `durationMinutes('2.5 ditë')` = 1200 me ditë 480 min; me ditë
+600 min bëhet 1500 — e njëjta shprehje, bazë tjetër. `fmtDuration(1500)` =
+`3 ditë 1:00 orë`; `fmtDuration(300)` = `5:00 orë`; `fmtDuration(45)` =
+`45 min`. Hyrja e pavlefshme (`abc`, `-1 ditë`, `2 ditë abc`) kthen `null` dhe
+**nuk e prish vlerën e ruajtur** — provuar me `input` të vërtetë në formular.
+
+**Gabim i vërtetë i gjetur gjatë punës.** Cilësimi i ditës së punës ishte
+shkruar në `db.settings` dhe ruhej me `commit()`. Cloud-i (`bp_save`) pranon
+vetëm çelësat e katalogut, pra cilësimi do të humbiste në heshtje sapo
+përdoruesi të ishte i kyçur — dhe testi e kapi (`480 !== 600`). Zgjidhja: dita e
+punës ruhet si **preferencë e pajisjes** (`localStorage`, çelësi
+`biobes-workday-minutes`), jashtë `db`, me shënim të qartë në kartë ("vlen për
+këtë pajisje") dhe në udhëzues.
+
+**Excel.** Fleta *Kohëzgjatja* tani ka `Kohëzgjatja` (ditë/orë) + `Minuta`
+(numër) dhe `sumCols:[4,6]` — vetëm kolona numerike. Fleta *Gjurmimi* ka 11
+kolona (`Data … Ndërprerja (min)`) dhe bllokun shtesë me kalimet; `xlSheet` fitoi
+mbështetje për tabela të shumta (`spec.extra`). Verifikuar me `openpyxl`:
+`=SUM(E10:E11)` → 4500, `=SUM(G10:G11)` → 960, `=SUM(F10:F13)` → 1080.
+
+**Testet.** `workday_trace.test.js` — 13 teste të reja: baza e ditës, konvertimi
+ditë↔orë, fushat e formularit (përfshirë hyrjen e pavlefshme), rimodelimi pas
+ndryshimit të ditës, gjurma, kalimet, linku që hap formularin, dhe dy fletët e
+Excel-it. **`npm test` → 32 suite, 313 teste, zero dështime.**
+

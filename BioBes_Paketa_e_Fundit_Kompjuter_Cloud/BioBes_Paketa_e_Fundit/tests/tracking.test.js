@@ -18,7 +18,7 @@ const { test, run } = require('./test_runner.js');
 const dom = loadApp(null, `
 ;globalThis.__T = {
   state, db, blankRecord, normalizeRecord, trackingSegments, trackingTotals, trackingHTML,
-  reportRecords, render, xlTrackingSheet, xlsxBytes, intervalMinutes, fmtMinutesLabel,
+  reportRecords, render, xlTrackingSheet, xlsxBytes, intervalMinutes, fmtDuration,
 };`);
 const w = dom.window;
 const api = w.__T;
@@ -131,7 +131,7 @@ test('intervali që kalon mesnatën llogaritet saktë', () => {
   api.state.report = { from: '', to: '', product: '', packaging: '', status: '', client: '', employee: '', room: '', tab: 'tracking' };
   const segs = api.trackingSegments(api.reportRecords(), '');
   assert.equal(segs[0].minutes, 240);
-  assert.equal(api.fmtMinutesLabel(segs[0].minutes), '4:00 orë');
+  assert.equal(api.fmtDuration(segs[0].minutes), '4:00 orë');
 });
 
 test('gjurmimi ndjek filtrat e raportit: data, dhomë dhe punonjës', () => {
@@ -161,7 +161,7 @@ test('tab-i i gjurmimit: tabela, totalet dhe shënimi i ditës pa intervale', ()
   assert.match(text, /Dhoma B/);
   assert.match(text, /Kohë sipas punonjësit/);
   assert.match(text, /Kohë sipas dhomës/);
-  assert.match(text, /17:30 orë/, 'totali i Artës 1050 min');
+  assert.match(text, /2 ditë 1:30 orë/, 'totali i Artës 1050 min = 2 ditë e 1:30 me ditë 8 orë');
   assert.match(text, /\(dita\)/, 'segmenti pa intervale shënohet si ditë');
 });
 
@@ -199,19 +199,27 @@ test('Excel-i i gjurmimit: një rresht për interval, totali si formulë', () =>
   const sheet = api.xlTrackingSheet('Arta Hoxha');
   assert.equal(sheet.name, 'Gjurmimi');
   assert.equal(JSON.stringify(sheet.columns.map((c) => c.h)),
-    JSON.stringify(['Data', 'Nr.', 'Punonjësi', 'Nga', 'Deri', 'Minuta', 'Dhoma', 'Burimi']));
+    JSON.stringify(['Data', 'Nr.', 'Punonjësi', 'Hyrje', 'Dalje', 'Minuta', 'Dhoma', 'Burimi', 'Shkoi te', 'Nisi më', 'Ndërprerja (min)']));
   assert.equal(sheet.rows.length, 3);
   const first = sheet.rows[0];
   assert.equal(first[2], 'Arta Hoxha');
-  assert.equal(first[3], '07:00');
+  assert.equal(first[3], '07:00', 'hyrja');
+  assert.equal(first[4], '13:00', 'dalja');
   assert.equal(first[5], 360, 'minutat si numër');
   assert.equal(first[6], 'Dhoma A');
   assert.equal(first[7], 'Interval');
+  assert.equal(first[8], 'Dhoma B', 'ku shkoi më pas');
+  assert.equal(first[10], 30, 'ndërprerja mes dy intervaleve');
   const day2 = sheet.rows.find((r) => r[1] === '002');
   assert.equal(day2[7], 'Dita (hyrje–dalje)', 'segmenti i ditës shënohet qartë');
   // values[i] shfaqet te kolona i+1: Minuta është kolona 5, pra values[4].
   assert.equal(sheet.total.values[4], 1050);
   assert.equal(JSON.stringify(sheet.total.sumCols), '[5]');
+  // Tabela shtesë e kalimeve në të njëjtën fletë.
+  assert.equal(sheet.extra.length, 1);
+  assert.match(sheet.extra[0].title, /KALIMET/);
+  assert.equal(sheet.extra[0].rows[0][1], 'Dhoma A');
+  assert.equal(sheet.extra[0].rows[0][2], 'Dhoma B');
   assert.match(sheet.subtitle, /Arta Hoxha/);
   assert.match(sheet.notes.join(' '), /Dhoma A 6:00 orë/);
 });
