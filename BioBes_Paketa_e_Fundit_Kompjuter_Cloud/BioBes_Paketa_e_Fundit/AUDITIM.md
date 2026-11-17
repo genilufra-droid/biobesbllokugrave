@@ -1272,3 +1272,23 @@ përditësua për gjashtë.
 
 **Testet.** `plan_planning.test.js` — 12 teste të reja. **`npm test` → 35 suite,
 345 teste, zero dështime.**
+
+## Dorëshkrimi: matje mbi një formular real (kërkesa 21)
+
+Një foto e dërguar nga përdoruesi (WhatsApp, 1200 × 1600 px, letra ≈ 1100 px e gjerë)
+u mat dhe u krahasua me modelin e miratuar (`Modele_Bosh/Model_25_Rreshta_2_Faqe.pdf`,
+2 faqe A4, 595 × 842 pt). Gjetjet kryesore, të verifikuara në imazh:
+
+| Vendi | Shkruar | Pse dështon |
+|---|---|---|
+| SHUMA (peshimi 1) | `160` me zero të hapur | lexohet `160` / `100` / `760` |
+| KG / AMBALAZHI | `180` mbi vijën e kolonës | shifra prek kufirin e qelizës |
+| Fillim / Mbarim | `Ore°` | nuk njihet si orë |
+| Emri | `VALMIRA MERKUR` deri në kufi | `U`-ja fundit humbet |
+| Komente | `CILESI E MICE` | pa `ë` → arsyeja *Tjetër* |
+
+Penja ≈ 1 piksel e trashë; lartësia e shifrës ≈ 32 px. Aplikacioni e çon foton në
+maksimumi 2400 px dhe **nuk e zmadhon**, pra kjo foto u dërgua në 1200 px.
+Prandaj rekomandimi kryesor është skanimi (300 dpi, 3–4 herë më shumë detaj), jo
+ndryshimi i modelit. Modeli i miratuar **nuk u ndryshua**; u shtua vetëm fleta e
+udhëzimit për punonjësit (1 faqe A4), e ndërtuar nga `tools/build_handwriting_guide.py`.
