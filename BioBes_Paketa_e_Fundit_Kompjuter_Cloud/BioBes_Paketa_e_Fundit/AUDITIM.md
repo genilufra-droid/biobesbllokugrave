@@ -730,3 +730,46 @@ formulë SUM dhe **asnjë qelizë e dyfishuar**, dimensioni i saktë i kolonave,
 kryet i fiksuar + autofilter, kontrolli i cilësisë në tabelë, shënimet e pranishme.
 
 **Verifikimi:** `npm test` → **25 suite, 193 teste, zero dështime**.
+
+---
+
+## 7.19 Rregullim: Excel-i hapej me "We found a problem with some content"
+
+**Simptoma (raportuar në prodhim):** skedari i shkarkuar hapej vetëm pas
+*"We found a problem with some content in 'BioBes_raportet_….xlsx'. Do you want
+us to try to recover as much as we can?"*
+
+**Shkaku — dy gabime reale, të dyja të miat:**
+
+1. **Radha e elementeve në `<worksheet>` ishte e gabuar.** Schema OOXML (dhe
+   Excel-i) kërkon `autoFilter` PARA `mergeCells`, dhe `conditionalFormatting`
+   pas tyre. Kodi im i shkruante `mergeCells` → `autoFilter` → `pageMargins`,
+   që është e pavlefshme. LibreOffice dhe Google Sheets janë tolerantë, ndaj
+   testet e mia nuk e kapën; Excel-i nuk është.
+2. **Radha në `<styleSheet>`:** `dxfs` duhet të vijë PAS `cellStyles` dhe PARA
+   `tableStyles`, sipas `CT_Stylesheet`. Kodi e kishte `dxfs` para `cellStyles`.
+
+**Rregullimi:**
+
+- `<autoFilter>` kaloi para `mergeCells`; `conditionalFormatting` pas tyre.
+- `stylesXml()` u rishkrua i plotë sipas radhës së schema-s:
+  `numFmts → fonts → fills → borders → cellStyleXfs → cellXfs → cellStyles →
+  dxfs → tableStyles`.
+- U shtua `<tableStyles>` dhe `wrapText` në `alignment` (atribut, jo fëmijë).
+
+**Raportet tani janë të veçanta** (siç u kërkua): pesë butona — Prodhimi,
+Paketimet, Orët, Stoku, Peshimet — secili një skedar Excel me një fletë.
+Butoni **“Të gjitha”** mban variantin me 5 fletë. **CSV-t u hoqën** nga faqja
+e raporteve.
+
+**Testet — 4 të reja që kapin pikërisht këtë klasë gabimi
+(`report_excel_pro.test.js`, 9 → 13):**
+
+- radha e elementeve në `<worksheet>` i bindet schemës (për të 5 fletët);
+- radha në `<styleSheet>`, plus `count`-et që përputhen me përmbajtjen;
+- çdo stil `s="N"` i referuar ekziston në `cellXfs`;
+- pesë raportet individuale: një skedar, një fletë, radhë e saktë.
+
+Gabimi u riprodhua qëllimisht gjatë zhvillimit: me radhën e vjetër testi jep
+*"radha e gabuar e elementeve → … (Excel e hedh poshtë skedarin)"*; me të
+rejtën, të 13 kalojnë. **`npm test` → 25 suite, 198 teste, zero dështime.**
