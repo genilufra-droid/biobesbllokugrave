@@ -1234,3 +1234,41 @@ toleranca, statuset, tab-i me link, dy fletët e Excel-it, PDF-ja reale me numë
 faqesh dhe ToUnicode). `reports_filters.test.js` u përditësua për tab-in e
 katërt. **`npm test` → 34 suite, 333 teste, zero dështime.**
 
+## Raportet: prodhimi kundrejt planit dhe arsyet e komenteve (kërkesa 20)
+
+Shiriti i raporteve tani ka **gjashtë tab-e**: *Përmbledhje · Kohëzgjatja e
+proceseve · Prodhimi kundrejt planit · Gjurmimi i punonjësit · Kontrolli plan ↔
+peshime · Komentet dhe arsyet*. Tab-et shtohen vetëm në **Raportet**; formulari i
+ditës nuk ndryshoi.
+
+**Prodhimi kundrejt planit.** Për çdo ditë, rreshtat e planit grupohen sipas
+njësisë dhe krahasohen `plani` me `prodhim`. Kg dhe copë nuk mblidhen kurrë
+bashkë. Diferenca dhe përqindja njihen vetëm kur të dyja palët ekzistojnë; kur
+plani mungon shkruhet *Pa plan*, kur prodhimi mungon *Pa prodhim* — asnjëherë 0.
+Statusi: brenda 99,5–100,5 % → *Realizuar*, nën → *Nën plan*, mbi → *Mbi plan*.
+Mblidhet edhe përmbledhja javore (ditë me plan, të realizuara, nën, mbi, pa
+prodhim, mungesa totale). Prova: `Nr. 010 → 14160/16000 = 88,5 %`,
+`Nr. 011 → 14200/14000 = 101,4 %`, `Nr. 012 → 4000/5000 copë = 80 %`;
+java 46 → `kg 28360/30000 (94,5 %)`, `copë 4000/5000`.
+
+**Komentet dhe arsyet.** Mblidhen komentet e ditës, të punonjësit dhe të
+produktit, më i riu i pari, dhe grupohen sipas arsyes: *Shënim pozitiv · Stok /
+lëndë e parë · Mungesë punëtorësh · Pritje / vonesë · Riparim / defekt · Cilësi /
+dendësi · Mot / energji · Plan i ndryshuar*, me *Tjetër* si fund. Teksti i
+komentit shfaqet gjithmonë siç është shkruar; një koment mund të bjerë në më shumë
+se një grup.
+
+**Excel.** Butoni *Të gjitha* kaloi në **11 fletë** (shtuar *Plani dhe prodhimi*
+dhe *Komentet*). Verifikuar me `openpyxl`: `=SUM(H10:H12)` për planin dhe
+`=SUM(I10:I12)` për prodhimin, kolona *%* dhe *Statusi* si tekst, blloku
+*PËRMBLEDHJE JAVORE* nën tabelë.
+
+**Gabim i vërtetë i gjetur nga testet.** Funksionet e reja u emërtuan `planHTML`
+dhe `commentsHTML`, të njëjtë me kartelat e formularit. Në JavaScript deklarata e
+fundit fiton, ndaj formulari filloi të thërriste renderuesin e raportit dhe
+dështoi me `records is not iterable`. U riemërtuan në `planReportHTML` dhe
+`commentsReportHTML`. Testi i vjetër i tab-eve priste katër tab-e dhe u
+përditësua për gjashtë.
+
+**Testet.** `plan_planning.test.js` — 12 teste të reja. **`npm test` → 35 suite,
+345 teste, zero dështime.**

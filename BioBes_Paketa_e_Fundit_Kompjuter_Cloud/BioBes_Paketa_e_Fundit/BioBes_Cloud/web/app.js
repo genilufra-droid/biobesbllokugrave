@@ -1233,21 +1233,23 @@ ${field('Dhoma',`<input class="input" data-combo="report-rooms" value="${esc(sta
 
 // Vetëm rezultatet: rifreskohen pa prekur filtrat, që kursori të mos hidhet.
 function reportTabsHTML(){
- const tabs=[['summary','Përmbledhje'],['duration','Kohëzgjatja e proceseve'],['tracking','Gjurmimi i punonjësit'],['check','Kontrolli plan ↔ peshime']];
+ const tabs=[['summary','Përmbledhje'],['duration','Kohëzgjatja e proceseve'],['plan','Prodhimi kundrejt planit'],['tracking','Gjurmimi i punonjësit'],['check','Kontrolli plan ↔ peshime'],['comments','Komentet dhe arsyet']];
  return `<div class="tab-line" role="tablist">${tabs.map(([id,label])=>`<button class="pill-tab ${state.report.tab===id?'active':''}" role="tab" aria-selected="${state.report.tab===id}" data-action="report-tab" data-tab="${id}">${label}</button>`).join('')}</div>`;
 }
 // Shiriti i shkarkimit: i njëjtë në çdo tab, që raporti të mos "humbë" butonat
 // kur përdoruesi kalon te kohëzgjatja ose gjurmimi.
 function reportExportBar(count){
  if(!count)return '';
- const kinds=[['products','Prodhimi','Sasitë e prodhuara sipas produktit'],['packages','Paketimet','Ambalazhet e përdorura'],['hours','Orët','Orët e punës sipas punonjësit'],['stock','Stoku','Pesha e marrë nga stoku'],['weights','Peshimet','Totalet e tabelave të peshimit'],['duration','Kohëzgjatja','Minutat e procesit sipas produktit'],['tracking','Gjurmimi','Kur ka punuar punonjësi dhe në cilën dhomë'],['check','Kontrolli','Plani kundrejt tabelave të peshimit'],['day','Fleta e ditës','Një rresht për formular: kreu, produktet, orët, peshimi']];
+ const kinds=[['products','Prodhimi','Sasitë e prodhuara sipas produktit'],['packages','Paketimet','Ambalazhet e përdorura'],['hours','Orët','Orët e punës sipas punonjësit'],['stock','Stoku','Pesha e marrë nga stoku'],['weights','Peshimet','Totalet e tabelave të peshimit'],['duration','Kohëzgjatja','Minutat e procesit sipas produktit'],['tracking','Gjurmimi','Kur ka punuar punonjësi dhe në cilën dhomë'],['check','Kontrolli','Plani kundrejt tabelave të peshimit'],['day','Fleta e ditës','Një rresht për formular: kreu, produktet, orët, peshimi'],['plan','Plani','Prodhimi kundrejt planit, me përmbledhje javore'],['comments','Komentet','Komentet dhe arsyet e ditëve']];
  const buttons=kinds.map(([value,label,title])=>`<button class="btn btn-small" data-action="export-report-xlsx" data-type="${value}" title="${title} · Excel">${icon('download',13)} ${label}</button>`).join('');
- return `<div class="list-tools"><div><span class="eyebrow">Shkarko</span></div><div class="report-actions"><span class="small-note">Excel:</span>${buttons}<button class="btn btn-small btn-soft" data-action="export-day-pdf" title="Fleta e ditës — një faqe për çdo formular, PDF">${icon('file',13)} Fleta e ditës (PDF)</button><button class="btn btn-primary btn-small" data-action="export-report-pro" title="Të gjitha raportet në një skedar, 9 fletë">${icon('download',13)} Të gjitha</button></div></div>`;
+ return `<div class="list-tools"><div><span class="eyebrow">Shkarko</span></div><div class="report-actions"><span class="small-note">Excel:</span>${buttons}<button class="btn btn-small btn-soft" data-action="export-day-pdf" title="Fleta e ditës — një faqe për çdo formular, PDF">${icon('file',13)} Fleta e ditës (PDF)</button><button class="btn btn-primary btn-small" data-action="export-report-pro" title="Të gjitha raportet në një skedar, 11 fletë">${icon('download',13)} Të gjitha</button></div></div>`;
 }
 function reportResultsHTML(){const rs=reportRecords(),m=metrics(rs,state.report.product),products=allProducts(),invalid=state.report.from&&state.report.to&&state.report.from>state.report.to;const prod=m.products.map(x=>[x.product,x.packaging,fmt(x.qty),x.unit,String(x.records.size)]),packs=m.packageCounts.map(x=>[x.packaging,fmt(x.count),String(x.records.size)]),staff=m.employees.map(x=>[x.name,fmt(roundHoursTotal(x.hours)),String(x.records.size)]),stock=m.stock.map(x=>[x.product,fmt(x.kg),'kg',fmt(x.bags),String(x.rows)]),weightRows=m.tables.map(x=>[formatDate(x.date),x.nr,String(x.group),x.product,x.source,...['bags','kg','packaging'].map(k=>x.totals.seen[k]?fmt(x.totals[k]):'—'),reportNetLabel(x.net),reportNetNotes(x.net)]);const tab=state.report.tab||'summary',bar=reportExportBar(rs.length);
  if(tab==='duration')return reportTabsHTML()+bar+durationHTML(rs);
  if(tab==='tracking')return reportTabsHTML()+bar+trackingHTML(rs);
  if(tab==='check')return reportTabsHTML()+bar+planCheckHTML(rs);
+ if(tab==='plan')return reportTabsHTML()+bar+planReportHTML(rs);
+ if(tab==='comments')return reportTabsHTML()+bar+commentsReportHTML(rs);
  return reportTabsHTML()+bar+`<div class="stat-grid">${stat('Formularë',String(rs.length),'','Sipas datave të zgjedhura','file')}${stat('Prodhim i regjistruar',fmt(m.producedKg),'kg','Vetëm sasitë e prodhuara në kg','box')}${stat('Orë pune (rrumb.)',fmt(roundHoursTotal(m.hours)),'orë','Për gjithë ditët e filtruara','clock')}${stat('Marrë nga stoku',fmt(m.stockKg),'kg','Vetëm peshime të shënuara si stok','stack')}</div>${m.unknownKg||m.stockMissingKg?`<div class="notice">${icon('alert',15)}<span>${m.unknownKg?`${fmt(m.unknownKg)} kg pa burim.`:''} ${m.stockMissingKg?`${m.stockMissingKg} rreshta pa KG.`:''}</span></div>`:''}${reportExportBar(rs.length)}<div class="report-grid">${attendanceHTML()}${timecardHTML(rs)}<div class="card"><div class="card-head"><div><h3>Prodhimi sipas produktit</h3><p>Sasitë e prodhuara, të ndara sipas njësisë</p></div></div>${reportTable(['Produkti','Paketimi','Sasia','Njësia','Formularë'],prod)}</div><div class="card"><div class="card-head"><div><h3>Paketimet e përdorura</h3><p>Numri i ambalazheve, i futur veçmas në formular</p></div></div>${reportTable(['Paketimi','Nr. ambalazheve','Formularë'],packs)}</div><div class="card"><div class="card-head"><div><h3>Orët e punës</h3></div></div>${reportTable(['Punonjësi','Orë (rrumb.)','Formularë'],staff)}</div><div class="card"><div class="card-head"><div><h3>Marrjet nga stoku</h3><p>Vetëm peshimet e shënuara si stok</p></div></div>${reportTable(['Produkti','Pesha','Njësia','Thasë','Rreshta'],stock)}</div><div class="card report-wide"><div class="card-head"><div><h3>Totalet e tabelave të peshimit</h3></div></div><div class="small-note" style="padding:0 16px 10px">Përdoret Shuma e shënuar; nëse mungon, llogaritet nga KG − ambalazhi. Kur ambalazhi është bosh, duhet Shuma e shkruar. Mospërputhjet shënohen për kontroll.</div>${reportTable(['Data','Nr.','Peshimi','Produkti','Burimi','Σ thasë','Σ KG','Σ ambalazhi','Σ shuma','Kontrolli'],weightRows)}</div></div>`}
 
 
@@ -3354,6 +3356,189 @@ function xlHoursSheet(m){
   };
 }
 // Fleta e gjashtë: kohëzgjatja e proceseve (minutat e shkruara në formular).
+// ---- Prodhimi kundrejt planit (ditë dhe javë) -------------------------------
+// Formulari shkruan planin (Sasia e porositur) dhe prodhimin (Sasia e prodhuar).
+// Ky raport i krahason ditë për ditë dhe javë për javë, vetëm për njësi të
+// njëjta — nuk mblidhen kg me copë.
+const planPct=(produced,planned)=>planned>0?Math.round(produced/planned*1000)/10:null;
+function planDayRows(records){
+ const rows=[];
+ for(const r of records){
+  const groups=new Map();
+  for(const p of r.plan||[]){
+   if(!nonempty(p.product))continue;
+   const unit=str(p.unit)||'';
+   const key=fold(unit);
+   const v=groups.get(key)||{unit,planned:0,produced:0,hasPlanned:false,hasProduced:false,products:[]};
+   const pl=num(p.planned),pr=num(p.actual);
+   if(pl!==null&&!Number.isNaN(pl)&&pl>=0){v.planned+=pl;v.hasPlanned=true}
+   if(pr!==null&&!Number.isNaN(pr)&&pr>=0){v.produced+=pr;v.hasProduced=true}
+   v.products.push(p.product);
+   groups.set(key,v);
+  }
+  for(const v of groups.values()){
+   const diff=v.hasPlanned&&v.hasProduced?Math.round((v.produced-v.planned)*1000)/1000:null;
+   rows.push({id:r.id,nr:r.nr,date:r.date,week:weekNumber(r.date),room:r.room,responsible:str(r.responsible?.name),
+    products:v.products.join(', '),unit:v.unit||'—',
+    planned:v.hasPlanned?v.planned:null,produced:v.hasProduced?v.produced:null,
+    diff,pct:planPct(v.produced,v.planned)});
+  }
+ }
+ return rows.sort((a,b)=>a.date.localeCompare(b.date)||str(a.nr).localeCompare(str(b.nr)));
+}
+// Përmbledhje javore: e njëjta njësi, e njëjta javë. Vetëm rreshtat me plan.
+function planWeekRows(dayRows){
+ const map=new Map();
+ for(const x of dayRows){
+  if(x.planned===null&&x.produced===null)continue;
+  const key=`${x.week}|${fold(x.unit)}`;
+  const v=map.get(key)||{week:x.week,unit:x.unit,planned:0,produced:0,records:new Set(),short:0,over:0};
+  v.planned+=x.planned||0;v.produced+=x.produced||0;v.records.add(x.nr);
+  if(x.diff!==null&&x.diff<0)v.short++;
+  if(x.diff!==null&&x.diff>0)v.over++;
+  map.set(key,v);
+ }
+ return [...map.values()].map(v=>({...v,count:v.records.size,
+   diff:Math.round((v.produced-v.planned)*1000)/1000,pct:planPct(v.produced,v.planned)}))
+  .sort((a,b)=>(a.week??0)-(b.week??0)||a.unit.localeCompare(b.unit));
+}
+function planSummary(dayRows){
+ const s={rows:dayRows.length,withPlan:0,reached:0,below:0,above:0,noProduction:0,shortTotal:0};
+ for(const x of dayRows){
+  if(x.planned===null)continue;
+  s.withPlan++;
+  if(x.pct===null||x.produced===null){s.noProduction++;continue}
+  if(x.pct>=99.5&&x.pct<=100.5)s.reached++;
+  else if(x.pct<99.5){s.below++;s.shortTotal+=Math.max(0,(x.planned||0)-(x.produced||0))}
+  else s.above++;
+ }
+ return s;
+}
+function planStatus(x){
+ if(x.planned===null)return {label:'Pa plan',tag:'warn'};
+ if(x.produced===null)return {label:'Pa prodhim',tag:'warn'};
+ if(x.pct===null)return {label:'—',tag:''};
+ if(x.pct>=99.5&&x.pct<=100.5)return {label:'Realizuar',tag:'good'};
+ return x.pct<99.5?{label:'Nën plan',tag:'bad'}:{label:'Mbi plan',tag:'warn'};
+}
+function planReportHTML(rs){
+ const day=planDayRows(rs),week=planWeekRows(day),sum=planSummary(day);
+ if(!day.length)return `<div class="card report-wide"><div class="card-head"><div><h3>Prodhimi kundrejt planit</h3><p>Sasia e planit kundrejt sasisë së prodhuar.</p></div></div><div class="card-body"><div class="mini-empty">Nuk ka rreshta plani për këtë përzgjedhje.</div></div></div>`;
+ const dayRows=day.map(x=>{
+  const st=planStatus(x);
+  return [formatDate(x.date),x.nr,x.products,x.unit,
+   x.planned===null?'—':fmt(x.planned),x.produced===null?'—':fmt(x.produced),
+   x.diff===null?'—':`${x.diff>0?'+':x.diff<0?'−':''}${fmt(Math.abs(x.diff))}`,
+   x.pct===null?'—':`${x.pct>100?'+':''}${fmt(x.pct,1)}%`,
+   `<span class="tag ${st.tag}">${st.label}</span>`,recordLink(x,'Hap')];
+ });
+ const weekRows=week.map(x=>[x.week?`Java ${x.week}`:'—',x.unit,fmt(x.planned),fmt(x.produced),
+  `${x.diff>0?'+':x.diff<0?'−':''}${fmt(Math.abs(x.diff))}`,x.pct===null?'—':`${fmt(x.pct,1)}%`,String(x.count)]);
+ const strip=`<div class="stat-grid">${stat('Rreshta me plan',String(sum.withPlan),'','Vetëm rreshtat që kanë sasi plani','file')}${stat('Realizuar',String(sum.reached),'','Brenda 99,5–100,5% të planit','check')}${stat('Nën plan',String(sum.below),'','Rreshta që mbetën nën plan','alert')}${stat('Mbi plan',String(sum.above),'','Rreshta që kaluan planin','box')}</div>`;
+ const notes=[];
+ if(sum.noProduction)notes.push(`${sum.noProduction} rreshta kanë plan por nuk kanë sasi të prodhuar — shiko formularin.`);
+ notes.push('Krahasohen vetëm rreshtat me të njëjtën njësi: kg me kg, copë me copë.');
+ return `${strip}<div class="card report-wide"><div class="card-head"><div><h3>Prodhimi kundrejt planit</h3><p>Sasia e planit kundrejt sasisë së prodhuar, ditë për ditë; “Realizuar” është brenda 99,5–100,5%.</p></div><span class="tag">${day.length} rreshta</span></div><div class="card-body">${reportRichTable(['Data','Nr.','Produkti','Njësia','Plani','Prodhimi','Diferenca','%','Statusi',''],dayRows)}${notes.length?`<div class="tip">${icon('info',15)}<span>${notes.join(' ')}</span></div>`:''}</div></div><div class="card report-wide" style="margin-top:16px"><div class="card-head"><div><h3>Përmbledhje javore</h3><p>E njëjta njësi, e mbledhur për javë — se si shkon muaji, jo vetëm dita.</p></div><span class="tag">${week.length} javë</span></div><div class="card-body">${reportTable(['Java','Njësia','Plani','Prodhimi','Diferenca','%','Formularë'],weekRows)}</div></div>`;
+}
+function xlPlanSheet(){
+ const day=planDayRows(reportRecords()),week=planWeekRows(day),sum=planSummary(day);
+ return {
+  name:'Plani dhe prodhimi',title:'PRODHIMI KUNDREJT PLANIT',
+  subtitle:'Sasia e planit kundrejt sasisë së prodhuar, ditë për ditë (vetëm njësi të njëjta)',
+  meta:xlMetaExtra(reportRecords().length),freezeRow:5,autoFilter:true,landscape:true,
+  columns:[{h:'Nr.',w:6,align:'c'},{h:'Data',w:12,type:'date'},{h:'Java',w:8,align:'c'},
+   {h:'Formulari',w:10,align:'c'},{h:'Punonjësi',w:24},{h:'Produkti',w:30},{h:'Njësia',w:9,align:'c'},
+   {h:'Plani',w:12,type:'d2'},{h:'Prodhimi',w:12,type:'d2'},{h:'Diferenca',w:12,type:'d2'},
+   {h:'%',w:9,type:'d2'},{h:'Statusi',w:14}],
+  rows:day.map((x,i)=>[i+1,x.date,x.week,x.nr,x.responsible||'—',x.products,x.unit,
+   x.planned===null?'':x.planned,x.produced===null?'':x.produced,x.diff===null?'':x.diff,
+   x.pct===null?'':x.pct,planStatus(x).label]),
+  total:{label:'TOTALI',sumCols:[7,8],values:totalValues({
+   7:Math.round(day.reduce((n,x)=>n+(x.planned||0),0)*100)/100,
+   8:Math.round(day.reduce((n,x)=>n+(x.produced||0),0)*100)/100},12)},
+  extra:[{title:'PËRMBLEDHJE JAVORE',
+   columns:[{h:'Java',w:10,align:'c'},{h:'Njësia',w:10,align:'c'},{h:'Plani',w:14,type:'d2'},
+    {h:'Prodhimi',w:14,type:'d2'},{h:'Diferenca',w:14,type:'d2'},{h:'%',w:10,type:'d2'},{h:'Formularë',w:12,align:'c'}],
+   rows:week.map(x=>[x.week?`Java ${x.week}`:'—',x.unit,x.planned,x.produced,x.diff,
+    x.pct===null?'':x.pct,x.count])}],
+  notes:['Diferenca = Prodhimi − Plani. Vlera negative do të thotë që prodhimi mbeti nën plan.',
+   'Krahasohen vetëm rreshtat me të njëjtën njësi; kg dhe copë nuk mblidhen bashkë.',
+   `Përmbledhje: ${sum.reached} rreshta të realizuar, ${sum.below} nën plan, ${sum.above} mbi plan.`],
+ };
+}
+
+// ---- Arsyet e ditëve të dobëta (nga komentet) --------------------------------
+// Komentet e formularit ("Nuk u mbajt 8 orë për shkak të stokut", "mungesa e dy
+// punëtorëve") janë arsyeja e vërtetë e një dite të dobët. Këtu mblidhen dhe
+// grupohen sipas fjalëve kyçe — pa hamendje, sepse çdo koment shfaqet fjalë për
+// fjalë dhe numërimi bëhet vetëm mbi fjalë që ndodhen në tekst.
+const COMMENT_REASONS=[
+ ['Shënim pozitiv',/mir[ëe]|shpejt|pa problem|n[ëe] rregull|korrekt/i],
+ ['Stok / lëndë e parë',/stok|l[ëe]nd|material/i],
+ ['Mungesë punëtorësh',/munges|pa pun[ëe]tor|pun[ëe]tor[ëe]sh|staf/i],
+ ['Pritje / vonesë',/pritj|von|ndal|vones/i],
+ ['Riparim / defekt',/riparim|defekt|prish|mir[ëe]mbajtj/i],
+ ['Cilësi / dendësi',/dend[ëe]si|cil[ëe]si|lag[ëe]sht|cilesi/i],
+ ['Mot / energji',/mot|shi|energji|rrym/i],
+ ['Plan i ndryshuar',/plan|porosi|klient/i],
+];
+// Komentet e formularit dhe të punonjësve, me atë që dihet për ditën.
+function commentRows(records){
+ const out=[];
+ const push=(x)=>{if(nonempty(x.text))out.push(x)};
+ for(const r of records){
+  const base={id:r.id,nr:r.nr,date:r.date,week:weekNumber(r.date),room:r.room,responsible:str(r.responsible?.name)};
+  push({...base,kind:'Dita',who:str(r.responsible?.name)||'—',text:str(r.comments)});
+  for(const e of r.employees||[])push({...base,kind:'Punonjësi',who:str(e.name)||'—',text:str(e.comment)});
+  for(const p of r.plan||[])push({...base,kind:'Produkti',who:str(p.product)||'—',text:str(p.comment)});
+ }
+ return out.sort((a,b)=>b.date.localeCompare(a.date));
+}
+function commentReason(text){
+ const hits=COMMENT_REASONS.filter(([,re])=>re.test(str(text))).map(([label])=>label);
+ return hits.length?hits:['Tjetër'];
+}
+function commentSummary(rows){
+ const map=new Map();
+ for(const row of rows){
+  const hours=null;
+  for(const label of commentReason(row.text)){
+   const v=map.get(label)||{label,count:0,records:new Set(),examples:[]};
+   v.count++;v.records.add(row.nr);
+   if(v.examples.length<3)v.examples.push({nr:row.nr,text:row.text});
+   map.set(label,v);
+  }
+ }
+ return [...map.values()].sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label,'sq'));
+}
+function commentsReportHTML(rs){
+ const rows=commentRows(rs),sum=commentSummary(rows);
+ if(!rows.length)return `<div class="card report-wide"><div class="card-head"><div><h3>Komentet dhe arsyet</h3><p>Komente që shpjegojnë pse dita shkoi dobët.</p></div></div><div class="card-body"><div class="mini-empty">Nuk ka komente për këtë përzgjedhje. Komentet shkruhen te kartela «Komente ditore» dhe te komentet e punonjësve.</div></div></div>`;
+ const strip=`<div class="stat-grid">${stat('Komente',String(rows.length),'','Të gjitha komentet jo bosh','file')}${stat('Arsye të njohura',String(sum.filter(x=>x.label!=='Tjetër').length),'','Grupe me fjalë kyçe','alert')}${stat('Formularë',String(new Set(rows.map(x=>x.nr)).size),'','Formularë me komente','book')}${stat('Tjetër',String((sum.find(x=>x.label==='Tjetër')||{}).count||0),'','Komente pa fjalë kyçe','info')}</div>`;
+ const groups=sum.map(x=>[x.label,String(x.count),String(x.records.size),
+  x.examples.map(e=>`Nr. ${esc(e.nr)}: “${esc(str(e.text).slice(0,120))}”`).join('<br>')]);
+ const table=rows.map(x=>[formatDate(x.date),x.nr,x.kind,x.who,str(x.text),commentReason(x.text).join(', '),recordLink(x,'Hap')]);
+ return `${strip}<div class="card report-wide"><div class="card-head"><div><h3>Komentet dhe arsyet</h3><p>Grupet dalin vetëm nga fjalë që ndodhen në koment; komenti mbetet fjalë për fjalë.</p></div><span class="tag">${rows.length} komente</span></div><div class="card-body">${reportRichTable(['Arsyeja','Sa herë','Formularë','Shembuj'],groups)}<div style="margin-top:18px">${reportRichTable(['Data','Nr.','Ku','Kush','Komenti','Arsyeja',''],table)}</div></div></div>`;
+}
+function xlCommentsSheet(){
+ const rows=commentRows(reportRecords()),sum=commentSummary(rows);
+ return {
+  name:'Komentet',title:'KOMENTET DHE ARSYET',
+  subtitle:'Komentet e formularit, të punonjësve dhe të produkteve — me arsyen e njohur',
+  meta:xlMetaExtra(reportRecords().length),freezeRow:5,autoFilter:true,landscape:true,
+  columns:[{h:'Nr.',w:6,align:'c'},{h:'Data',w:12,type:'date'},{h:'Java',w:8,align:'c'},
+   {h:'Formulari',w:10,align:'c'},{h:'Ku',w:12},{h:'Kush',w:24},{h:'Komenti',w:60},
+   {h:'Arsyeja',w:26},{h:'Dhoma',w:18}],
+  rows:rows.map((x,i)=>[i+1,x.date,x.week,x.nr,x.kind,x.who,str(x.text),commentReason(x.text).join(', '),x.room||'—']),
+  total:{label:'GJITHSEJ',values:totalValues({},9)},
+  extra:[{title:'PËRMBLEDHJE SIPAS ARSYES',
+   columns:[{h:'Arsyeja',w:30},{h:'Sa herë',w:10,align:'c'},{h:'Formularë',w:12,align:'c'},{h:'Shembull',w:70}],
+   rows:sum.map(x=>[x.label,x.count,x.records.size,x.examples[0]?`Nr. ${x.examples[0].nr}: ${str(x.examples[0].text).slice(0,160)}`:''])}],
+  notes:['Komenti shfaqet fjalë për fjalë; arsyeja njihet vetëm kur fjala kyçe ndodhet në tekst.',
+   'Grupet: stok/lëndë, mungesë punëtorësh, pritje/vonesë, riparim/defekt, cilësi/dendësi, mot/energji, plan i ndryshuar.'],
+ };
+}
+
 // ---- Kontrolli plan ↔ peshime ----------------------------------------------
 // Formulari shkruan sasinë e planit (p.sh. 14.160 kg) dhe, veç, tabelat e
 // peshimit. Deri tani askush nuk i krahasonte: mospërputhja dukej vetëm me sy
@@ -3854,11 +4039,11 @@ function templateReturnHTML(){
  return `<div class="card template-return"><div class="card-head"><div class="section-heading"><span class="section-index">${icon('doc',15)}</span><div><h2>Shablloni i plotësuar kthehet këtu</h2><p>Shkarko shabllonin, plotësoje në Excel dhe ngarko skedarin: sistemi e lexon dhe e kontrollon sërish.</p></div></div></div><div class="card-body"><div class="inline-buttons"><button class="btn btn-primary" data-action="template-download">${icon('download',15)} Shkarko shabllonin Excel</button><button class="btn" data-action="template-upload">${icon('upload',15)} Ngarko shabllonin e plotësuar</button></div><p class="small-note" style="margin:10px 0 0">Skedari pranon vetëm formën e BioBes: formulari i ditës, plani, punonjësit dhe peshimet. Nuk dërgohet askund — lexohet në këtë pajisje.</p></div></div>`;
 }
 function exportReportXlsx(type){
-  const titles={products:'Prodhimi',packages:'Paketimet',hours:'Orët',stock:'Stoku',weights:'Peshimet',duration:'Kohëzgjatja',tracking:'Gjurmimi',check:'Kontrolli',day:'Fleta e ditës'};
+  const titles={products:'Prodhimi',packages:'Paketimet',hours:'Orët',stock:'Stoku',weights:'Peshimet',duration:'Kohëzgjatja',tracking:'Gjurmimi',check:'Kontrolli',day:'Fleta e ditës',plan:'Plani',comments:'Komentet'};
   try{
     const rs=reportRecords(),m=metrics(rs,state.report.product);
     if(!rs.length){toast('Nuk ka formularë për periudhën e zgjedhur.','warn');return}
-    const build={products:()=>xlProductsSheet(m),packages:()=>xlPackagesSheet(m),hours:()=>xlHoursSheet(m),stock:()=>xlStockSheet(m),weights:()=>xlWeightsSheet(m),duration:()=>xlDurationSheet(),tracking:()=>xlTrackingSheet(state.report.employee),check:()=>xlPlanCheckSheet(),day:()=>xlDaySheet(reportRecords())};
+    const build={products:()=>xlProductsSheet(m),packages:()=>xlPackagesSheet(m),hours:()=>xlHoursSheet(m),stock:()=>xlStockSheet(m),weights:()=>xlWeightsSheet(m),duration:()=>xlDurationSheet(),tracking:()=>xlTrackingSheet(state.report.employee),check:()=>xlPlanCheckSheet(),day:()=>xlDaySheet(reportRecords()),plan:()=>xlPlanSheet(),comments:()=>xlCommentsSheet()};
     const sheet=(build[type]||build.products)();
     const bytes=xlsxBytes({title:`BioBes — ${sheet.title}`,sheets:[sheet]});
     const stamp=new Date().toISOString().slice(0,10);
@@ -3873,7 +4058,7 @@ async function exportReportExcelPro(){
     const rs=reportRecords(),m=metrics(rs,state.report.product);
     if(!rs.length){toast('Nuk ka formularë për periudhën e zgjedhur.','warn');return}
     toast('Po përgatitet Excel-i profesional…');
-    const sheets=[xlSummarySheet(rs,m),xlProductsSheet(m),xlPackagesSheet(m),xlHoursSheet(m),xlWeightsSheet(m),xlDurationSheet(),xlTrackingSheet(state.report.employee),xlPlanCheckSheet(),xlDaySheet(rs)];
+    const sheets=[xlSummarySheet(rs,m),xlProductsSheet(m),xlPackagesSheet(m),xlHoursSheet(m),xlWeightsSheet(m),xlDurationSheet(),xlTrackingSheet(state.report.employee),xlPlanCheckSheet(),xlDaySheet(rs),xlPlanSheet(),xlCommentsSheet()];
     const bytes=xlsxBytes({title:'BioBes — Raportet',sheets});
     const stamp=new Date().toISOString().slice(0,10);
     download(`BioBes_raportet_${stamp}.xlsx`,bytes,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
