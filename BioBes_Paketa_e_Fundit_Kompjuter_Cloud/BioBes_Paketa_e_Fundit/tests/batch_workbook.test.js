@@ -83,10 +83,13 @@ test('writes twelve staff rows into the shifted grid of the approved model', asy
     Object.keys(sh).filter((key) => /^C\d+$/.test(key) && typeof sh[key].v === 'string' && sh[key].v.startsWith('Punonjësi ')).length,
     12, 'no staff row is written outside the twelve-row block');
   assert.equal(sh.A24.v, '3.   PESHAT', 'the weighing caption moved down with the grid');
-  assert.equal(sh.A51.v, 25, 'front page still ends with weighing row 25');
-  assert.match(sh.H52.f, /SUM\(H27:H51\)/, 'front totals cover the shifted grid');
+  // Që nga #34 rreshtat bosh të peshimit nuk shfaqen: numri 25 shkon te rreshti
+  // i fundit i përdorur (A52/A86), dhe totalet zënë po atë rresht (52/86).
+  assert.equal(sh.A52.v, 'SH', 'front totals sit right under the used rows');
+  assert.match(sh.B52.f, /SUM\(B27:B51\)/, 'front totals cover the shifted grid');
   assert.match(sh.B86.f, /SUM\(B61:B85\)/, 'back totals cover the shifted grid');
-  assert.equal(sh.A85.v, 25, 'back page ends with weighing row 25');
+  assert.equal(sh.A86.v, 'SH', 'back totals sit right under the used rows');
+  assert.match(sh.B86.f, /SUM\(B61:B85\)/, 'back totals cover the shifted grid');
   assert.match(String(sh.E55.v ?? sh.E55.f ?? ''), /007|E2/, 'back page mirrors the form number');
   const area = out.Workbook.Names.filter((n) => n.Name === '_xlnm.Print_Area');
   assert.match(area[0].Ref, /\$A\$1:\$AC\$53/, 'front print area');

@@ -961,4 +961,39 @@ pa ruajtje; skedari i gabuar.
 skedar u rikthye në aplikacion përmes `readExcelFile` → `batchResultsFromWorkbook`
 dhe dha regjistrimin e plotë, me zero paralajmërime.
 
-**`npm test` → 28 suite, 260 teste, zero dështime.**
+**Gjetje gjatë bashkimit me `main`: dyshim që doli i vërtetë.** `main` kishte
+7 suite të kuqe pas PR #34 (pushimi, `planSchema` 2, pesha neto). Pjesa më e
+madhe ishin teste të vjetra që nuk njiheshin me rregullat e reja, por njëra
+ishte gabim në aplikacion, jo në test:
+
+> Formulari i letrës shkruan `08:00–16:00` dhe `Orë gjithsej 8`. Leximi i AI-së
+> nuk e mbush `breakMinutes`, prandaj `hoursFor` zbriste pushimin e
+> parazgjedhur 60 minuta: çdo formular i saktë kthehej në **7 orë** dhe
+> shfaqte qortimin *"Totali i shkruar i orëve (8) nuk përputhet… (7)"*. Formulari
+> me pushim 30 minuta kthehej në 7 orë kur duhej 7,5.
+
+Rregullimi: pushimi i lexuar respektohet; kur formulari nuk e shkruan, nxirret
+**një herë për ditën** nga diferenca që formulari vetë e tregon —
+`(Σ intervali bruto − totali i shtypur) × 60` — dhe vetëm kur është numër i
+plotë minutash brenda 0–1440. Pa total të lexuar, mbetet 60 minuta siç
+dokumentohet. Totali krahasohet tani mbi **minutat e sakta**, jo mbi orët e
+rrumbullakuara (7,25 ≠ 7). Rastet e provuara:
+
+| Formulari | Pushimi | Ora | Qortim |
+|---|---|---|---|
+| 08:00–16:00, total 8 | 0 | 8 | — |
+| 08:00–16:00, total 7,5 | 30 | 7,5 | — |
+| dy persona 08:00–16:00, total 16 | 0, 0 | 8, 8 | — |
+| pushim i shkruar 45, total 7,25 | 45 | 7,25 | — |
+| pa total | 60 (parazgjedhje) | 7 | — |
+| total i pamundur 10 për 8 orë | 60 | 7 | ✓ raportohet |
+| total 7,75 me pushim 30 | 30 | 7,5 | ✓ raportohet |
+
+Testet e vjetra u përditësuan vetëm aty ku rregulli i re ja ndryshon pritshmërinë
+(core_checks, timecard, timecard_ui, attendance, rows_layout, batch_workbook);
+`rows_layout` padiste me rreshta **bosh**, të cilët #34 nuk i shtyp më si faqe —
+tani rreshti i 26-të është i plotësuar realisht, që testi të provojë atë që
+pretendon. `ocr_p0_p1` u kthye te rasti origjinal dhe tani **e ruan** rregullimin.
+
+**`npm test` → 28 suite, 260 teste, zero dështime** (edhe pse `main` para këtij
+bashkimi kishte 7 suite të kuqe).
