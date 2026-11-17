@@ -18,7 +18,7 @@ const { test, run } = require('./test_runner.js');
 const dom = loadApp(null, `
 ;globalThis.__D = {
   state, db, blankRecord, normalizeRecord, processSummary, processRows, durationHTML, render,
-  fmtMinutesLabel, fmtUnitMinutes, reportRecords, metrics, xlDurationSheet, xlsxBytes,
+  fmtDuration, fmtUnitMinutes, reportRecords, metrics, xlDurationSheet, xlsxBytes,
 };`);
 const w = dom.window;
 const api = w.__D;
@@ -111,12 +111,14 @@ test('ndarja në përqindje i ndan minutat me totalin', () => {
   assert.equal(rows.find((x) => x.product === 'Mollë').share, 0);
 });
 
-test('formati i minutave: orë:minuta për totalin, minuta e dy dhjetore për njësinë', () => {
-  assert.equal(api.fmtMinutesLabel(360), '6:00 orë');
-  assert.equal(api.fmtMinutesLabel(150), '2:30 orë');
-  assert.equal(api.fmtMinutesLabel(45), '45 min');
-  assert.equal(api.fmtMinutesLabel(0), '0 min');
-  assert.equal(api.fmtMinutesLabel(null), '');
+test('formati i kohës: ditë e orë për totalin, minuta e dy dhjetore për njësinë', () => {
+  // Fusha e vjetër e minutave u hoq; tani koha shkruhet në ditë e orë.
+  assert.equal(api.fmtDuration(360), '6:00 orë');
+  assert.equal(api.fmtDuration(150), '2:30 orë');
+  assert.equal(api.fmtDuration(1500), '3 ditë 1:00 orë');
+  assert.equal(api.fmtDuration(45), '45 min');
+  assert.equal(api.fmtDuration(0), '0 min');
+  assert.equal(api.fmtDuration(null), '');
   assert.equal(api.fmtUnitMinutes(0.2521), '0,25');
   assert.equal(api.fmtUnitMinutes(0.3), '0,3');
 });
@@ -130,8 +132,8 @@ test('tab-i i kohëzgjatjes shfaq tabelën dhe njoftimin për rreshtat pa kohë'
   assert.match(text, /Kohëzgjatja e proceseve sipas produktit/);
   assert.match(text, /Saj Mali/);
   assert.match(text, /2:30 orë/, 'totali i Saj Malit');
-  assert.match(text, /3:30 orë/, 'totali i përgjithshëm 210 min');
-  assert.match(text, /1 rreshta plani nuk kanë minuta të shkruara/, 'njoftimi për rreshtin pa kohë');
+  assert.match(text, /3:30 orë/, 'totali i përgjithshëm 210 min, ditë pune 8 orë');
+  assert.match(text, /1 rreshta plani nuk kanë kohë të shkruar/, 'njoftimi për rreshtin pa kohë');
   assert.doesNotMatch(text, /Prodhimi sipas produktit/, 'tab-i i kohëzgjatjes nuk mbajt tabelat e përmbledhjes');
 });
 
@@ -153,19 +155,20 @@ test('Excel-i i kohëzgjatjes: kolonat, vlerat numerike dhe formula e totalit', 
   assert.equal(sheet.name, 'Kohëzgjatja');
   // Vargu vjen nga realm-i i jsdom-it, prandaj krahasohet si tekst JSON.
   assert.equal(JSON.stringify(sheet.columns.map((c) => c.h)), JSON.stringify([
-    'Nr.', 'Produkti', 'Paketimi', 'Minuta', 'Kohë / njësi (min)', 'Sasia',
+    'Nr.', 'Produkti', 'Paketimi', 'Kohëzgjatja', 'Minuta', 'Kohë / njësi (min)', 'Sasia',
     'Njësia', 'Rreshta', 'Pa kohë', 'Ndarja %',
   ]));
   const saj = sheet.rows.find((r) => r[1] === 'Saj Mali');
-  assert.equal(saj[3], 150, 'minutat si numër, jo tekst');
-  assert.equal(saj[5], 595);
-  assert.equal(saj[8], 0, 'pa rreshta pa kohë');
-  assert.equal(sheet.rows.find((r) => r[1] === 'Mollë')[8], 1);
-  // values[i] shfaqet te kolona i+1: Minuta është kolona 3, pra values[2].
-  assert.equal(sheet.total.values[2], 210);
-  assert.equal(sheet.total.values[3], 0.26, 'kohë për njësi: 210 min / 820 kg = 0,2561');
-  assert.equal(JSON.stringify(sheet.total.sumCols), '[3,5]', 'totali llogaritet me formulë mbi kolonat Minuta dhe Sasia');
-  assert.ok(sheet.notes.some((n) => /pa minuta/.test(n)), 'shënimi për rreshtat pa kohë mbetet në fletë');
+  assert.equal(saj[3], '2:30 orë', 'koha e lexueshme si ditë/orë');
+  assert.equal(saj[4], 150, 'minutat si numër, jo tekst');
+  assert.equal(saj[6], 595);
+  assert.equal(saj[9], 0, 'pa rreshta pa kohë');
+  assert.equal(sheet.rows.find((r) => r[1] === 'Mollë')[9], 1);
+  // values[i] shfaqet te kolona i+1: Minuta është kolona 4, pra values[3].
+  assert.equal(sheet.total.values[3], 210);
+  assert.equal(sheet.total.values[4], 0.26, 'kohë për njësi: 210 min / 820 kg = 0,2561');
+  assert.equal(JSON.stringify(sheet.total.sumCols), '[4,6]', 'totali llogaritet me formulë mbi kolonat Minuta dhe Sasia');
+  assert.ok(sheet.notes.some((n) => /pa kohë|nuk kanë kohë/.test(n)), 'shënimi për rreshtat pa kohë mbetet në fletë');
   const bytes = api.xlsxBytes({ title: 'BioBes', sheets: [sheet] });
   assert.ok((bytes.length || bytes.byteLength) > 2000, 'skedari xlsx ndërtohet');
 });
@@ -182,7 +185,7 @@ test('pa asnjë rresht me minuta, raporti nuk pretendon kohë zero', () => {
   api.state.route = 'reports';
   api.render();
   const text = w.document.querySelector('#report-results').textContent;
-  assert.match(text, /1 rreshta plani nuk kanë minuta/);
+  assert.match(text, /1 rreshta plani nuk kanë kohë të shkruar/);
   assert.doesNotMatch(text, /0 min\/njësi/);
 });
 

@@ -38,6 +38,117 @@ function formatDate(s){if(!dateValid(s))return '—';const [y,m,d]=s.split('-');
 function num(v){if(v===null||v===undefined||String(v).trim()==='')return null;const x=Number(String(v).trim().replace(',','.'));return Number.isFinite(x)?x:NaN}
 function fmt(v,digits=2){return new Intl.NumberFormat('sq-AL',{maximumFractionDigits:digits}).format(Number.isFinite(v)?v:0)}
 function fmtMaybe(v){return v===null?'—':fmt(v)}
+// ---- Ditë pune dhe kohëzgjatje në ditë/orë ----------------------------------
+// Sa orë ka një ditë pune vendoset nga përdoruesi (preferencë e pajisjes);
+// parazgjedhja 8 orë. Pa këtë, "2.5 ditë" nuk kthehet dot në orë.
+const WORKDAY_DEFAULT=480;
+function workdayMinutes(value){
+ const n=Number(value);
+ return Number.isFinite(n)&&n>=60&&n<=1440?Math.round(n):WORKDAY_DEFAULT;
+}
+// Sa orë ka dita e punës: preferencë e kësaj pajisje (localStorage), sepse
+// ruajtja në cloud pranon vetëm listat e katalogut — një cilësim atje do të
+// humbiste në heshtje. Default 8 orë.
+const WORKDAY_KEY='biobes-workday-minutes';
+function currentWorkday(){
+ try{return workdayMinutes(globalThis.localStorage?.getItem(WORKDAY_KEY))}catch(e){return WORKDAY_DEFAULT}
+}
+function saveWorkday(minutes){
+ const value=workdayMinutes(minutes);
+ try{globalThis.localStorage?.setItem(WORKDAY_KEY,String(value))}catch(e){}
+ return value;
+}
+// Sa është një ditë pune, si orë — për tekstet që e shpjegojnë bazen.
+function workdayLabel(workday=currentWorkday()){
+ const h=Math.floor(workday/60),m=workday%60;
+ return m?`${h}:${String(m).padStart(2,'0')} orë`:`${h} orë`;
+}
+// Njësitë që pranohen, të plota dhe të shkurtra.
+const DURATION_UNITS=[
+ [/^(ditë|dite|dit|d)$/,'day'],[/^(orë|ore|orësh|oresh|or|h)$/,'hour'],
+ [/^(minuta|minutë|minute|min|m)$/,'minute'],
+];
+const durationUnit=token=>{const t=token.trim();for(const [re,kind] of DURATION_UNITS)if(re.test(t))return kind;return null};
+// Formatuesi i vetëm: ditë kur janë të plota, orë:minuta për pjesën tjetër.
+// 1200 → "2 ditë 4:00 orë", 300 → "5:00 orë", 45 → "45 min", 0 → "0 min".
+function fmtDuration(mins,workday=currentWorkday()){
+ if(mins===null||mins===undefined||Number.isNaN(mins))return '';
+ const total=Math.round(Math.abs(mins)),days=Math.floor(total/workday),rest=total%workday;
+ if(!days&&!rest)return '0 min';
+ const h=Math.floor(rest/60),m=rest%60,clock=`${h}:${String(m).padStart(2,'0')}`;
+ if(!days)return rest<60?`${m} min`:`${clock} orë`;
+ return rest?`${days} ditë ${clock} orë`:`${days} ditë`;
+}
+// Një fushë e lirë: "2.5 ditë", "5 orë", "8h", "2d 4h", "90 min", "2 ditë e 4 orë".
+// Kthen minutat ose null — kur teksti nuk kuptohet, nuk hamendësohet.
+function durationMinutes(text,workday=currentWorkday()){
+ const base=str(text).trim().toLocaleLowerCase('sq').replace(/,/g,'.').replace(/\s+/g,' ');
+ if(!base)return null;
+ if(/^-/.test(base))return null; // negativ nuk është kohëzgjatje
+ if(/^\d+(?:\.\d+)?$/.test(base))return Math.round(Number(base)*60); // numër i vetëm = orë
+ const clean=base.replace(/\s+(?:e|dhe)\s+/g,' ').replace(/^e\s+|\s+e$/g,'');
+ const re=/(\d+(?:\.\d+)?)\s*([a-zë]+)/g;
+ let total=0,seen=false,m,last=0;
+ while((m=re.exec(clean))){
+  const n=Number(m[1]),kind=durationUnit(m[2]);
+  if(!Number.isFinite(n)||n<0||!kind)return null;
+  total+=kind==='day'?n*workday:kind==='hour'?n*60:n;
+  seen=true;last=re.lastIndex;
+ }
+ if(!seen||clean.slice(last).trim())return null;
+ return Math.round(total);
+}
+// Dy fusha (ditë + orë) → minutat; boshe të dyja = bosh (jo zero).
+// "1:30" pranohet si orë e minutë, "1.5" si orë dhjetore.
+function durationFromParts(days,hours,workday=currentWorkday()){
+ const d=str(days).trim(),h=str(hours).trim();
+ if(!d&&!h)return '';
+ const clock=h.match(/^(\d{1,3}):([0-5]\d)$/);
+ const dn=d?Number(d.replace(',','.')):0;
+ const hn=clock?Number(clock[1])+Number(clock[2])/60:(h?Number(h.replace(',','.')):0);
+ if(!Number.isFinite(dn)||!Number.isFinite(hn)||dn<0||hn<0)return null;
+ return String(Math.round(dn*workday+hn*60));
+}
+// Ndarja e minutave në dy fusha; boshe kur nuk ka vlerë.
+function durationParts(mins,workday=currentWorkday()){
+ const total=Number(mins);
+ if(!Number.isFinite(total)||total<0)return {days:'',hours:''};
+ const d=Math.floor(total/workday),rest=total%workday;
+ const h=Math.floor(rest/60),m=rest%60;
+ return {days:d?String(d):'',hours:rest?`${h}:${String(m).padStart(2,'0')}`:''};
+}
+// Dy fushat ditë+orë → minutat e ruajtura; parashikimi shfaqet menjëherë.
+// Kthimi i gabimit: fusha që nuk kuptohet nuk e prish vlerën e ruajtur.
+function syncDurationField(host){
+ const minutesBind=host.dataset.minutesBind;
+ const hidden=host.querySelector('input[data-bind]');
+ const daysEl=host.querySelector('[data-duration="days"]');
+ const hoursEl=host.querySelector('[data-duration="hours"]');
+ const hint=host.querySelector('[data-duration-hint]');
+ if(!minutesBind||!hidden)return;
+ const next=durationFromParts(daysEl?.value,hoursEl?.value);
+ if(next===null){
+  if(hint)hint.textContent='Nuk u kuptua: shkruaj numra, p.sh. 2 ditë dhe 4 orë.';
+  host.classList.add('duration-invalid');
+  return;
+ }
+ host.classList.remove('duration-invalid');
+ const minutes=next===''?'':String(Number(next));
+ setPath(state.draft,minutesBind,minutes);
+ hidden.value=minutes;
+ state.dirty=true;batchMarkChanged();
+ if(hint){
+  const workday=currentWorkday();
+  hint.textContent=minutes===''?`Shkruaj ditë dhe/ose orë (një ditë = ${workdayLabel(workday)}).`:`${fmtDuration(Number(minutes),workday)} · ${fmt(Number(minutes))} min`;
+ }
+}
+// "2.5 ditë" pranohet edhe si ditë dhjetore në fushën e ditëve.
+function durationDaysValue(minutes,workday=currentWorkday()){
+ const total=Number(minutes);
+ if(!Number.isFinite(total)||total<0)return '';
+ const d=total/workday;
+ return d?String(Math.round(d*100)/100):'';
+}
 function hoursFor(e){if(!/^\d\d:\d\d$/.test(e.start||'')||!/^\d\d:\d\d$/.test(e.end||''))return null;const [h1,m1]=e.start.split(':').map(Number),[h2,m2]=e.end.split(':').map(Number);if(h1>23||h2>23||m1>59||m2>59)return null;let a=h1*60+m1,b=h2*60+m2;if(b<a)b+=1440;const raw=e.breakMinutes===undefined||e.breakMinutes===null?'60':String(e.breakMinutes).trim();if(!/^\d{1,4}$/.test(raw))return null;const pause=Number(raw);if(pause>1440||pause>b-a)return null;return (b-a-pause)/60}
 // Round only aggregate hours, after adding exact minute-based employee durations.
 function roundHoursTotal(hours){if(!Number.isFinite(hours))return 0;const minutes=Math.round(hours*60);return Math.floor((minutes+30)/60)}
@@ -428,7 +539,17 @@ function historyHTML(){return `<div class="page-head"><div><div class="eyebrow">
 function renderHistoryList(){const target=document.getElementById('history-list');if(!target)return;const q=state.search.trim().toLocaleLowerCase('sq'),list=sortedRecords().filter(r=>!q||[r.nr,r.date,formatDate(r.date),r.responsible.name,...r.plan.map(p=>p.product),...r.employees.map(e=>e.name)].join(' ').toLocaleLowerCase('sq').includes(q));document.getElementById('history-count').textContent=`${list.length} regjistrime`;target.innerHTML=list.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Nr.</th><th>Data / java</th><th>Përgjegjësja</th><th>Produkti</th><th>Orët (rrumb.)</th><th>Dokumenti</th><th>Veprimi</th></tr></thead><tbody>${recordRows(list)}</tbody></table></div>`:`<div class="empty"><div class="empty-icon">${icon('book',20)}</div><h3>Nuk u gjet asnjë regjistrim</h3><p>Provo një kërkim tjetër ose krijo formularin e parë.</p><button class="btn btn-primary btn-small" data-action="new">${icon('plus',14)} Regjistrim i ri</button></div>`}
 function input(path,value,options={}){const {type='text',placeholder='',list='',extra='',disabled=false,label='',className='',step='any',combo=''}=options;const kind=combo||({'product-options':'products','employee-options':'employees','package-options':'packages'}[list]||'');const numeric=type==='number',whole=numeric&&step==='1',htmlType=numeric?'text':type;return `<input class="input ${esc(className)}" type="${htmlType}" ${numeric?`inputmode="${whole?'numeric':'decimal'}"`:''} ${kind?`data-combo="${esc(kind)}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="combo-popover" autocomplete="off"`:''} ${label?`aria-label="${esc(label)}"`:''} placeholder="${esc(placeholder)}" value="${esc(value)}" data-bind="${path}" ${disabled?'disabled':''} ${extra}>`}
 function field(label,content,hint='',extraClass=''){return `<div class="field ${extraClass}"><label>${label}</label>${content}${hint?`<small>${hint}</small>`:''}</div>`}
-function planHTML(r,off){return r.plan.map((p,i)=>`<div class="plan-card"><div class="plan-top"><span class="plan-num">${String(i+1).padStart(2,'0')}</span><strong>Produkti ${i+1}</strong></div><div class="fields">${field('Produkti',input(`plan.${i}.product`,p.product,{list:'product-options',placeholder:'Shkruaj produktin',disabled:off,label:`Produkti ${i+1}`}))}${field('Statusi',input(`plan.${i}.status`,p.status,{combo:'statuses',placeholder:'Shkruaj statusin',disabled:off,label:`Statusi për produktin ${i+1}`}))}${field('Sasia e porositur',input(`plan.${i}.planned`,p.planned,{type:'number',placeholder:'0',disabled:off,label:`Sasia e porositur ${i+1}`}))}${field('Lloji i paketimit',input(`plan.${i}.packaging`,p.packaging,{list:'package-options',placeholder:'p.sh. thasë, kuti',disabled:off,label:`Paketimi ${i+1}`}))}</div><div class="fields" style="margin-top:12px">${field('Klienti',input(`plan.${i}.client`,p.client,{combo:'clients',placeholder:'Zgjidh ose shkruaj klientin',disabled:off,label:`Klienti ${i+1}`}))}${field('Komente',input(`plan.${i}.comment`,p.comment,{placeholder:'Komente',disabled:off,label:`Komente për produktin ${i+1}`}),'','field-span-2')}</div><div class="form-subhead">Të dhëna shtesë për raportet</div><div class="fields">${field('Sasia e prodhuar',input(`plan.${i}.actual`,p.actual,{type:'number',placeholder:'0',disabled:off,label:`Sasia e prodhuar ${i+1}`}))}${field('Njësia',input(`plan.${i}.unit`,p.unit,{combo:'units',placeholder:'p.sh. kg, copë',disabled:off,label:`Njësia për produktin ${i+1}`}))}${field('Nr. i ambalazheve',input(`plan.${i}.packageCount`,p.packageCount,{type:'number',step:'1',placeholder:'Opsionale',disabled:off,label:`Numri i ambalazheve për produktin ${i+1}`}))}${field('Kohëzgjatja (min)',input(`plan.${i}.minutes`,p.minutes,{type:'number',step:'1',min:'0',placeholder:'p.sh. 90',disabled:off,label:`Kohëzgjatja në minuta për produktin ${i+1}`}),'Minutat që zgjati procesi për këtë produkt.')}</div></div>`).join('')}
+// Kohëzgjatja shkruhet si ditë dhe/ose orë; brenda ruhet vetëm numri i
+// minutave, që raportet të mos kenë dy të vërteta.
+function durationFields(minutes){
+ const part=durationParts(minutes);
+ const disabled=arguments[1]===true;
+ return `<div class="duration-fields">
+  <label class="duration-part"><span>Ditë</span><input class="input" inputmode="numeric" placeholder="0" value="${esc(part.days)}" data-duration="days" aria-label="Kohëzgjatja në ditë" ${disabled?'disabled':''}></label>
+  <label class="duration-part"><span>Orë</span><input class="input" inputmode="decimal" placeholder="0:00" value="${esc(part.hours)}" data-duration="hours" aria-label="Kohëzgjatja në orë (mund edhe 2.5)" ${disabled?'disabled':''}></label>
+ </div>`;
+}
+function planHTML(r,off){return r.plan.map((p,i)=>`<div class="plan-card"><div class="plan-top"><span class="plan-num">${String(i+1).padStart(2,'0')}</span><strong>Produkti ${i+1}</strong></div><div class="fields">${field('Produkti',input(`plan.${i}.product`,p.product,{list:'product-options',placeholder:'Shkruaj produktin',disabled:off,label:`Produkti ${i+1}`}))}${field('Statusi',input(`plan.${i}.status`,p.status,{combo:'statuses',placeholder:'Shkruaj statusin',disabled:off,label:`Statusi për produktin ${i+1}`}))}${field('Sasia e porositur',input(`plan.${i}.planned`,p.planned,{type:'number',placeholder:'0',disabled:off,label:`Sasia e porositur ${i+1}`}))}${field('Lloji i paketimit',input(`plan.${i}.packaging`,p.packaging,{list:'package-options',placeholder:'p.sh. thasë, kuti',disabled:off,label:`Paketimi ${i+1}`}))}</div><div class="fields" style="margin-top:12px">${field('Klienti',input(`plan.${i}.client`,p.client,{combo:'clients',placeholder:'Zgjidh ose shkruaj klientin',disabled:off,label:`Klienti ${i+1}`}))}${field('Komente',input(`plan.${i}.comment`,p.comment,{placeholder:'Komente',disabled:off,label:`Komente për produktin ${i+1}`}),'','field-span-2')}</div><div class="form-subhead">Të dhëna shtesë për raportet</div><div class="fields">${field('Sasia e prodhuar',input(`plan.${i}.actual`,p.actual,{type:'number',placeholder:'0',disabled:off,label:`Sasia e prodhuar ${i+1}`}))}${field('Njësia',input(`plan.${i}.unit`,p.unit,{combo:'units',placeholder:'p.sh. kg, copë',disabled:off,label:`Njësia për produktin ${i+1}`}))}${field('Nr. i ambalazheve',input(`plan.${i}.packageCount`,p.packageCount,{type:'number',step:'1',placeholder:'Opsionale',disabled:off,label:`Numri i ambalazheve për produktin ${i+1}`}))}<div class="field field-span-2" data-duration-field data-minutes-bind="plan.${i}.minutes" data-product="${i}"><label>Kohëzgjatja e procesit</label>${durationFields(p.minutes,off)}<small data-duration-hint>${p.minutes?`${fmtDuration(p.minutes)} · ${fmt(Number(p.minutes))} min`:'Shkruaj ditë dhe/ose orë; mund të shkruash “2.5” te orët.'}</small><input type="hidden" data-bind="plan.${i}.minutes" value="${esc(p.minutes)}"></div></div></div>`).join('')}
 function detailsHTML(r,off){return `<div class="editor-stack"><div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">01</span><div><h2>Të dhënat e ditës</h2></div></div><span class="tag">Faqja 1</span></div><div class="card-body"><div class="fields">${field('Dhoma',input('room',r.room,{placeholder:'Dhoma',disabled:off,label:'Dhoma'}),'','field-span-2')}${field('Nr. i formularit',input('nr',r.nr,{placeholder:'001',disabled:off,label:'Numri i formularit',extra:'inputmode="numeric" maxlength="9"'}))}${field('Data',input('date',r.date,{type:'date',disabled:off,label:'Data'}))}${field('Dita',`<input class="input readonly" id="display-day" value="${esc(dayName(r.date))}" readonly aria-label="Dita e javës">`)}${field('Java ISO',`<input class="input readonly" id="display-week" value="${weekNumber(r.date)??'—'}" readonly aria-label="Java ISO">`)}</div><div class="form-subhead">Përgjegjëset</div><div class="fields">${field('Përgjegjësja',input('responsible.name',r.responsible.name,{combo:'responsibles',placeholder:'Zgjidh ose shkruaj emrin',disabled:off,label:'Përgjegjësja'}))}${field('Firma e përgjegjëses',input('responsible.signature',r.responsible.signature,{placeholder:'Emri / konfirmimi',disabled:off,label:'Firma e përgjegjëses'}))}${field('Ndihmës përgjegjësja',input('assistant.name',r.assistant.name,{combo:'responsibles',placeholder:'Zgjidh ose shkruaj emrin',disabled:off,label:'Ndihmës përgjegjësja'}))}${field('Firma e ndihmëses',input('assistant.signature',r.assistant.signature,{placeholder:'Emri / konfirmimi',disabled:off,label:'Firma e ndihmëses'}))}</div><div class="tip">${icon('info',15)}<span>Firmat janë tekst konfirmimi, jo nënshkrime elektronike të verifikuara.</span></div></div></div><div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">02</span><div><h2>Plani i punës</h2></div></div><span class="tag" id="plan-actual-count">${planUsedCount(r)} produkte në përdorim</span></div><div class="card-body">${planHTML(r,off)}${off?'':`<div class="head-actions"><button type="button" class="btn btn-small" data-action="add-plan">${icon('plus',14)} Shto produkt</button></div>`}</div></div></div>`}
 const SIGNATURE_PREFIX='data:image/png;base64,';
 function isDrawnSignature(v){return typeof v==='string'&&v.length<=150000&&v.startsWith(SIGNATURE_PREFIX)&&/^[A-Za-z0-9+/]+={0,2}$/.test(v.slice(SIGNATURE_PREFIX.length))}
@@ -454,7 +575,7 @@ function intervalsHTML(r,off){
     <td>${input(`${base}.start`,iv.start,{type:'text',placeholder:'HH:MM',extra:'inputmode="numeric" maxlength="5"',disabled:off,label:`Fillimi i intervalit ${j+1} për ${e.name||`punonjësin ${i+1}`}`})}</td>
     <td>${input(`${base}.end`,iv.end,{type:'text',placeholder:'HH:MM',extra:'inputmode="numeric" maxlength="5"',disabled:off,label:`Mbarimi i intervalit ${j+1} për ${e.name||`punonjësin ${i+1}`}`})}</td>
     <td>${input(`${base}.room`,iv.room,{list:'rooms',placeholder:'Dhoma',disabled:off,label:`Dhoma e intervalit ${j+1} për ${e.name||`punonjësin ${i+1}`}`})}</td>
-    <td><span class="calculated">${intervalMinutes(iv)===null?'—':fmtMinutesLabel(intervalMinutes(iv))}</span></td>
+    <td><span class="calculated">${intervalMinutes(iv)===null?'—':fmtDuration(intervalMinutes(iv))}</span></td>
     <td>${off?'':`<button type="button" class="btn btn-small btn-danger" data-action="del-interval" data-emp="${i}" data-iv="${j}" aria-label="Fshi intervalin ${j+1}">${icon('trash',13)}</button>`}</td></tr>`);
   });
  });
@@ -475,11 +596,6 @@ function intervalMinutes(iv){
 function fmtUnitMinutes(v){return fmt(Math.round(v*100)/100)}
 // Kthen tekst të lexueshëm ose '' kur vlera mungon; thirrësi vendos vijën, që
 // të mos duket "— orë" ose një vijë e dyfishuar në tabelë.
-function fmtMinutesLabel(mins){
- if(mins===null||mins===undefined||Number.isNaN(mins))return '';
- const m=Math.round(Math.abs(mins)),h=Math.floor(m/60);
- return h?`${h}:${String(m%60).padStart(2,'0')} orë`:`${m} min`;
-}
 function staffHTML(r,off){const rows=r.employees.map((e,i)=>`<tr><td class="number-cell">${String(i+1).padStart(2,'0')}</td><td>${input(`employees.${i}.name`,e.name,{list:'employee-options',placeholder:'Emri dhe mbiemri',disabled:off,label:`Emri i punonjësit ${i+1}`,className:'name-input'})}</td><td>${input(`employees.${i}.start`,e.start,{type:'text',placeholder:'HH:MM (24 orë)',extra:'inputmode="numeric" maxlength="5"',disabled:off,label:`Fillimi i punonjësit ${i+1}, ora 24-orëshe`})}</td><td>${input(`employees.${i}.end`,e.end,{type:'text',placeholder:'HH:MM (24 orë)',extra:'inputmode="numeric" maxlength="5"',disabled:off,label:`Mbarimi i punonjësit ${i+1}, ora 24-orëshe`})}</td><td>${input(`employees.${i}.room`,e.room||'',{list:'rooms',placeholder:'Dhoma',disabled:off,label:`Dhoma e punonjësit ${i+1}`})}</td><td>${input(`employees.${i}.breakMinutes`,e.breakMinutes??'60',{type:'number',step:'1',placeholder:'60',disabled:off,label:`Pushimi i punonjësit ${i+1} në minuta`})}</td><td><span class="calculated" id="emp-hours-${i}">${fmtMaybe(hoursFor(e))}</span></td><td>${input(`employees.${i}.comment`,e.comment,{placeholder:'Komente',disabled:off,label:`Komente për punonjësin ${i+1}`,className:'comment-input'})}</td><td>${staffSignatureHTML(e,i,off)}</td></tr>`).join('');const total=r.employees.reduce((s,e)=>s+(hoursFor(e)||0),0);return `<div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">03</span><div><h2>Punonjësit</h2></div></div><span class="tag">${EMPLOYEE_ROWS} rreshta</span></div><p class="small-note" style="padding:0 16px">Pushimi zbritet për çdo punonjës: parazgjedhja është 60 minuta; vendos 0 nëse nuk ka pushim. Për formularët e vjetër pa këtë vlerë përdoren 60 minuta.</p><div class="scroll-hint">↔ Rrëshqit tabelën anash.</div><div class="table-wrap"><table class="table staff-table"><thead><tr><th>Nr.</th><th>Emri e mbiemri</th><th>Fillim pune</th><th>Mbarim pune</th><th>Dhoma</th><th>Pushim (min)</th><th>Orë gjithsej</th><th>Komente</th><th>Firma e punonjësit</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="table-foot"><td colspan="6">Orë gjithsej (rrumb.)</td><td colspan="3"><span id="staff-total">${fmt(roundHoursTotal(total))}</span> orë</td></tr></tfoot></table></div></div>`}
 
 function weighGroupHTML(g,index,off){const n=index+1,t=groupTotals(g);const rows=g.rows.map((row,j)=>`<tr><td class="number-cell">${j+1}</td>${['bags','kg','packaging','sum'].map((key,k)=>`<td>${input(`weighings.${index}.rows.${j}.${key}`,row[key],{type:'number',placeholder:'—',disabled:off,label:`Peshimi ${n}, rreshti ${j+1}, ${['numri i thasëve','kilogramë','ambalazhi','shuma'][k]}`,step:key==='bags'?'1':'any'})}</td>`).join('')}<td><button type="button" class="icon-btn" data-action="delete-weight-row" data-index="${index}" data-row="${j}" aria-label="Fshi rreshtin ${j+1} të peshimit ${n}" ${off?'disabled':''}>${icon('trash',15)}</button></td></tr>`).join('');return `<details class="weight-card" data-weight-index="${index}" ${state.weightOpen.has(index)?'open':''}><summary><span class="plan-num">${String(n).padStart(2,'0')}</span><strong>Peshimi ${n}</strong><span class="small-note" id="weight-summary-${index}">${t.used} të plotësuar · deri te rreshti ${weightUsedCount(g)} · ${t.seen.kg?fmt(t.kg)+' kg':'—'}</span><span class="arrow">${icon('arrow',17)}</span></summary><div class="weight-meta"><div class="weight-meta-grid">${field('Produkti',input(`weighings.${index}.product`,g.product,{list:'product-options',placeholder:'Shkruaj produktin',disabled:off,label:`Produkti i peshimit ${n}`}))}${field('Burimi',input(`weighings.${index}.sourceLabel`,g.sourceLabel,{combo:'sources',placeholder:'Shkruaj: stok ose tjetër',disabled:off,label:`Burimi i peshimit ${n}`}))}</div></div><div class="small-note" style="padding:0 14px 8px">Kur KG dhe ambalazhi plotësohen, Shuma llogaritet; mund ta ndryshosh. Kur ambalazhi është bosh, shkruaje Shumën vetë dhe kontrolloje. Ndryshimi i KG ose ambalazhit mund ta rillogarisë atë.</div><div class="scroll-hint">↔ Rrëshqit tabelën anash.</div><div class="table-wrap"><table class="table weight-table"><thead><tr><th class="index-col">Nr.</th><th>Nr. thasëve</th><th>KG</th><th>Ambalazhi</th><th>Shuma</th><th></th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>SH</td>${['bags','kg','packaging','sum'].map(k=>`<td id="weight-total-${index}-${k}">${fmt(t[k])}</td>`).join('')}<td></td></tr></tfoot></table></div>${weighCheckSafe(g,index)}<div class="weight-actions"><button class="btn btn-small" data-action="add-weight-rows" data-index="${index}" data-count="1" ${off?'disabled':''}>${icon('plus',14)} Shto rresht</button><button class="btn btn-small" data-action="add-weight-rows" data-index="${index}" data-count="10" ${off?'disabled':''}>${icon('plus',14)} Shto 10 rreshta</button><button class="btn btn-small btn-danger" data-action="delete-weighing" data-index="${index}" ${off?'disabled':''}>${icon('trash',14)} Fshi peshimin</button></div></details>`}
@@ -797,16 +913,16 @@ function processSummary(records){
 function durationHTML(records){
  const {rows,total,qty,perUnit,untimed}=processSummary(records);
  const body=rows.length?reportTable(
-  ['Produkti','Paketimi','Minuta','Kohë / njësi','Sasia','Rreshta','Pa kohë','Ndarja'],
-  rows.map(x=>[x.product||'—',x.packaging||'—',fmtMinutesLabel(x.minutes)||'—',
+  ['Produkti','Paketimi','Kohëzgjatja','Kohë / njësi','Sasia','Rreshta','Pa kohë','Ndarja'],
+  rows.map(x=>[x.product||'—',x.packaging||'—',fmtDuration(x.minutes)||'—',
    x.perUnit===null?'—':`${fmtUnitMinutes(x.perUnit)} min`,
    x.qty?`${fmt(x.qty)}${x.unit?' '+x.unit:''}`:'—',String(x.count),
-   x.untimed?String(x.untimed):'—',`${Math.round(x.share*100)}%`]),
-  ['<strong>Gjithsej</strong>','',`<strong>${fmtMinutesLabel(total)}</strong>`,
+   x.untimed?String(x.untimed):'—',x.minutes?`${Math.round(x.share*100)}%`:'—']),
+  ['<strong>Gjithsej</strong>','',`<strong>${fmtDuration(total)}</strong>`,
    perUnit===null?'—':`<strong>${fmtUnitMinutes(perUnit)} min</strong>`,
    qty?`<strong>${fmt(qty)}</strong>`:'—','','',untimed?`<strong>${untimed}</strong>`:'—','100%'])
   : '';
- return `<div class="card report-wide"><div class="card-head"><div><h3>Kohëzgjatja e proceseve sipas produktit</h3><p>Minutat që shkruhen për çdo produkt në formular. Krahasohen me sasinë e prodhuar.</p></div><span class="tag">${rows.length} produkte</span></div><div class="card-body">${untimed?`<div class="notice">${icon('alert',15)}<span>${untimed} rreshta plani nuk kanë minuta të shkruara; nuk hyjnë në totalin e kohës.</span></div>`:''}${body}</div></div>`;
+ return `<div class="card report-wide"><div class="card-head"><div><h3>Kohëzgjatja e proceseve sipas produktit</h3><p>Koha e shkruar për çdo produkt (ditë/orë), krahasuar me sasinë e prodhuar. Një ditë = ${workdayLabel()}.</p></div><span class="tag">${rows.length} produkte</span></div><div class="card-body">${untimed?`<div class="notice">${icon('alert',15)}<span>${untimed} rreshta plani nuk kanë kohë të shkruar; nuk hyjnë në totalin e kohës.</span></div>`:''}${body}</div></div>`;
 }
 
 // ---- Gjurmimi i punonjësit ---------------------------------------------------
@@ -841,6 +957,55 @@ function trackingSegments(records,employee){
  return out.filter(x=>!roomFilter||reportHit(x.room,roomFilter))
   .sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)||String(a.employee).localeCompare(String(b.employee),'sq'));
 }
+// ---- Gjurma e plotë: kush formular, hyrje e dalje, kalime --------------------
+// Për çdo segment mbahen mend formulari (dhe linku për ta hapur), rreshti i
+// punonjësit, intervali dhe dhoma. Pastaj kalimet lidhen njëri me tjetrin:
+// ku mbaroi një interval, ku nisi tjetri — brenda të njëjtës ditë.
+function trackingTrace(segments){
+ const sorted=[...segments].sort((a,b)=>
+  String(a.employee).localeCompare(String(b.employee),'sq')||
+  a.date.localeCompare(b.date)||String(a.start).localeCompare(String(b.start)));
+ const out=sorted.map(s=>({...s}));
+ for(let i=0;i<out.length;i++){
+  const cur=out[i],next=out[i+1];
+  const samePerson=!!next&&normKey(next.employee)===normKey(cur.employee)&&next.date===cur.date;
+  cur.next=samePerson?next:null;
+  // Kalimi ka kuptim vetëm kur ka dhomë në të dyja anët dhe dhoma ndryshon.
+  cur.moved=!!(samePerson&&next.room&&cur.room&&normKey(next.room)!==normKey(cur.room));
+  // Sa kohë mbeti mes daljes dhe hyrjes tjetër (pushim, pritje, zhvendosje).
+  cur.gap=samePerson&&cur.end&&next.start?intervalMinutes({start:cur.end,end:next.start}):null;
+ }
+ return out;
+}
+// Sa shpesh ka ndërruar dhomë punonjësi: "Dhoma A → Dhoma B" me numërimin.
+function trackingMoves(trace){
+ const byKey=new Map();
+ for(const s of trace){
+  if(!s.moved||!s.next)continue;
+  const key=`${normKey(s.employee)}|${normKey(s.room)}|${normKey(s.next.room)}`;
+  const v=byKey.get(key)||{employee:s.employee,from:s.room,to:s.next.room,count:0,minutes:0,dates:new Set()};
+  v.count+=1;v.minutes+=s.minutes||0;v.dates.add(s.date);byKey.set(key,v);
+ }
+ return [...byKey.values()].sort((a,b)=>b.count-a.count||String(a.employee).localeCompare(String(b.employee),'sq'));
+}
+// Formulari si link: hapet i gjithë regjistrimi me një klik (jo vetëm numri).
+function recordLink(record,label,extraClass=''){
+ if(!record)return esc(label);
+ return `<button type="button" class="link-btn ${extraClass}" data-action="open-record" data-id="${esc(record.id)}" title="Hap formularin ${esc(record.nr)} të ${esc(formatDate(record.date))}">${esc(label)}</button>`;
+}
+// Lidhja me dokumentin origjinal, kur formulari ka një të tillë.
+function recordDocLink(record){
+ const items=docItemsFor(record);
+ if(!items.length)return '';
+ docRegisterDocs(record.id,items);
+ return `<button type="button" class="link-btn link-doc" data-doc-record="${esc(record.id)}" title="Hap dokumentin origjinal të formularit ${esc(record.nr)}">${icon('doc',12)} dokumenti</button>`;
+}
+// "Nga X → Y, sa minuta" për çdo hap të ditës.
+function trackingMoveLabel(s){
+ if(!s.next)return '<span class="muted">—</span>';
+ if(!s.moved)return `<span class="small-note">qëndroi te ${esc(s.room||'—')}</span>`;
+ return `<span class="move-arrow">→</span> ${esc(s.next.room)}`;
+}
 function trackingTotals(segments){
  const byName=new Map(),byRoom=new Map();
  for(const s of segments){
@@ -857,15 +1022,38 @@ function trackingHTML(records){
  const names=[...new Set(db.records.flatMap(r=>r.employees.flatMap(e=>[e.name,...(e.intervals||[]).map(iv=>iv.name)]))
   .map(x=>str(x).trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'sq'));
  const segments=trackingSegments(records,state.report.employee);
+ const trace=trackingTrace(segments);
+ const moves=trackingMoves(trace);
  const {people,rooms}=trackingTotals(segments);
- const list=segments.length?`<div class="table-wrap"><table class="table"><thead><tr><th>Data</th><th>Nr.</th><th>Punonjësi</th><th>Nga</th><th>Deri</th><th>Kohë</th><th>Dhoma</th></tr></thead><tbody>${segments.map(s=>`<tr><td>${esc(formatDate(s.date))}</td><td class="num">${esc(s.nr)}</td><td class="strong">${esc(s.employee)}</td><td class="num">${esc(s.start||'—')}</td><td class="num">${esc(s.end||'—')}</td><td class="num">${fmtMinutesLabel(s.minutes)||'—'}</td><td>${esc(s.room||'—')}${s.fromInterval?'':` <span class="small-note" title="Nuk ka intervale të shkruara; kjo është dita e plotë e punonjësit">(dita)</span>`}</td></tr>`).join('')}</tbody></table></div>`
+ const byId=new Map(db.records.map(r=>[r.id,r]));
+ // Çdo rresht: hyrja dhe dalja e shënuar në formular, me linkun e formularit
+ // që e vërteton, dhe ku shkoi më pas.
+ const rows=trace.map(s=>{
+  const r=byId.get(s.recordId);
+  const formLink=r?recordLink(r,s.nr,'link-nr'):esc(s.nr);
+  const docLink=r?recordDocLink(r):'';
+  return `<tr class="trace-row">
+   <td>${esc(formatDate(s.date))}</td>
+   <td class="num">${formLink}${docLink}</td>
+   <td class="strong">${esc(s.employee)}</td>
+   <td class="num trace-in" title="Hyrja e shënuar në këtë formular">${s.start?`<span class="stamp in">${esc(s.start)}</span>`:'<span class="muted">—</span>'}</td>
+   <td class="num trace-out" title="Dalja e shënuar në këtë formular">${s.end?`<span class="stamp out">${esc(s.end)}</span>`:'<span class="muted">—</span>'}</td>
+   <td class="num">${fmtDuration(s.minutes)||'—'}</td>
+   <td>${esc(s.room||'—')}${s.fromInterval?'':` <span class="small-note" title="Nuk ka intervale të shkruara; kjo është dita e plotë e punonjësit">(dita)</span>`}</td>
+   <td>${trackingMoveLabel(s)}</td>
+   <td class="num">${s.next&&s.next.start&&s.end?`<span class="small-note">${esc(s.end)} → ${esc(s.next.start)}</span>${s.gap>0?` <span class="muted">(${fmtDuration(s.gap)})</span>`:''}`:'<span class="muted">—</span>'}</td>
+  </tr>`;
+ }).join('');
+ const list=trace.length?`<div class="table-wrap"><table class="table trace-table"><thead><tr><th>Data</th><th>Formulari</th><th>Punonjësi</th><th>Hyrje</th><th>Dalje</th><th>Kohë</th><th>Dhoma</th><th>Shkoi te</th><th>Ndërprerja</th></tr></thead><tbody>${rows}</tbody></table></div><p class="small-note" style="padding:10px 16px 0">Kliko numrin e formularit për ta hapur dhe për të parë lëvizjet e plota të asaj dite.</p>`
   :'<p class="small-note">Nuk ka intervale për këtë përzgjedhje. Shkruaj orën e fillimit/mbarimit dhe dhomën në formular, ose shto intervale te kartela «Intervalet dhe dhomat».</p>';
- return `<div class="card report-wide"><div class="card-head"><div><h3>Gjurmimi i punonjësit sipas dhomës</h3><p>Nga formularet e regjistruar: kur ka punuar, sa gjatë dhe te cila dhomë ka kaluar.</p></div><span class="tag">${segments.length?`${segments.length} intervale`:'pa të dhëna'}</span></div><div class="card-body"><div class="fields">${field('Punonjësi',`<input class="input" data-report="employee" list="tracking-employee-options" value="${esc(state.report.employee)}" autocomplete="off" placeholder="Të gjithë punonjësit" aria-label="Filtro punonjësin për gjurmim"><datalist id="tracking-employee-options">${names.map(n=>`<option value="${esc(n)}"></option>`).join('')}</datalist>`,'Bosh = të gjithë punonjësit.',"field-span-2")}</div>${list}
+ const movesTable=moves.length?`<div class="card report-wide" style="margin-top:16px"><div class="card-head"><div><h3>Kalimet nga një dhomë në tjetrën</h3><p>Sa herë ka ndërruar dhomë secili punonjës dhe sa kohë kishte në dhomën e mëparshme.</p></div><span class="tag">${moves.reduce((n,m)=>n+m.count,0)} kalime</span></div>${reportTable(['Punonjësi','Nga','Te','Herë','Kohë në dhomën e parë','Ditë'],moves.map(m=>[m.employee,m.from||'—',m.to||'—',String(m.count),fmtDuration(m.minutes)||'—',String(m.dates.size)]))}</div>`:'';
+ return `<div class="card report-wide"><div class="card-head"><div><h3>Gjurmimi i punonjësit sipas dhomës</h3><p>Nga formularet e regjistruar: kush e shënoi hyrjen dhe daljen, sa gjatë dhe te cila dhomë kaloi — me link te formulari.</p></div><span class="tag">${segments.length?`${segments.length} intervale`:'pa të dhëna'}</span></div><div class="card-body"><div class="fields">${field('Punonjësi',`<input class="input" data-report="employee" list="tracking-employee-options" value="${esc(state.report.employee)}" autocomplete="off" placeholder="Të gjithë punonjësit" aria-label="Filtro punonjësin për gjurmim"><datalist id="tracking-employee-options">${names.map(n=>`<option value="${esc(n)}"></option>`).join('')}</datalist>`,'Bosh = të gjithë punonjësit.',"field-span-2")}</div>${list}
   <div class="report-grid" style="margin-top:16px">
-   <div class="card"><div class="card-head"><div><h3>Kohë sipas punonjësit</h3></div></div>${reportTable(['Punonjësi','Kohë','Intervale','Dhoma'],people.map(x=>[x.employee,fmtMinutesLabel(x.minutes)||'—',String(x.count),String(x.rooms.size)]))}</div>
-   <div class="card"><div class="card-head"><div><h3>Kohë sipas dhomës</h3></div></div>${reportTable(['Dhoma','Kohë','Intervale','Punonjës'],rooms.map(x=>[x.room,fmtMinutesLabel(x.minutes)||'—',String(x.count),String(x.people.size)]))}</div>
-  </div></div></div>`;
+   <div class="card"><div class="card-head"><div><h3>Kohë sipas punonjësit</h3></div></div>${reportTable(['Punonjësi','Kohë','Intervale','Dhoma'],people.map(x=>[x.employee,fmtDuration(x.minutes)||'—',String(x.count),String(x.rooms.size)]))}</div>
+   <div class="card"><div class="card-head"><div><h3>Kohë sipas dhomës</h3></div></div>${reportTable(['Dhoma','Kohë','Intervale','Punonjës'],rooms.map(x=>[x.room,fmtDuration(x.minutes)||'—',String(x.count),String(x.people.size)]))}</div>
+  </div></div></div>${movesTable}`;
 }
+
 function reportsHTML(){const rs=reportRecords(),m=metrics(rs,state.report.product),products=allProducts(),invalid=state.report.from&&state.report.to&&state.report.from>state.report.to;const prod=m.products.map(x=>[x.product,x.packaging,fmt(x.qty),x.unit,String(x.records.size)]),packs=m.packageCounts.map(x=>[x.packaging,fmt(x.count),String(x.records.size)]),staff=m.employees.map(x=>[x.name,fmt(roundHoursTotal(x.hours)),String(x.records.size)]),stock=m.stock.map(x=>[x.product,fmt(x.kg),'kg',fmt(x.bags),String(x.rows)]),weightRows=m.tables.map(x=>[formatDate(x.date),x.nr,String(x.group),x.product,x.source,...['bags','kg','packaging'].map(k=>x.totals.seen[k]?fmt(x.totals[k]):'—'),reportNetLabel(x.net),reportNetNotes(x.net)]);return `<div id="report-filters-page"><div class="page-head"><div><div class="eyebrow">Nga të dhënat e ruajtura</div><h1 class="page-title">Raportet</h1><p class="page-sub">Shiko prodhimin, paketimet, orët dhe peshimet e marra nga stoku.</p></div></div>${demoNotice()}<div class="card" style="margin-bottom:16px"><div class="card-body"><div class="report-filters">${field('Nga data',`<input class="input" type="date" data-report="from" value="${esc(state.report.from)}" aria-label="Nga data">`)}${field('Deri më',`<input class="input" type="date" data-report="to" value="${esc(state.report.to)}" aria-label="Deri më">`)}${field('Produkti',`<input class="input" data-combo="report-products" value="${esc(state.report.product)}" role="combobox" aria-label="Filtro produktin" aria-autocomplete="list" aria-expanded="false" aria-controls="combo-popover" autocomplete="off" placeholder="Të gjithë">`)}
 ${field('Ambalazhi',`<input class="input" data-combo="report-packagings" value="${esc(state.report.packaging)}" role="combobox" aria-label="Filtro ambalazhin" aria-autocomplete="list" aria-expanded="false" aria-controls="combo-popover" autocomplete="off" placeholder="Të gjitha">`)}
 ${field('Statusi',`<input class="input" data-combo="report-statuses" value="${esc(state.report.status)}" role="combobox" aria-label="Filtro statusin" aria-autocomplete="list" aria-expanded="false" aria-controls="combo-popover" autocomplete="off" placeholder="Të gjitha">`)}
@@ -1158,7 +1346,25 @@ async function catalogImportFile(file){
   if(el)el.textContent=str(e?.message||'Importi nuk u lexua.',300);else toast(str(e?.message||'Importi nuk u lexua.',300),'error');
  }
 }
-function catalogHTML(){const configs=[['responsibles','Përgjegjëset','Emër dhe mbiemër','book'],['products','Produktet','Emër produkti','box'],['employees','Punonjësit','Emër dhe mbiemër','book'],['packages','Paketimet','Lloj paketimi','stack'],['statuses','Statuset','Status i ri','file'],['units','Njësitë','Njësi e re','grid'],['sources','Burimet e peshimit','Emër burimi','stack'],['clients','Klientët','Emër klienti','grid']];return `<div class="page-head"><div><div class="eyebrow">Listat bazë</div><h1 class="page-title">Të dhënat bazë</h1><p class="page-sub">Ruaj emra për t’i zgjedhur më shpejt gjatë plotësimit. Klientët dhe punonjësit mund t’i importosh nga Excel-i, pa i shkruar një për një.</p></div></div><div class="catalog-grid">${configs.map(([key,title,placeholder,ic])=>`<div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">${icon(ic,15)}</span><div><h3>${title}</h3><p>${db.catalog[key].length} të shtuara</p></div></div></div><div class="card-body"><div class="catalog-add"><label class="sr-only" for="add-${key}">${placeholder}</label><input class="input" id="add-${key}" placeholder="${placeholder}" maxlength="160"><button class="btn btn-primary btn-small" data-action="catalog-add" data-kind="${key}">${icon('plus',14)} Shto</button></div><div class="catalog-list">${db.catalog[key].length?db.catalog[key].map((entry,i)=>{const name=typeof entry==='string'?entry:entry.label;return `<div class="catalog-item"><span>${esc(name)}${key==='sources'?` <span class="tag">${entry.kind==='stock'?'Stok':'Tjetër'}</span>`:''}</span><button class="icon-btn" data-action="catalog-edit" data-kind="${key}" data-index="${i}" aria-label="Modifiko ${esc(name)}">${icon('edit',15)}</button><button class="icon-btn" data-action="catalog-delete" data-kind="${key}" data-index="${i}" aria-label="Hiq ${esc(name)}">${icon('trash',15)}</button></div>`}).join(''):'<div class="mini-empty">Lista është bosh.</div>'}</div></div></div>`).join('')}</div><div class="tip">${icon('info',15)}<span>Modifikimi ose heqja nga lista nuk ndryshon formularët e ruajtur më parë.</span></div><div class="head-actions section-space"><button class="btn btn-primary" data-action="catalog-import">${icon('upload',15)} Importo nga Excel</button><button class="btn btn-danger" data-action="recalc-all-weights">Rillogarit shumat ekzistuese</button><button class="btn" data-action="catalog-template">Shkarko modelin Excel</button><button class="btn" data-action="catalog-import-add">Importo modelin · shto</button><button class="btn btn-danger" data-action="catalog-import-replace">Importo modelin · zëvendëso</button><input type="file" id="catalog-import-add-file" accept=".xlsx" hidden><input type="file" id="catalog-import-replace-file" accept=".xlsx" hidden><button class="btn" data-action="backup-export">${icon('download',15)} Shkarko backup JSON</button><button class="btn" data-action="backup-import">${icon('upload',15)} Importo backup JSON</button></div>`}
+// Sa orë ka një ditë pune: pa këtë cilësim "2.5 ditë" nuk kthehet në orë.
+// Preferencë e pajisjes: vlen për këtë shfletues dhe zbatohet menjëherë.
+// Ruajtja e ditës së punës: shkruhet vetëm nëse vlera është e vlefshme, që një
+// gabim shkrimi të mos prishë llogaritjet e raporteve.
+function setWorkday(value){
+ const hours=Number(String(value??'').replace(',','.'));
+ if(!String(value??'').trim()||!Number.isFinite(hours)){toast('Shkruaj sa orë ka dita e punës, p.sh. 8.','warn');render();return false}
+ if(!(hours>=1&&hours<=24)){toast('Dita e punës duhet të jetë midis 1 dhe 24 orësh.','warn');render();return false}
+ const saved=saveWorkday(Math.round(hours*60));
+ render();
+ toast(`Dita e punës u vendos ${workdayLabel(saved)} (vetëm në këtë pajisje).`);
+ return true;
+}
+function workdayCardHTML(){
+ const workday=currentWorkday();
+ const presets=[480,600,720];
+ return `<div class="card" style="margin-bottom:16px"><div class="card-head"><div class="section-heading"><span class="section-index">${icon('clock',15)}</span><div><h3>Dita e punës</h3><p>Sa orë ka një ditë pune — përdoret për kohëzgjatjen “2 ditë 4 orë”.</p></div></div><span class="tag">${workdayLabel(workday)}</span></div><div class="card-body"><div class="fields">${field('Orë pune në ditë',`<input class="input" type="text" inputmode="decimal" data-workday value="${esc(String(Math.round(workday/60*100)/100))}" aria-label="Orë pune në ditë">`,'Vlen për këtë pajisje; raportet e përdorin menjëherë.')}<div class="field field-span-2"><label>Shpejt</label><div class="head-actions">${presets.map(m=>`<button class="btn btn-small ${workday===m?'btn-primary':''}" data-action="set-workday" data-minutes="${m}">${workdayLabel(m)}</button>`).join('')}</div><small>2.5 ditë = ${fmtDuration(Math.round(workday*2.5),workday)}.</small></div></div></div></div>`;
+}
+function catalogHTML(){const configs=[['responsibles','Përgjegjëset','Emër dhe mbiemër','book'],['products','Produktet','Emër produkti','box'],['employees','Punonjësit','Emër dhe mbiemër','book'],['packages','Paketimet','Lloj paketimi','stack'],['statuses','Statuset','Status i ri','file'],['units','Njësitë','Njësi e re','grid'],['sources','Burimet e peshimit','Emër burimi','stack'],['clients','Klientët','Emër klienti','grid']];return `<div class="page-head"><div><div class="eyebrow">Listat bazë</div><h1 class="page-title">Të dhënat bazë</h1><p class="page-sub">Ruaj emra për t’i zgjedhur më shpejt gjatë plotësimit. Klientët dhe punonjësit mund t’i importosh nga Excel-i, pa i shkruar një për një.</p></div></div>${workdayCardHTML()}<div class="catalog-grid">${configs.map(([key,title,placeholder,ic])=>`<div class="card"><div class="card-head"><div class="section-heading"><span class="section-index">${icon(ic,15)}</span><div><h3>${title}</h3><p>${db.catalog[key].length} të shtuara</p></div></div></div><div class="card-body"><div class="catalog-add"><label class="sr-only" for="add-${key}">${placeholder}</label><input class="input" id="add-${key}" placeholder="${placeholder}" maxlength="160"><button class="btn btn-primary btn-small" data-action="catalog-add" data-kind="${key}">${icon('plus',14)} Shto</button></div><div class="catalog-list">${db.catalog[key].length?db.catalog[key].map((entry,i)=>{const name=typeof entry==='string'?entry:entry.label;return `<div class="catalog-item"><span>${esc(name)}${key==='sources'?` <span class="tag">${entry.kind==='stock'?'Stok':'Tjetër'}</span>`:''}</span><button class="icon-btn" data-action="catalog-edit" data-kind="${key}" data-index="${i}" aria-label="Modifiko ${esc(name)}">${icon('edit',15)}</button><button class="icon-btn" data-action="catalog-delete" data-kind="${key}" data-index="${i}" aria-label="Hiq ${esc(name)}">${icon('trash',15)}</button></div>`}).join(''):'<div class="mini-empty">Lista është bosh.</div>'}</div></div></div>`).join('')}</div><div class="tip">${icon('info',15)}<span>Modifikimi ose heqja nga lista nuk ndryshon formularët e ruajtur më parë.</span></div><div class="head-actions section-space"><button class="btn btn-primary" data-action="catalog-import">${icon('upload',15)} Importo nga Excel</button><button class="btn btn-danger" data-action="recalc-all-weights">Rillogarit shumat ekzistuese</button><button class="btn" data-action="catalog-template">Shkarko modelin Excel</button><button class="btn" data-action="catalog-import-add">Importo modelin · shto</button><button class="btn btn-danger" data-action="catalog-import-replace">Importo modelin · zëvendëso</button><input type="file" id="catalog-import-add-file" accept=".xlsx" hidden><input type="file" id="catalog-import-replace-file" accept=".xlsx" hidden><button class="btn" data-action="backup-export">${icon('download',15)} Shkarko backup JSON</button><button class="btn" data-action="backup-import">${icon('upload',15)} Importo backup JSON</button></div>`}
 // Import i listave bazë: vetëm formatin e modelit BioBes, pa fshirje të heshtur.
 const CATALOG_TEMPLATE_CATEGORIES=[['Përgjegjëset','responsibles'],['Produktet','products'],['Punonjësit','employees'],['Paketimet','packages'],['Statuset','statuses'],['Njësitë','units'],['Burimet','sources'],['Klientët','clients']];
 function exportCatalogTemplate(){const wb=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet([['Kategoria','Emri','Lloji i burimit (stock / other)'],...CATALOG_TEMPLATE_CATEGORIES.map(([label])=>[label,'',''])]);sheet['!cols']=[{wch:22},{wch:42},{wch:34}];XLSX.utils.book_append_sheet(wb,sheet,'Listat');XLSX.writeFile(wb,'BioBes_Model_Listat.xlsx')}
@@ -2559,7 +2765,7 @@ function stylesXml(){
 //        notes:[],freezeRow,autoFilter,landscape}
 function sheetSpec(spec){
   const cols=spec.columns||[];
-  const lastCol=Math.max(0,cols.length-1);
+  let lastCol=Math.max(0,cols.length-1);
   const cells=[]; // rows -> [ {c,v,s,t,f} ]
   const R=[];     // rreshtat si vargje xml
   let r=0;
@@ -2663,7 +2869,28 @@ function sheetSpec(spec){
   }
   r++;
 
-  // 6) Shënime
+  // 6) Tabela shtesë në të njëjtën fletë (p.sh. kalimet e gjurmimit).
+  // Rendi: krye me sfond, rreshta me vlera, pastaj shënimet e fletës.
+  for(const block of spec.extra||[]){
+    if(block.title){ put(r,0,block.title,7); r++; }
+    const cols=block.columns||[];
+    cols.forEach((c,ci)=>put(r,ci,c.h,9));
+    lastCol=Math.max(lastCol,cols.length-1);
+    r++;
+    (block.rows||[]).forEach((row,ri)=>{
+      row.forEach((v,ci)=>{
+        if(v==null||v==='')return;
+        const c=cols[ci]||{};
+        const band=ri%2===1;
+        const style=typeof v==='number'?(c.type==='d2'?(band?13:12):(band?11:10)):(c.align==='c'?(band?9:18):(band?9:3));
+        put(r,ci,v,style,{t:typeof v==='number'?'n':'s'});
+      });
+      r++;
+    });
+    if(!(block.rows||[]).length){ put(r,0,'Nuk ka kalime për këtë përzgjedhje.',6); r++; }
+    r++;
+  }
+  // 7) Shënime
   for(const n of spec.notes||[]){ put(r,0,n,6); r++; }
 
   // -------- XML i fletës --------
@@ -2888,43 +3115,59 @@ function xlDurationSheet(){
   const {rows,total,qty,perUnit,untimed}=processSummary(reportRecords());
   return {
     name:'Kohëzgjatja',title:'KOHËZGJATJA E PROCESEVE',
-    subtitle:'Minutat e shkruara për çdo produkt, krahasuar me sasinë e prodhuar',
+    subtitle:`Koha e shkruar për çdo produkt (ditë/orë; një ditë = ${workdayLabel()}), krahasuar me sasinë e prodhuar`,
     meta:xlMetaExtra(reportRecords().length),freezeRow:5,autoFilter:true,landscape:true,
-    columns:[{h:'Nr.',w:6,align:'c'},{h:'Produkti',w:30},{h:'Paketimi',w:18},
-      {h:'Minuta',w:12,type:'d2'},{h:'Kohë / njësi (min)',w:16,type:'d2'},
+    columns:[{h:'Nr.',w:6,align:'c'},{h:'Produkti',w:30},{h:'Paketimi',w:16},
+      {h:'Kohëzgjatja',w:18},{h:'Minuta',w:11,type:'d2'},{h:'Kohë / njësi (min)',w:16,type:'d2'},
       {h:'Sasia',w:12,type:'d2'},{h:'Njësia',w:10,align:'c'},
       {h:'Rreshta',w:10,align:'c'},{h:'Pa kohë',w:10,align:'c'},{h:'Ndarja %',w:11,type:'d2'}],
-    rows:rows.map((x,i)=>[i+1,x.product||'(pa emër)',x.packaging||'—',x.minutes,
+    // "Minuta" mbetet kolonë numerike, që Excel-i të mbledhë dhe të kontrollojë;
+    // "Kohëzgjatja" është e njëjta vlerë si ditë/orë, për lexim njerëzor.
+    rows:rows.map((x,i)=>[i+1,x.product||'(pa emër)',x.packaging||'—',
+      fmtDuration(x.minutes)||'—',x.minutes,
       x.perUnit===null?'':Math.round(x.perUnit*100)/100,x.qty,x.unit||'',x.count,x.untimed,
-      Math.round(x.share*1000)/10]),
-    // values[i] shfaqet te kolona i+1 (Nr.=0): Minuta=3, Sasia=5, Ndarja=9.
-    total:{label:'TOTALI I KOHËS',values:[null,null,total,
-      perUnit===null?'':Math.round(perUnit*100)/100,qty,'','',null,100],sumCols:[3,5]},
+      x.minutes?Math.round(x.share*1000)/10:'']),
+    // values[i] shfaqet te kolona i+1 (Nr.=0): Kohëzgjatja=3, Minuta=4, Sasia=6.
+    // Minuta dhe Sasia marrin formulë =SUM mbi rreshtat; Kohëzgjatja është tekst
+    // i lexueshëm, prandaj nuk mblidhet me formulë.
+    total:{label:'TOTALI I KOHËS',values:[null,'',fmtDuration(total),total,
+      perUnit===null?'':Math.round(perUnit*100)/100,qty,'','',null,100],sumCols:[4,6]},
     notes:['Ndarja % tregon pjesën e kohës së procesit ndaj totalit të minutave.',
-      'Rreshtat pa minuta nuk hyjnë në totalin e kohës dhe shënohen te “Pa kohë”.',
-      untimed?`${untimed} rreshta plani nuk kanë minuta të shkruara.`:''].filter(Boolean),
+      `Një ditë pune = ${workdayLabel()} (e zgjedh përdoruesi te Të dhënat bazë → Dita e punës, vlen për këtë pajisje).`,
+      'Rreshtat pa kohë nuk hyjnë në total dhe shënohen te “Pa kohë”.',
+      untimed?`${untimed} rreshta plani nuk kanë kohë të shkruar.`:''].filter(Boolean),
   };
 }
-// Fleta e shtatë: gjurmimi i punonjësit sipas dhomës.
+// Fleta e shtatë: gjurmimi i punonjësit sipas dhomës — me gjurmë të plotë.
 function xlTrackingSheet(employee,segments){
-  const segs=segments||trackingSegments(reportRecords(),employee);
-  const totals=trackingTotals(segs);
-  const minutes=segs.reduce((n,x)=>n+(x.minutes||0),0);
-  return {
-    name:'Gjurmimi',title:'GJURMIMI I PUNONJËSIT SIPAS DHOMËS',
-    subtitle:employee?`Punonjësi: ${employee} · kur ka punuar, sa gjatë dhe në cilën dhomë`:'Të gjithë punonjësit · kur kanë punuar, sa gjatë dhe në cilën dhomë',
-    meta:xlMetaExtra(new Set(segs.map(x=>x.recordId)).size),freezeRow:5,autoFilter:true,landscape:true,
-    columns:[{h:'Data',w:13,type:'date'},{h:'Nr.',w:8,align:'c'},{h:'Punonjësi',w:26},
-      {h:'Nga',w:9,align:'c'},{h:'Deri',w:9,align:'c'},{h:'Minuta',w:11,type:'d2'},
-      {h:'Dhoma',w:20},{h:'Burimi',w:16}],
-    rows:segs.map(x=>[x.date,x.nr,x.employee,x.start,x.end,x.minutes,
-      x.room||'—',x.fromInterval?'Interval':'Dita (hyrje–dalje)']),
-    // values[i] shfaqet te kolona i+1 (Data=0): Minuta=5.
-    total:{label:'TOTALI I MINUTAVE',values:[null,null,null,null,minutes,''],sumCols:[5]},
-    notes:['Një interval = një periudhë e vazhdueshme në të njëjtën dhomë.',
-      'Kur formulari nuk ka intervale, përdoret ora e hyrjes/daljes së ditës (shënuar “Dita”).',
-      `Dhomat: ${totals.rooms.map(r=>`${r.room} ${fmtMinutesLabel(r.minutes)}`).join(' · ')||'—'}`],
-  };
+ const segs=segments||trackingSegments(reportRecords(),employee);
+ const trace=trackingTrace(segs);
+ const totals=trackingTotals(segs);
+ const moves=trackingMoves(trace);
+ const minutes=trace.reduce((n,x)=>n+(x.minutes||0),0);
+ const rows=trace.map(x=>[x.date,x.nr,x.employee,x.start,x.end,x.minutes,x.room||'—',
+  x.fromInterval?'Interval':'Dita (hyrje–dalje)',
+  x.next&&x.moved?x.next.room:'',x.next&&x.next.start?x.next.start:'',
+  x.gap===null?'':x.gap]);
+ const moveRows=moves.map(m=>[m.employee,m.from,m.to,m.count,m.minutes,m.dates.size]);
+ return {
+  name:'Gjurmimi',title:'GJURMIMI I PUNONJËSIT SIPAS DHOMËS',
+  subtitle:employee?`Punonjësi: ${employee} · hyrje, dalje, dhoma dhe kalimi te dhoma tjetër`:'Të gjithë punonjësit · hyrje, dalje, dhoma dhe kalimet',
+  meta:xlMetaExtra(new Set(trace.map(x=>x.recordId)).size),freezeRow:5,autoFilter:true,landscape:true,
+  columns:[{h:'Data',w:13,type:'date'},{h:'Nr.',w:8,align:'c'},{h:'Punonjësi',w:24},
+   {h:'Hyrje',w:9,align:'c'},{h:'Dalje',w:9,align:'c'},{h:'Minuta',w:11,type:'d2'},
+   {h:'Dhoma',w:18},{h:'Burimi',w:17},{h:'Shkoi te',w:18},{h:'Nisi më',w:9,align:'c'},
+   {h:'Ndërprerja (min)',w:16,type:'d2'}],
+  rows,
+  total:{label:'TOTALI I MINUTAVE',values:[null,null,null,null,minutes,'','','','',''],sumCols:[5]},
+  extra:[{title:'KALIMET NGA NJË DHOMË NË TJETRËN',
+    columns:[{h:'Punonjësi',w:24},{h:'Nga',w:18},{h:'Te',w:18},{h:'Herë',w:8,align:'c'},
+      {h:'Kohë në dhomën e parë (min)',w:22,type:'d2'},{h:'Ditë',w:8,align:'c'}],
+    rows:moveRows}],
+  notes:['Një interval = një periudhë e vazhdueshme në të njëjtën dhomë; “Hyrje” dhe “Dalje” janë siç janë shkruar në formular.',
+   'Kur formulari nuk ka intervale, përdoret ora e hyrjes/daljes së ditës (shënuar “Dita”).',
+   `Dhomat: ${totals.rooms.map(r=>`${r.room} ${fmtDuration(r.minutes)}`).join(' · ')||'—'}`],
+ };
 }
 // Fleta e pestë: totalet e tabelave të peshimit.
 function xlWeightsSheet(m){
@@ -3349,14 +3592,15 @@ for(const type of ['click','keydown','beforeinput','input','change','paste','dro
 document.addEventListener('click',async e=>{const suggestion=e.target.closest('[data-combo-option]');if(suggestion){chooseComboOption(Number(suggestion.dataset.comboOption));return}const add=e.target.closest('[data-combo-add]');if(add){await quickAddCombo();return}if(!e.target.closest('[data-combo]')&&!e.target.closest('#combo-popover')&&activeCombo)finishCombo(activeCombo);const nav=e.target.closest('[data-nav]');if(nav){await go(nav.dataset.nav);return}
  if(e.target.closest('#doc-search'))return;
  const dlib=e.target.closest('[data-doc-lib]');if(dlib){await docOpenLibrary(dlib.dataset.docLib,dlib.dataset.docName);return}
- const dopen=e.target.closest('[data-doc-open],[data-doc-record]');if(dopen){await docOpenFromClick(dopen);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='staff-sign')await captureStaffSignature(Number(btn.dataset.index));else if(a==='staff-sign-clear')await clearStaffSignature(Number(btn.dataset.index));else if(a==='report-tab'){state.report.tab=btn.dataset.tab||'summary';renderReportResults()}else if(a==='add-plan')addPlanProduct();else if(a==='add-interval')addInterval();else if(a==='del-interval')delInterval(Number(btn.dataset.emp),Number(btn.dataset.iv));else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',packaging:'',status:'',client:'',employee:'',room:'',tab:state.report.tab||'summary',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='export-report-pro')await exportReportExcelPro();else if(a==='export-report-xlsx')exportReportXlsx(btn.dataset.type||'products');else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='recalc-all-weights')await recalcAllWeights();else if(a==='catalog-template')exportCatalogTemplate();else if(a==='catalog-import-add')document.getElementById('catalog-import-add-file').click();else if(a==='catalog-import-replace')document.getElementById('catalog-import-replace-file').click();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
+ const dopen=e.target.closest('[data-doc-open],[data-doc-record]');if(dopen){await docOpenFromClick(dopen);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='staff-sign')await captureStaffSignature(Number(btn.dataset.index));else if(a==='staff-sign-clear')await clearStaffSignature(Number(btn.dataset.index));else if(a==='set-workday')setWorkday(Number(btn.dataset.minutes)/60);else if(a==='report-tab'){state.report.tab=btn.dataset.tab||'summary';renderReportResults()}else if(a==='add-plan')addPlanProduct();else if(a==='add-interval')addInterval();else if(a==='del-interval')delInterval(Number(btn.dataset.emp),Number(btn.dataset.iv));else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',packaging:'',status:'',client:'',employee:'',room:'',tab:state.report.tab||'summary',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='export-report-pro')await exportReportExcelPro();else if(a==='export-report-xlsx')exportReportXlsx(btn.dataset.type||'products');else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='recalc-all-weights')await recalcAllWeights();else if(a==='catalog-template')exportCatalogTemplate();else if(a==='catalog-import-add')document.getElementById('catalog-import-add-file').click();else if(a==='catalog-import-replace')document.getElementById('catalog-import-replace-file').click();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
   else if(a==='batch-read-pending')await batchReadPending()
   else if(a==='batch-manual')await batchManualReview();else if(a==='batch-cancel')batchCancel();else if(a==='batch-review-ready')await batchReviewCompleted();else if(a==='batch-reset')await batchStartOver();else if(a==='batch-raw')batchRawDownload();else if(a==='batch-up')batchMove(Number(btn.dataset.index),-1);else if(a==='batch-down')batchMove(Number(btn.dataset.index),1);else if(a==='batch-swap')batchSwap(Number(btn.dataset.index));else if(a==='batch-split')batchSplit(Number(btn.dataset.index));else if(a==='batch-join')batchJoin(Number(btn.dataset.index));else if(a==='batch-remove')await batchRemove(Number(btn.dataset.index));else if(a==='batch-original-reset')batchPrivateReset(btn.dataset.id);else if(a==='batch-open')batchOpen(Number(btn.dataset.index));else if(a==='batch-remove-review')await batchRemoveReview();else if(a==='batch-draft')batchDraftDownload();else if(a==='batch-save')await batchSave();else if(a==='cloud-open-original')await cloudOpenOriginal(Number(btn.dataset.index));else if(a==='sample')await sample();else if(a==='clear-demo')await clearDemo();else if(a==='template-download')exportTemplateXlsx();else if(a==='template-upload')document.getElementById('template-upload-file').click();else if(a==='catalog-import')document.getElementById('catalog-import-file').click();else if(a==='catalog-add')await addCatalog(btn.dataset.kind);else if(a==='catalog-edit')await editCatalog(btn.dataset.kind,Number(btn.dataset.index));else if(a==='catalog-delete')await deleteCatalog(btn.dataset.kind,Number(btn.dataset.index))});
 document.addEventListener('input',e=>{const el=e.target;if(el.dataset.combo==='sources'&&state.route==='editor'){setPath(state.draft,el.dataset.bind.replace(/sourceLabel$/,'source'),'')}if(el.dataset.combo)showCombo(el);
  if(el.dataset.report&&state.route==='reports'){state.report[el.dataset.report]=el.value;renderReportResults()}
  if(el.dataset.combo==='tracking-employee'&&state.report.employee!==el.value){state.report.employee=el.value;renderReportResults()}
- if(el.dataset.combo&&el.dataset.combo.startsWith('report-')){const key=reportFilterKey(el.dataset.combo);if(key&&state.report[key]!==el.value){state.report[key]=el.value;renderReportResults()}}if(el.id==='history-search'){state.search=el.value;renderHistoryList();return}if(el.id==='doc-search'){state.docSearch=el.value;renderDocList();return}if(el.id==='print-search'){state.print.search=el.value;renderPrintList();return}if(el.dataset.printSetting){state.print[el.dataset.printSetting]=el.value;return}if(el.dataset.bind&&state.route==='editor'&&state.mode!=='view'){setPath(state.draft,el.dataset.bind,el.value);state.dirty=true;batchMarkChanged();recalcWeightInput(el.dataset.bind);updateDerived(el.dataset.bind)}});
-document.addEventListener('change',e=>{const el=e.target;if(state.route==='editor'&&state.mode!=='view'&&/^employees\.\d+\.(start|end)$|^employees\.\d+\.intervals\.\d+\.(start|end)$/.test(el.dataset.bind||'')){const parsed=timeFromImport(el.value);if(parsed){el.value=parsed;setPath(state.draft,el.dataset.bind,parsed);state.dirty=true;batchMarkChanged();updateDerived(el.dataset.bind)}}if(el.id==='catalog-import-add-file'||el.id==='catalog-import-replace-file'){const file=el.files?.[0],mode=el.id==='catalog-import-add-file'?'add':'replace';el.value='';importCatalogFile(file,mode);return}if(el.id==='batch-files'){batchAddFiles(el);return}if(el.dataset.batchOriginal){batchPrivateChanged(el);return}if(el.id==='batch-review-original'){batchReviewPrivateChanged(el);return}if(el.id==='batch-device-notice'){setDeviceNotice(el);return}if(el.id==='batch-reviewed'&&batchIsReview()){const it=batchState.items[batchState.index];it.confirmedDigest=el.checked?JSON.stringify(it.record):'';batchUpdateSummary();return}if(el.id==='confirm-import-review'&&importState.review){importState.review.confirmed=el.checked;return}if(el.dataset.printId){if(el.checked)state.print.selected.add(el.dataset.printId);else state.print.selected.delete(el.dataset.printId);updatePrintCount();return}if(el.dataset.attendance){state.attendance[el.dataset.attendance]=el.value;render();return}if(el.dataset.report){state.report[el.dataset.report]=el.value;renderReportResults();return}if(el.id==='template-upload-file'){const file=el.files&&el.files[0];el.value='';templateUpload(file);return}if(el.id==='catalog-import-file'){const file=el.files&&el.files[0];el.value='';catalogImportFile(file);return}if(el.id==='import-file'){const file=el.files&&el.files[0];el.value='';importBackup(file)}});
+ if(el.dataset.combo&&el.dataset.combo.startsWith('report-')){const key=reportFilterKey(el.dataset.combo);if(key&&state.report[key]!==el.value){state.report[key]=el.value;renderReportResults()}}if(el.id==='history-search'){state.search=el.value;renderHistoryList();return}if(el.id==='doc-search'){state.docSearch=el.value;renderDocList();return}if(el.id==='print-search'){state.print.search=el.value;renderPrintList();return}if(el.dataset.printSetting){state.print[el.dataset.printSetting]=el.value;return}
+ if(el.dataset.workday!==undefined&&state.route==='catalog'){const h=Number(String(el.value).replace(',','.'));if(h>=1&&h<=24)saveWorkday(Math.round(h*60));return}if(el.dataset.duration&&state.route==='editor'&&state.mode!=='view'){const host=el.closest('[data-duration-field]');if(host)syncDurationField(host);return}if(el.dataset.bind&&state.route==='editor'&&state.mode!=='view'){setPath(state.draft,el.dataset.bind,el.value);state.dirty=true;batchMarkChanged();recalcWeightInput(el.dataset.bind);updateDerived(el.dataset.bind)}});
+document.addEventListener('change',e=>{const el=e.target;if(state.route==='editor'&&state.mode!=='view'&&/^employees\.\d+\.(start|end)$|^employees\.\d+\.intervals\.\d+\.(start|end)$/.test(el.dataset.bind||'')){const parsed=timeFromImport(el.value);if(parsed){el.value=parsed;setPath(state.draft,el.dataset.bind,parsed);state.dirty=true;batchMarkChanged();updateDerived(el.dataset.bind)}}if(el.id==='catalog-import-add-file'||el.id==='catalog-import-replace-file'){const file=el.files?.[0],mode=el.id==='catalog-import-add-file'?'add':'replace';el.value='';importCatalogFile(file,mode);return}if(el.id==='batch-files'){batchAddFiles(el);return}if(el.dataset.batchOriginal){batchPrivateChanged(el);return}if(el.id==='batch-review-original'){batchReviewPrivateChanged(el);return}if(el.id==='batch-device-notice'){setDeviceNotice(el);return}if(el.id==='batch-reviewed'&&batchIsReview()){const it=batchState.items[batchState.index];it.confirmedDigest=el.checked?JSON.stringify(it.record):'';batchUpdateSummary();return}if(el.id==='confirm-import-review'&&importState.review){importState.review.confirmed=el.checked;return}if(el.dataset.printId){if(el.checked)state.print.selected.add(el.dataset.printId);else state.print.selected.delete(el.dataset.printId);updatePrintCount();return}if(el.dataset.attendance){state.attendance[el.dataset.attendance]=el.value;render();return}if(el.dataset.report){state.report[el.dataset.report]=el.value;renderReportResults();return}if(el.dataset.workday!==undefined&&state.route==='catalog'){setWorkday(el.value);return}if(el.id==='template-upload-file'){const file=el.files&&el.files[0];el.value='';templateUpload(file);return}if(el.id==='catalog-import-file'){const file=el.files&&el.files[0];el.value='';catalogImportFile(file);return}if(el.id==='import-file'){const file=el.files&&el.files[0];el.value='';importBackup(file)}});
 document.addEventListener('toggle',e=>{const el=e.target;if(el.isConnected&&el.matches('.weight-card')&&state.route==='editor'){const i=Number(el.dataset.weightIndex);if(el.open)state.weightOpen.add(i);else state.weightOpen.delete(i)}},true);document.addEventListener('focusin',e=>{if(e.target.dataset.combo&&!suppressComboFocus)showCombo(e.target)});document.addEventListener('focusout',e=>{if(e.target.dataset.combo)setTimeout(()=>{if(activeCombo===e.target&&!document.activeElement?.closest('#combo-popover'))finishCombo(e.target)},160)});window.addEventListener('scroll',()=>{if(activeCombo)positionCombo(activeCombo)},true);window.addEventListener('resize',()=>{if(activeCombo)positionCombo(activeCombo)});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&e.target.closest('#combo-popover')){e.preventDefault();const el=activeCombo;hideCombo();if(el&&el.isConnected){suppressComboFocus=true;el.focus();suppressComboFocus=false}return}if(e.target.dataset.combo&&handleComboKey(e))return;if(e.key==='Enter'&&e.target.id?.startsWith('add-')){e.preventDefault();addCatalog(e.target.id.slice(4))}});
 window.addEventListener('beforeunload',e=>{if((state.route==='editor'&&state.dirty&&state.mode!=='view')||cloud.busy||cloud.uncertain||batchState.busy||batchIsReview()||(state.route==='batch'&&batchState.groups.some(g=>g.results?.length))){e.preventDefault();e.returnValue=''}});
 
