@@ -862,6 +862,155 @@ async function exportTimecardPDF(){
   download('BioBes_timecard.pdf',await pdf.save(),'application/pdf');toast('PDF-ja u shkarkua.');
  }catch(e){console.error(e);toast('PDF-ja nuk u përgatit.','error')}
 }
+// ---- Fleta e ditës (PDF) ----------------------------------------------------
+// Një faqe për formular: kreu, plani, punonjësit, peshimet dhe komentet — e
+// njëjta pamje si formulari i skanuar, që ta lexosh pa e hapur formularin.
+// Skedari ndërtohet i gjithi në pajisje; asnjë e dhënë nuk dërgohet askund.
+async function exportDayPDF(){
+ const rs=reportRecords();
+ if(!rs.length){toast('Nuk ka formularë për periudhën e zgjedhur.','warn');return}
+ try{
+  const pdf=await PDFLib.PDFDocument.create();pdf.registerFontkit(fontkit);
+  const font=await pdf.embedFont(embeddedBytes('font-regular'),{subset:true}),
+        bold=await pdf.embedFont(embeddedBytes('font-bold'),{subset:true}),
+        {rgb}=PDFLib;
+  const W=595.28,H=841.89,M=34,usable=W-M*2;
+  let page,y;
+  const fit=(text,size,max,f=font)=>{text=str(text);let n=size;while(n>4.5&&f.widthOfTextAtSize(text,n)>max)n-=.25;return n};
+  const put=(text,x,yy,max,size=9,f=font,color=rgb(0,0,0))=>{const t=str(text);if(!t)return;const s2=fit(t,size,max,f);page.drawText(t,{x,y:yy,size:s2,font:f,color})};
+  const wrap=(text,size,max,f=font)=>{const out=[];for(const para of str(text).split(/\r?\n/)){let line='';for(const word of para.split(/\s+/)){const next=line?line+' '+word:word;if(f.widthOfTextAtSize(next,size)>max&&line){out.push(line);line=word}else line=next}out.push(line)}return out};
+  // Një vijë ndarëse; pozicioni mbrohet nga vlera jo-numra, që faqja të mos dështojë.
+  const rule=(yy,y2=yy,color=rgb(.82,.86,.88))=>{const a=Number(yy),b=Number(y2);if(!Number.isFinite(a)||!Number.isFinite(b))return;page.drawLine({start:{x:M,y:a},end:{x:W-M,y:b},thickness:.7,color})};
+  const newPage=(r)=>{page=pdf.addPage();y=H-M;
+   page.drawRectangle({x:M,y:y-18,width:usable,height:20,color:rgb(.13,.23,.32)});
+   put('BioBes · Fleta e ditës',M+8,y-14,usable-180,11,bold,rgb(1,1,1));
+   put('Të dhëna nga formularët e ruajtur',W-M-190,y-14,182,8.5,font,rgb(.78,.85,.9));
+   y-=34;
+   const need=(n=14)=>{if(y<M+n){newPage(r)}};
+   return need;
+  };
+  const band=(label,value)=>{page.drawRectangle({x:M,y:y-15,width:usable,height:18,color:rgb(.955,.965,.972)});put(label,M+7,y-11,130,10,bold);put(value,M+140,y-11,usable-150,10);y-=26};
+  // Tri kutitë e ditës: plani, peshimi dhe diferenca — lexohen me një sy.
+  const boxes=(items)=>{
+   const gap=8,wBox=(usable-gap*(items.length-1))/items.length,hBox=44;
+   items.forEach(([label,value,color],i)=>{
+    const x=M+i*(wBox+gap);
+    page.drawRectangle({x,y:y-hBox,width:wBox,height:hBox,color:rgb(.975,.98,.985),borderColor:rgb(.87,.9,.92),borderWidth:.7});
+    page.drawRectangle({x,y:y-hBox,width:2.2,height:hBox,color:color||rgb(.13,.23,.32)});
+    put(label,x+9,y-14,wBox-18,8,bold,rgb(.45,.52,.58));
+    put(value,x+9,y-32,wBox-18,13,bold,color||rgb(.13,.23,.32));
+   });
+   y-=hBox+14;
+  };
+
+  const header=(r)=>{
+   const room=str(r.room).replace(/^dhoma\s+/i,'');
+   page.drawRectangle({x:M,y:y-36,width:usable,height:38,color:rgb(.13,.23,.32)});
+   put(room?`DHOMA ${room}`:'DHOMA —',M+8,y-15,usable-150,13,bold,rgb(1,1,1));
+   put(`Nr. ${r.nr}`,W-M-84,y-15,76,13,bold,rgb(1,1,1));
+   put(`${formatDate(r.date)} · ${dayName(r.date)} · Java ${weekNumber(r.date)??'—'}`,M+8,y-30,usable-16,9.5,font,rgb(.85,.9,.93));
+   y-=50;
+  };
+  let first=true;
+  for(const r of rs){
+   if(first){newPage(r);header(r);first=false}else{newPage(r);header(r)}
+   band('Përgjegjësja',str(r.responsible?.name)||'—');
+   if(str(r.assistant?.name))band('Ndihmësja',str(r.assistant?.name));
+   y-=4;
+   const wsum=planWeighedKg(r),plannedKg=(r.plan||[]).reduce((n,p)=>planUnitKind(p.unit)==='kg'&&num(p.actual)!==null?n+num(p.actual):n,0);
+   const diffKg=plannedKg?Math.round((wsum.kg-plannedKg)*1000)/1000:null;
+   // Minus i vërtetë (−), jo vizë; formati i numrave mbetet “14 160”.
+   const signed=v=>`${v>0?'+':v<0?'−':''}${fmt(Math.abs(v))}`;
+   y-=6;
+   boxes([['PLANI (kg)',plannedKg?fmt(plannedKg):'—',rgb(.13,.23,.32)],
+    ['PESHIMI (kg)',wsum.used?fmt(wsum.kg):'—',rgb(.13,.23,.32)],
+    ['DIFERENCA',diffKg===null?'—':`${signed(diffKg)} kg`,
+     diffKg===null?rgb(.55,.6,.65):(Math.abs(diffKg)<=Math.max(PLAN_TOLERANCE_KG,plannedKg*PLAN_TOLERANCE_PCT/100)?rgb(.32,.46,.36):rgb(.64,.25,.25))]]);
+   y-=8;
+   // 1) Plani i punës
+   put('1. PLANI I PUNËS',M,y,usable,11,bold);y-=17;
+   const plan=(r.plan||[]).filter(p=>nonempty(p.product));
+   if(!plan.length){put('Nuk ka plan të plotësuar.',M+6,y,usable,8.5,font,rgb(.45,.5,.55));y-=12}
+   for(const p of plan){
+    if(y<M+60)newPage(r);
+    const line=`${p.product}${p.packaging?` · ${p.packaging}`:''}`;
+    put(line,M+8,y,usable-200,10,bold);
+    const right=[p.actual?`${fmt(Number(String(p.actual).replace(',','.')))} ${p.unit||''}`:'' ,p.status,p.client?`Klienti: ${p.client}`:''].filter(Boolean).join(' · ');
+    put(right,W-M-190,y,184,9.5,font,rgb(.28,.33,.38));
+    y-=15;
+    if(p.comment&&y>M+40){put(`Koment: ${p.comment}`,M+16,y,usable-30,8,font,rgb(.45,.5,.55));y-=11}
+   }
+   y-=6;rule();y-=10;
+   // 2) Punonjësit
+   put('2. PUNONJËSIT',M,y,usable,11,bold);y-=17;
+   const staff=(r.employees||[]).filter(e=>nonempty(e.name));
+   if(!staff.length){put('Nuk ka punonjës të shënuar.',M+6,y,usable,8.5,font,rgb(.45,.5,.55));y-=12}
+   for(const e of staff){
+    if(y<M+60)newPage(r);
+    const ivs=(e.intervals||[]).filter(iv=>nonempty(iv.start)||nonempty(iv.end));
+    const span=ivs.length?ivs.map(iv=>`${iv.start||'—'}–${iv.end||'—'}${iv.room?` (${iv.room})`:''}`).join(', ')
+     :(e.start||e.end?`${e.start||'—'}–${e.end||'—'}`:'');
+    const h=hoursFor(e);
+    put(e.name,M+8,y,usable-230,10.5);
+    put(span,M+196,y,180,9.5,font,rgb(.4,.45,.5));
+    put(h===null?'—':`${fmtDuration(Math.round(h*60))}`,W-M-84,y,80,10,bold);
+    y-=15;
+    if(e.comment&&y>M+40){put(e.comment,M+16,y,usable-30,8,font,rgb(.45,.5,.55));y-=11}
+   }
+   y-=6;rule();y-=10;
+   // 3) Peshimet
+   put('3. PESHAT',M,y,usable,11,bold);y-=17;
+   const groups=(r.weighings||[]).map((g,i)=>({g,i,rows:(g.rows||[]).filter(row=>['bags','kg','packaging','sum'].some(k=>nonempty(row?.[k])))}));
+   if(!groups.length){put('Nuk ka peshime të shënuara.',M+6,y,usable,8.5,font,rgb(.45,.5,.55));y-=12}
+   for(const {g,i,rows} of groups){
+    if(!rows.length)continue;
+    if(y<M+70)newPage(r);
+    put(`Peshimi ${i+1}${g.product?` · ${g.product}`:''}${g.source?' · '+(g.source==='stock'?'Marrë nga stoku':'Tjetër'):''}`,M+8,y,usable,9.5,bold);y-=14;
+    for(const row of rows){
+     if(y<M+50)newPage(r);
+     const kg=num(row.kg),pack=num(row.packaging),sum=num(row.sum);
+     const net=sum!==null&&!Number.isNaN(sum)?sum:(kg!==null&&pack!==null?kg-pack:null);
+     put(`${row.bags?`${row.bags} thasë · `:''}${kg!==null?`${fmt(kg)} kg`:''}${pack!==null?` − ${fmt(pack)} ambalazh`:''}`,M+20,y,usable-140,10,font,rgb(.35,.4,.45));
+     put(net===null?'—':`${fmt(net)} kg`,W-M-96,y,92,10,bold);
+     y-=14;
+    }
+   }
+   y-=4;
+   const weighed=planWeighedKg(r);
+   if(weighed.used){put(`Peshimi gjithsej: ${fmt(weighed.kg)} kg (${weighed.used} ${weighed.used===1?'rresht':'rreshta'})`,M+8,y,usable,10.5,bold);y-=18}
+   // Diferenca plan ↔ peshim, e njëjta logjikë si te tab-i “Kontrolli”.
+   const chk=planCheckRows([r]).find(x=>x.unit==='kg');
+   if(chk&&chk.diff!==null){
+    const col=chk.status==='përputhet'?rgb(.32,.46,.36):rgb(.64,.25,.25);
+    const text=`Plani ${fmt(chk.planned)} kg · Peshimi ${fmt(chk.weighed)} kg · Diferenca ${chk.diff>0?'+':chk.diff<0?'−':''}${fmt(Math.abs(chk.diff))} kg (${chk.pct>0?'+':chk.pct<0?'−':''}${fmt(Math.abs(chk.pct),1)}%) — ${planStatusLabel(chk)}`;
+    page.drawRectangle({x:M,y:y-14,width:usable,height:17,color:chk.status==='përputhet'?rgb(.94,.97,.94):rgb(.995,.95,.94)});
+    put(text,M+8,y-10,usable-16,10,bold,col);
+    y-=24;
+   }
+   // 4) Komentet
+   if(str(r.comments)&&y>M+60){
+    rule();y-=10;
+    put('4. KOMENTE',M,y,usable,11,bold);y-=16;
+    for(const line of wrap(r.comments,10,usable-12)){
+     if(y<M+30)newPage(r);
+     put(line,M+8,y,usable-12,10);y-=14;
+    }
+   }
+   if(r.isDemo){put('Formular shembull — jo të dhëna reale.',M,y,usable,7.5,font,rgb(.6,.5,.3));y-=10}
+  }
+  // Fundi shkruhet në çdo faqe, edhe në ato që u shtuan gjatë rrjedhës.
+  const total=pdf.getPageCount();
+  pdf.getPages().forEach((pg,i)=>{
+   pg.drawLine({start:{x:M,y:M-6},end:{x:W-M,y:M-6},thickness:.6,color:rgb(.85,.88,.9)});
+   pg.drawText('BioBes · Blloku ditor · Fleta e ditës',{x:M,y:M-18,size:7.5,font,color:rgb(.55,.6,.65)});
+   const label=`Faqe ${i+1} / ${total}`;
+   pg.drawText(label,{x:W-M-font.widthOfTextAtSize(label,7.5),y:M-18,size:7.5,font,color:rgb(.55,.6,.65)});
+  });
+  const stamp=new Date().toISOString().slice(0,10);
+  download(`BioBes_fleta_e_dites_${stamp}.pdf`,await pdf.save(),'application/pdf');
+  toast(`Fleta e ditës u shkarkua (${rs.length} formularë, ${pdf.getPageCount()} faqe).`);
+ }catch(e){console.error(e);toast('PDF-ja nuk u përgatit: '+str(e?.message||'',120),'error')}
+}
 // Listëprezenca përdor datën e formularit dhe mbledh të gjitha intervalet e ditës.
 function attendanceData(records,names,month,employee=''){
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||Number(month.slice(0,4))<100)return null;
@@ -1084,20 +1233,21 @@ ${field('Dhoma',`<input class="input" data-combo="report-rooms" value="${esc(sta
 
 // Vetëm rezultatet: rifreskohen pa prekur filtrat, që kursori të mos hidhet.
 function reportTabsHTML(){
- const tabs=[['summary','Përmbledhje'],['duration','Kohëzgjatja e proceseve'],['tracking','Gjurmimi i punonjësit']];
+ const tabs=[['summary','Përmbledhje'],['duration','Kohëzgjatja e proceseve'],['tracking','Gjurmimi i punonjësit'],['check','Kontrolli plan ↔ peshime']];
  return `<div class="tab-line" role="tablist">${tabs.map(([id,label])=>`<button class="pill-tab ${state.report.tab===id?'active':''}" role="tab" aria-selected="${state.report.tab===id}" data-action="report-tab" data-tab="${id}">${label}</button>`).join('')}</div>`;
 }
 // Shiriti i shkarkimit: i njëjtë në çdo tab, që raporti të mos "humbë" butonat
 // kur përdoruesi kalon te kohëzgjatja ose gjurmimi.
 function reportExportBar(count){
  if(!count)return '';
- const kinds=[['products','Prodhimi','Sasitë e prodhuara sipas produktit'],['packages','Paketimet','Ambalazhet e përdorura'],['hours','Orët','Orët e punës sipas punonjësit'],['stock','Stoku','Pesha e marrë nga stoku'],['weights','Peshimet','Totalet e tabelave të peshimit'],['duration','Kohëzgjatja','Minutat e procesit sipas produktit'],['tracking','Gjurmimi','Kur ka punuar punonjësi dhe në cilën dhomë']];
+ const kinds=[['products','Prodhimi','Sasitë e prodhuara sipas produktit'],['packages','Paketimet','Ambalazhet e përdorura'],['hours','Orët','Orët e punës sipas punonjësit'],['stock','Stoku','Pesha e marrë nga stoku'],['weights','Peshimet','Totalet e tabelave të peshimit'],['duration','Kohëzgjatja','Minutat e procesit sipas produktit'],['tracking','Gjurmimi','Kur ka punuar punonjësi dhe në cilën dhomë'],['check','Kontrolli','Plani kundrejt tabelave të peshimit'],['day','Fleta e ditës','Një rresht për formular: kreu, produktet, orët, peshimi']];
  const buttons=kinds.map(([value,label,title])=>`<button class="btn btn-small" data-action="export-report-xlsx" data-type="${value}" title="${title} · Excel">${icon('download',13)} ${label}</button>`).join('');
- return `<div class="list-tools"><div><span class="eyebrow">Shkarko</span></div><div class="report-actions"><span class="small-note">Excel:</span>${buttons}<button class="btn btn-primary btn-small" data-action="export-report-pro" title="Të gjitha raportet në një skedar, 7 fletë">${icon('download',13)} Të gjitha</button></div></div>`;
+ return `<div class="list-tools"><div><span class="eyebrow">Shkarko</span></div><div class="report-actions"><span class="small-note">Excel:</span>${buttons}<button class="btn btn-small btn-soft" data-action="export-day-pdf" title="Fleta e ditës — një faqe për çdo formular, PDF">${icon('file',13)} Fleta e ditës (PDF)</button><button class="btn btn-primary btn-small" data-action="export-report-pro" title="Të gjitha raportet në një skedar, 9 fletë">${icon('download',13)} Të gjitha</button></div></div>`;
 }
 function reportResultsHTML(){const rs=reportRecords(),m=metrics(rs,state.report.product),products=allProducts(),invalid=state.report.from&&state.report.to&&state.report.from>state.report.to;const prod=m.products.map(x=>[x.product,x.packaging,fmt(x.qty),x.unit,String(x.records.size)]),packs=m.packageCounts.map(x=>[x.packaging,fmt(x.count),String(x.records.size)]),staff=m.employees.map(x=>[x.name,fmt(roundHoursTotal(x.hours)),String(x.records.size)]),stock=m.stock.map(x=>[x.product,fmt(x.kg),'kg',fmt(x.bags),String(x.rows)]),weightRows=m.tables.map(x=>[formatDate(x.date),x.nr,String(x.group),x.product,x.source,...['bags','kg','packaging'].map(k=>x.totals.seen[k]?fmt(x.totals[k]):'—'),reportNetLabel(x.net),reportNetNotes(x.net)]);const tab=state.report.tab||'summary',bar=reportExportBar(rs.length);
  if(tab==='duration')return reportTabsHTML()+bar+durationHTML(rs);
  if(tab==='tracking')return reportTabsHTML()+bar+trackingHTML(rs);
+ if(tab==='check')return reportTabsHTML()+bar+planCheckHTML(rs);
  return reportTabsHTML()+bar+`<div class="stat-grid">${stat('Formularë',String(rs.length),'','Sipas datave të zgjedhura','file')}${stat('Prodhim i regjistruar',fmt(m.producedKg),'kg','Vetëm sasitë e prodhuara në kg','box')}${stat('Orë pune (rrumb.)',fmt(roundHoursTotal(m.hours)),'orë','Për gjithë ditët e filtruara','clock')}${stat('Marrë nga stoku',fmt(m.stockKg),'kg','Vetëm peshime të shënuara si stok','stack')}</div>${m.unknownKg||m.stockMissingKg?`<div class="notice">${icon('alert',15)}<span>${m.unknownKg?`${fmt(m.unknownKg)} kg pa burim.`:''} ${m.stockMissingKg?`${m.stockMissingKg} rreshta pa KG.`:''}</span></div>`:''}${reportExportBar(rs.length)}<div class="report-grid">${attendanceHTML()}${timecardHTML(rs)}<div class="card"><div class="card-head"><div><h3>Prodhimi sipas produktit</h3><p>Sasitë e prodhuara, të ndara sipas njësisë</p></div></div>${reportTable(['Produkti','Paketimi','Sasia','Njësia','Formularë'],prod)}</div><div class="card"><div class="card-head"><div><h3>Paketimet e përdorura</h3><p>Numri i ambalazheve, i futur veçmas në formular</p></div></div>${reportTable(['Paketimi','Nr. ambalazheve','Formularë'],packs)}</div><div class="card"><div class="card-head"><div><h3>Orët e punës</h3></div></div>${reportTable(['Punonjësi','Orë (rrumb.)','Formularë'],staff)}</div><div class="card"><div class="card-head"><div><h3>Marrjet nga stoku</h3><p>Vetëm peshimet e shënuara si stok</p></div></div>${reportTable(['Produkti','Pesha','Njësia','Thasë','Rreshta'],stock)}</div><div class="card report-wide"><div class="card-head"><div><h3>Totalet e tabelave të peshimit</h3></div></div><div class="small-note" style="padding:0 16px 10px">Përdoret Shuma e shënuar; nëse mungon, llogaritet nga KG − ambalazhi. Kur ambalazhi është bosh, duhet Shuma e shkruar. Mospërputhjet shënohen për kontroll.</div>${reportTable(['Data','Nr.','Peshimi','Produkti','Burimi','Σ thasë','Σ KG','Σ ambalazhi','Σ shuma','Kontrolli'],weightRows)}</div></div>`}
 
 
@@ -2838,6 +2988,20 @@ function stylesXml(){
 // -------- ndërtimi i një sheet-i -------------------------------------------
 // spec: {name,title,subtitle,meta:[[k,v]],columns:[{h,w,type,fmt}],rows,total:{label,values},
 //        notes:[],freezeRow,autoFilter,landscape}
+// `totalValues({6:plani,7:peshimi}, 12)` → listë për `total.values`.
+// `values[i]` shkruhet te kolona i+1, prandaj këtu futet një null në krye dhe
+// vlera vendoset sipas INDEKSIT TË KOLONËS — pa gabime “një kolonë djathtas”.
+function totalValues(byCol,count){
+ // values[i] shkruhet te kolona i+1, prandaj ky është `count-1` i gjatë: vlera e
+ // kolonës 6 vendoset te indeksi 5.
+ const out=Array(Math.max(0,count-1)).fill(null);
+ for(const [k,v] of Object.entries(byCol||{})){
+  const ci=Number(k);
+  if(ci>=1&&ci-1<out.length)out[ci-1]=v;
+  if(ci===0)out.unshift?null:null; // kolona A është etiketa e totalit
+ }
+ return out;
+}
 function sheetSpec(spec){
   const cols=spec.columns||[];
   let lastCol=Math.max(0,cols.length-1);
@@ -2927,16 +3091,20 @@ function sheetSpec(spec){
     // e vetë pa u zhvendosur. null = qelizë bosh nën atë kolonë.
     const vals=spec.total.values;
     put(r,0,spec.total.label||'TOTALI',7);
+    const formuled=new Set(spec.total.sumCols||[]);
     vals.forEach((v,i)=>{
       if(v==null||v==='')return;
+      // Kolonat me formulë SUM nuk marrin edhe vlerë statike: një qelizë, një burim.
+      if(formuled.has(i+1))return;
       const isFormula=typeof v==='string'&&v.startsWith('=');
       put(r,i+1,v,typeof v==='number'||isFormula?8:17,
         isFormula?{t:'n',f:true}:{t:typeof v==='number'?'n':'s'});
     });
-    // Për kolonat shumë, formula REALE =SUM(...) nën të dhënat: Excel-i e
-    // rillogarit vetë nëse përdoruesi ndryshon një qelizë.
+    // Formula REALE =SUM(...) shkruhet E FUNDIT: `put` zëvendëson qelizën me të
+    // njëjtin referencë, prandaj formula (Excel-i e rillogarit vetë) fiton mbi
+    // vlerën statike te kolonat që mblidhen.
     for(const ci of spec.total.sumCols||[]){
-      if(lastData<=firstData)continue;
+      if(lastData<firstData)continue;
       const L=colName(ci);
       put(r,ci,`=SUM(${L}${firstData+1}:${L}${lastData+1})`,8,{t:'n',f:true});
     }
@@ -3186,6 +3354,166 @@ function xlHoursSheet(m){
   };
 }
 // Fleta e gjashtë: kohëzgjatja e proceseve (minutat e shkruara në formular).
+// ---- Kontrolli plan ↔ peshime ----------------------------------------------
+// Formulari shkruan sasinë e planit (p.sh. 14.160 kg) dhe, veç, tabelat e
+// peshimit. Deri tani askush nuk i krahasonte: mospërputhja dukej vetëm me sy
+// mbi letër. Këtu krahasohen vetëm të dhëna që ekzistojnë — pa hamendje.
+// Toleranca absolute 0.5 kg mbulon rrumbullakimin e peshores; përqindja 1%.
+const PLAN_TOLERANCE_KG=0.5,PLAN_TOLERANCE_PCT=1;
+const PLAN_UNITS_KG=['kg','kilogram','kilogramë','kilo'];
+const planUnitKind=unit=>{
+ const u=fold(unit);
+ if(PLAN_UNITS_KG.includes(u))return 'kg';
+ if(['copë','cope','cop','copëz','pc','piece'].includes(u))return 'copë';
+ if(u==='thasë'||u==='thase'||u==='thas')return 'thasë';
+ return u||'';
+};
+// Sa është shuma e peshimeve për një formular, vetëm në kg të vlefshme.
+function planWeighedKg(r){
+ let kg=0,used=0,unclear=0;
+ for(const g of r.weighings||[]){
+  for(const row of g.rows||[]){
+   if(!['bags','kg','packaging','sum'].some(k=>nonempty(row?.[k])))continue;
+   const net=num(row.sum)!==null&&!Number.isNaN(num(row.sum))?num(row.sum)
+    :(num(row.kg)!==null&&num(row.packaging)!==null?num(row.kg)-num(row.packaging):null);
+   if(net===null||Number.isNaN(net)||net<0){unclear++;continue}
+   kg+=net;used++;
+  }
+ }
+ return {kg:Math.round(kg*1000)/1000,used,unclear};
+}
+// Një rresht kontrolli për çdo produkt të planit, plus rreshtat e peshimeve që
+// nuk kanë produkt në plan (që nuk duhet të humbin në heshtje).
+function planCheckRows(records){
+ const out=[];
+ for(const r of records){
+  const weighed=planWeighedKg(r);
+  const byKind=new Map();
+  for(const p of r.plan||[]){
+   if(!nonempty(p.product))continue;
+   const kind=planUnitKind(p.unit),planned=num(p.actual);
+   const v=byKind.get(kind)||{kind,planned:0,hasPlanned:false,products:[]};
+   if(planned!==null&&!Number.isNaN(planned)&&planned>=0){v.planned+=planned;v.hasPlanned=true}
+   v.products.push(p.product);
+   byKind.set(kind,v);
+  }
+  for(const [kind,v] of byKind){
+   const measured=kind==='kg'?weighed.kg:null;
+   let diff=null,pct=null,status='pa plan';
+   // Kur tabelat e peshimit janë krejt bosh, nuk është “mangut” por “pa peshime”:
+   // mungon matja, nuk ka provë për diferencë.
+   if(v.hasPlanned&&measured!==null&&weighed.used>0){
+    diff=Math.round((measured-v.planned)*1000)/1000;
+    pct=v.planned>0?Math.round(diff/v.planned*1000)/10:null;
+    const ok=Math.abs(diff)<=Math.max(PLAN_TOLERANCE_KG,Math.abs(v.planned)*PLAN_TOLERANCE_PCT/100);
+    status=ok?'përputhet':(diff<0?'mangon':'tepër');
+   }else if(v.hasPlanned&&(kind==='copë'||kind==='thasë')){
+    status='kontrollo me dorë';
+   }else if(v.hasPlanned&&!weighed.used){
+    status='pa peshime';
+   }else if(!v.hasPlanned){
+    status='pa sasi plani';
+   }
+   out.push({id:r.id,nr:r.nr,date:r.date,room:r.room,responsible:str(r.responsible?.name),
+    product:v.products.join(', '),unit:kind||'—',planned:v.hasPlanned?v.planned:null,
+    weighed:measured,diff,pct,status,rows:weighed.used,unclear:weighed.unclear});
+  }
+  if(!byKind.size&&weighed.used){
+   out.push({id:r.id,nr:r.nr,date:r.date,room:r.room,responsible:str(r.responsible?.name),
+    product:'(pa produkt në plan)',unit:'kg',planned:null,weighed:weighed.kg,diff:null,pct:null,
+    status:'peshim pa plan',rows:weighed.used,unclear:weighed.unclear});
+  }
+ }
+ return out;
+}
+function planCheckSummary(rows){
+ const s={total:rows.length,ok:0,short:0,over:0,missing:0,manual:0,unclear:0,shortKg:0,overKg:0,checked:0};
+ for(const x of rows){
+  if(x.status==='përputhet'){s.ok++;s.checked++}
+  else if(x.status==='mangon'){s.short++;s.checked++;s.shortKg+=Math.abs(x.diff||0)}
+  else if(x.status==='tepër'){s.over++;s.checked++;s.overKg+=Math.abs(x.diff||0)}
+  else if(x.status==='pa peshime'||x.status==='peshim pa plan')s.missing++;
+  else if(x.status==='kontrollo me dorë')s.manual++;
+  if(x.unclear)s.unclear+=x.unclear;
+ }
+ return s;
+}
+const PLAN_STATUS_TAG={'përputhet':'good','mangon':'bad','tepër':'bad','pa peshime':'warn','pa sasi plani':'warn','kontrollo me dorë':'warn','peshim pa plan':'warn'};
+function planStatusLabel(x){
+ if(x.status==='përputhet')return 'Përputhet';
+ if(x.status==='mangon')return 'Mangon';
+ if(x.status==='tepër')return 'Tepër';
+ if(x.status==='pa peshime')return 'Pa peshime';
+ if(x.status==='pa sasi plani')return 'Pa sasi plani';
+ if(x.status==='kontrollo me dorë')return 'Kontrollo me dorë';
+ if(x.status==='peshim pa plan')return 'Peshim pa plan';
+ return x.status;
+}
+// Tabelë me qeliza HTML të gatshme (për linkun e formularit); pjesa tjetër esc-ohet.
+function reportRichTable(headers,rows){
+ const cell=(x,i)=>`<td class="${i===0?'strong':''}">${x}</td>`;
+ return `<div class="table-wrap"><table class="table trace-table"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function planCheckHTML(rs){
+ const rows=planCheckRows(rs),sum=planCheckSummary(rows);
+ if(!rows.length)return `<div class="card report-wide"><div class="card-head"><div><h3>Kontrolli plan ↔ peshime</h3><p>Krahason sasinë e planit me shumën e tabelave të peshimit.</p></div></div><div class="card-body"><div class="mini-empty">Nuk ka rreshta plani për këtë përzgjedhje.</div></div></div>`;
+ const table=reportRichTable(['Data','Nr.','Punonjësi','Produkti','Njësia','Plani','Peshimi','Diferenca','%','Statusi',''],
+  rows.map(x=>[formatDate(x.date),x.nr,x.responsible||'—',x.product,x.unit,
+   x.planned===null?'—':fmt(x.planned),x.weighed===null?'—':fmt(x.weighed),
+   x.diff===null?'—':(x.diff>0?'+':'')+fmt(x.diff),x.pct===null?'—':`${x.pct>0?'+':''}${fmt(x.pct,1)}%`,
+   `<span class="tag ${PLAN_STATUS_TAG[x.status]||''}">${planStatusLabel(x)}</span>`,recordLink(x,'Hap')]));
+ const strip=`<div class="stat-grid">${stat('Rreshta të kontrolluar',String(sum.total),'','Plan kundrejt peshimeve','file')}${stat('Përputhen',String(sum.ok),'','Brenda tolerancës','check')}${stat('Mangojnë',String(sum.short),'kg',sum.shortKg?`Gjithsej ${fmt(sum.shortKg)} kg më pak`:'Diferencë mbi tolerancën','alert')}${stat('Teprojnë',String(sum.over),'kg',sum.overKg?`Gjithsej ${fmt(sum.overKg)} kg më shumë`:'Diferencë mbi tolerancën','alert')}</div>`;
+ const notes=[];
+ if(sum.missing)notes.push(`${sum.missing} rreshta nuk kanë peshime ose sasi plani — shiko statusin.`);
+ if(sum.manual)notes.push(`${sum.manual} rreshta janë në copë/thasë, që peshimi nuk i masë dot; kontrolloji me dorë.`);
+ if(sum.unclear)notes.push(`${sum.unclear} rreshta peshimi kanë vlera të paqarta dhe nuk u përfshinë në shumë.`);
+ return `${strip}<div class="card report-wide"><div class="card-head"><div><h3>Kontrolli plan ↔ peshime</h3><p>Toleranca: ±0,5 kg ose 1% (ajo më e madhja), që rrumbullakimi i peshores të mos shënohet si gabim.</p></div><span class="tag">${rows.length} rreshta</span></div><div class="card-body">${table}${notes.length?`<div class="tip">${icon('info',15)}<span>${notes.join(' ')}</span></div>`:''}</div></div>`;
+}
+function xlPlanCheckSheet(){
+ const rows=planCheckRows(reportRecords()),sum=planCheckSummary(rows);
+ return {
+  name:'Plani dhe peshimet',title:'KONTROLLI PLAN ↔ PESHIME',
+  subtitle:'Sasia e planit kundrejt shumës së tabelave të peshimit (toleranca ±0,5 kg ose 1%)',
+  meta:xlMetaExtra(reportRecords().length),freezeRow:5,autoFilter:true,landscape:true,
+  columns:[{h:'Nr.',w:6,align:'c'},{h:'Data',w:12,type:'date'},{h:'Formulari',w:10,align:'c'},
+   {h:'Punonjësi',w:26},{h:'Produkti',w:30},{h:'Njësia',w:9,align:'c'},
+   {h:'Plani',w:12,type:'d2'},{h:'Peshimi',w:12,type:'d2'},{h:'Diferenca',w:12,type:'d2'},
+   {h:'%',w:9,type:'d2'},{h:'Statusi',w:16},{h:'Rreshta peshimi',w:12,align:'c'}],
+  rows:rows.map((x,i)=>[i+1,x.date,x.nr,x.responsible||'—',x.product,x.unit,
+   x.planned===null?'':x.planned,x.weighed===null?'':x.weighed,x.diff===null?'':x.diff,
+   x.pct===null?'':x.pct,planStatusLabel(x),x.rows]),
+  total:{label:'TOTALI',sumCols:[6,7],values:totalValues({
+   6:Math.round(rows.reduce((n,x)=>n+(x.planned||0),0)*100)/100,
+   7:Math.round(rows.reduce((n,x)=>n+(x.weighed||0),0)*100)/100},12)},
+  notes:['Diferenca = Peshimi − Plani. Vlera negative do të thotë që peshimi është më i vogël se plani.',
+   'Rreshtat në copë ose thasë nuk maten nga peshimi; shënohen “Kontrollo me dorë”.',
+   `Përmbledhje: ${sum.ok} përputhen, ${sum.short} mangojnë, ${sum.over} teprojnë, ${sum.missing} pa peshime.`],
+ };
+}
+function xlDaySheet(rs){
+ const rows=[];
+ for(const r of rs){
+  const weighed=planWeighedKg(r);
+  const hours=r.employees.reduce((n,e)=>n+(hoursFor(e)||0),0);
+  rows.push([r.date,r.nr,r.room||'—',str(r.responsible?.name)||'—',str(r.assistant?.name)||'—',
+   (r.plan||[]).filter(p=>nonempty(p.product)).map(p=>`${p.product}${p.actual?` ${p.actual}${p.unit||''}`:''}`).join('; '),
+   Math.round(hours*100)/100,weighed.kg,str(r.comments)]);
+ }
+ return {
+  name:'Fleta e ditës',title:'FLETA E DITËS',
+  subtitle:'Një rresht për formular: kreu, produktet, orët, peshimi dhe komentet',
+  meta:xlMetaExtra(rs.length),freezeRow:5,autoFilter:true,landscape:true,
+  columns:[{h:'Data',w:12,type:'date'},{h:'Nr.',w:8,align:'c'},{h:'Dhoma',w:22},
+   {h:'Përgjegjësja',w:26},{h:'Ndihmësja',w:22},{h:'Produktet dhe sasitë',w:46},
+   {h:'Orë pune',w:11,type:'d2'},{h:'Peshimi (kg)',w:13,type:'d2'},{h:'Komentet',w:56}],
+  rows,
+  total:{label:'TOTALI',sumCols:[6,7],values:totalValues({
+   6:Math.round(rows.reduce((n,x)=>n+(x[6]||0),0)*100)/100,
+   7:Math.round(rows.reduce((n,x)=>n+(x[7]||0),0)*100)/100},9)},
+  notes:['Orët e punës vijnë nga intervalet/ora e fillimit e mbarimit të punonjësve.',
+   'Peshimi është shuma e neto (KG − ambalazhi ose Shuma e shënuar) për të gjitha tabelat.'],
+ };
+}
 function xlDurationSheet(){
   const {rows,total,qty,perUnit,untimed}=processSummary(reportRecords());
   return {
@@ -3526,11 +3854,11 @@ function templateReturnHTML(){
  return `<div class="card template-return"><div class="card-head"><div class="section-heading"><span class="section-index">${icon('doc',15)}</span><div><h2>Shablloni i plotësuar kthehet këtu</h2><p>Shkarko shabllonin, plotësoje në Excel dhe ngarko skedarin: sistemi e lexon dhe e kontrollon sërish.</p></div></div></div><div class="card-body"><div class="inline-buttons"><button class="btn btn-primary" data-action="template-download">${icon('download',15)} Shkarko shabllonin Excel</button><button class="btn" data-action="template-upload">${icon('upload',15)} Ngarko shabllonin e plotësuar</button></div><p class="small-note" style="margin:10px 0 0">Skedari pranon vetëm formën e BioBes: formulari i ditës, plani, punonjësit dhe peshimet. Nuk dërgohet askund — lexohet në këtë pajisje.</p></div></div>`;
 }
 function exportReportXlsx(type){
-  const titles={products:'Prodhimi',packages:'Paketimet',hours:'Orët',stock:'Stoku',weights:'Peshimet',duration:'Kohëzgjatja',tracking:'Gjurmimi'};
+  const titles={products:'Prodhimi',packages:'Paketimet',hours:'Orët',stock:'Stoku',weights:'Peshimet',duration:'Kohëzgjatja',tracking:'Gjurmimi',check:'Kontrolli',day:'Fleta e ditës'};
   try{
     const rs=reportRecords(),m=metrics(rs,state.report.product);
     if(!rs.length){toast('Nuk ka formularë për periudhën e zgjedhur.','warn');return}
-    const build={products:()=>xlProductsSheet(m),packages:()=>xlPackagesSheet(m),hours:()=>xlHoursSheet(m),stock:()=>xlStockSheet(m),weights:()=>xlWeightsSheet(m),duration:()=>xlDurationSheet(),tracking:()=>xlTrackingSheet(state.report.employee)};
+    const build={products:()=>xlProductsSheet(m),packages:()=>xlPackagesSheet(m),hours:()=>xlHoursSheet(m),stock:()=>xlStockSheet(m),weights:()=>xlWeightsSheet(m),duration:()=>xlDurationSheet(),tracking:()=>xlTrackingSheet(state.report.employee),check:()=>xlPlanCheckSheet(),day:()=>xlDaySheet(reportRecords())};
     const sheet=(build[type]||build.products)();
     const bytes=xlsxBytes({title:`BioBes — ${sheet.title}`,sheets:[sheet]});
     const stamp=new Date().toISOString().slice(0,10);
@@ -3545,7 +3873,7 @@ async function exportReportExcelPro(){
     const rs=reportRecords(),m=metrics(rs,state.report.product);
     if(!rs.length){toast('Nuk ka formularë për periudhën e zgjedhur.','warn');return}
     toast('Po përgatitet Excel-i profesional…');
-    const sheets=[xlSummarySheet(rs,m),xlProductsSheet(m),xlPackagesSheet(m),xlHoursSheet(m),xlWeightsSheet(m),xlDurationSheet(),xlTrackingSheet(state.report.employee)];
+    const sheets=[xlSummarySheet(rs,m),xlProductsSheet(m),xlPackagesSheet(m),xlHoursSheet(m),xlWeightsSheet(m),xlDurationSheet(),xlTrackingSheet(state.report.employee),xlPlanCheckSheet(),xlDaySheet(rs)];
     const bytes=xlsxBytes({title:'BioBes — Raportet',sheets});
     const stamp=new Date().toISOString().slice(0,10);
     download(`BioBes_raportet_${stamp}.xlsx`,bytes,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -3667,7 +3995,7 @@ for(const type of ['click','keydown','beforeinput','input','change','paste','dro
 document.addEventListener('click',async e=>{const suggestion=e.target.closest('[data-combo-option]');if(suggestion){chooseComboOption(Number(suggestion.dataset.comboOption));return}const add=e.target.closest('[data-combo-add]');if(add){await quickAddCombo();return}if(!e.target.closest('[data-combo]')&&!e.target.closest('#combo-popover')&&activeCombo)finishCombo(activeCombo);const nav=e.target.closest('[data-nav]');if(nav){await go(nav.dataset.nav);return}
  if(e.target.closest('#doc-search'))return;
  const dlib=e.target.closest('[data-doc-lib]');if(dlib){await docOpenLibrary(dlib.dataset.docLib,dlib.dataset.docName);return}
- const dopen=e.target.closest('[data-doc-open],[data-doc-record]');if(dopen){await docOpenFromClick(dopen);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='nav-back')await navBack();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='use-shared-shift')applySharedShift();else if(a==='stop-shared-shift')stopSharedShift();else if(a==='use-shared-pack')applySharedPack(Number(btn.dataset.index));else if(a==='stop-shared-pack')stopSharedPack(Number(btn.dataset.index));else if(a==='staff-sign')await captureStaffSignature(Number(btn.dataset.index));else if(a==='staff-sign-clear')await clearStaffSignature(Number(btn.dataset.index));else if(a==='set-workday')setWorkday(Number(btn.dataset.minutes)/60);else if(a==='report-tab'){state.report.tab=btn.dataset.tab||'summary';navWrite(true);renderReportResults()}else if(a==='add-plan')addPlanProduct();else if(a==='add-interval')addInterval();else if(a==='del-interval')delInterval(Number(btn.dataset.emp),Number(btn.dataset.iv));else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',packaging:'',status:'',client:'',employee:'',room:'',tab:state.report.tab||'summary',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='export-report-pro')await exportReportExcelPro();else if(a==='export-report-xlsx')exportReportXlsx(btn.dataset.type||'products');else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='recalc-all-weights')await recalcAllWeights();else if(a==='catalog-template')exportCatalogTemplate();else if(a==='catalog-import-add')document.getElementById('catalog-import-add-file').click();else if(a==='catalog-import-replace')document.getElementById('catalog-import-replace-file').click();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
+ const dopen=e.target.closest('[data-doc-open],[data-doc-record]');if(dopen){await docOpenFromClick(dopen);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='nav-back')await navBack();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='use-shared-shift')applySharedShift();else if(a==='stop-shared-shift')stopSharedShift();else if(a==='use-shared-pack')applySharedPack(Number(btn.dataset.index));else if(a==='stop-shared-pack')stopSharedPack(Number(btn.dataset.index));else if(a==='staff-sign')await captureStaffSignature(Number(btn.dataset.index));else if(a==='staff-sign-clear')await clearStaffSignature(Number(btn.dataset.index));else if(a==='set-workday')setWorkday(Number(btn.dataset.minutes)/60);else if(a==='report-tab'){state.report.tab=btn.dataset.tab||'summary';navWrite(true);renderReportResults()}else if(a==='add-plan')addPlanProduct();else if(a==='add-interval')addInterval();else if(a==='del-interval')delInterval(Number(btn.dataset.emp),Number(btn.dataset.iv));else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',packaging:'',status:'',client:'',employee:'',room:'',tab:state.report.tab||'summary',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='export-report-pro')await exportReportExcelPro();else if(a==='export-day-pdf')await exportDayPDF();else if(a==='export-report-xlsx')exportReportXlsx(btn.dataset.type||'products');else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='recalc-all-weights')await recalcAllWeights();else if(a==='catalog-template')exportCatalogTemplate();else if(a==='catalog-import-add')document.getElementById('catalog-import-add-file').click();else if(a==='catalog-import-replace')document.getElementById('catalog-import-replace-file').click();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
   else if(a==='batch-read-pending')await batchReadPending()
   else if(a==='batch-manual')await batchManualReview();else if(a==='batch-cancel')batchCancel();else if(a==='batch-review-ready')await batchReviewCompleted();else if(a==='batch-reset')await batchStartOver();else if(a==='batch-raw')batchRawDownload();else if(a==='batch-up')batchMove(Number(btn.dataset.index),-1);else if(a==='batch-down')batchMove(Number(btn.dataset.index),1);else if(a==='batch-swap')batchSwap(Number(btn.dataset.index));else if(a==='batch-split')batchSplit(Number(btn.dataset.index));else if(a==='batch-join')batchJoin(Number(btn.dataset.index));else if(a==='batch-remove')await batchRemove(Number(btn.dataset.index));else if(a==='batch-original-reset')batchPrivateReset(btn.dataset.id);else if(a==='batch-open')batchOpen(Number(btn.dataset.index));else if(a==='batch-remove-review')await batchRemoveReview();else if(a==='batch-draft')batchDraftDownload();else if(a==='batch-save')await batchSave();else if(a==='cloud-open-original')await cloudOpenOriginal(Number(btn.dataset.index));else if(a==='sample')await sample();else if(a==='clear-demo')await clearDemo();else if(a==='template-download')exportTemplateXlsx();else if(a==='template-upload')document.getElementById('template-upload-file').click();else if(a==='catalog-import')document.getElementById('catalog-import-file').click();else if(a==='catalog-add')await addCatalog(btn.dataset.kind);else if(a==='catalog-edit')await editCatalog(btn.dataset.kind,Number(btn.dataset.index));else if(a==='catalog-delete')await deleteCatalog(btn.dataset.kind,Number(btn.dataset.index))});
 document.addEventListener('input',e=>{const el=e.target;if(el.dataset.combo==='sources'&&state.route==='editor'){setPath(state.draft,el.dataset.bind.replace(/sourceLabel$/,'source'),'')}if(el.dataset.combo)showCombo(el);
