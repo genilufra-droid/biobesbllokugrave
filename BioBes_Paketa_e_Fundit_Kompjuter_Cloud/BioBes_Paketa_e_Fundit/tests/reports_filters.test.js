@@ -236,9 +236,11 @@ test('tab-et ndërrojnë përmbajtjen dhe ruhen në state.report.tab', () => {
   api.render();
   const doc = w.document;
   const tabs = [...doc.querySelectorAll('#report-results .pill-tab')].map((b) => b.textContent.trim());
-  assert.deepEqual(tabs, ['Përmbledhje', 'Kohëzgjatja e proceseve', 'Gjurmimi i punonjësit']);
-  assert.match(doc.querySelector('#report-results').textContent, /Përmbledhje/);
-
+  assert.deepEqual(tabs, ['Përmbledhje', 'Kohëzgjatja e proceseve', 'Gjurmimi i punonjësit', 'Kontrolli plan ↔ peshime']);
+  // Tab-i i katërt kontrollon planin kundrejt tabelave të peshimit.
+  doc.querySelector('[data-action="report-tab"][data-tab="check"]').click();
+  assert.match(doc.querySelector('#report-results').textContent, /Kontrolli plan ↔ peshime/);
+  assert.doesNotMatch(doc.querySelector('#report-results').textContent, /Prodhimi sipas produktit/);
   doc.querySelector('[data-action="report-tab"][data-tab="tracking"]').click();
   assert.equal(api.state.report.tab, 'tracking');
   assert.match(doc.querySelector('#report-results').textContent, /Gjurmimi i punonjësit sipas dhomës/);

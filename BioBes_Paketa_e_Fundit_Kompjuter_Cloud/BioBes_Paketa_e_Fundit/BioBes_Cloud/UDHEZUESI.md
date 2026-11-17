@@ -101,6 +101,45 @@ sërish.
   paruajtura — vazhdo pa ruajtur?”*; me *Anulo* qëndron te formulari.
 - Formulari që po shikon (i ruajtur, në mënyrë leximi) kthehet pa pyetje.
 
+## Kontrolli plan ↔ peshime dhe Fleta e ditës
+
+Nga formularët e skanuar (p.sh. plani 14 160 kg kundrejt tabelave të peshimit)
+doli nevoja për dy raporte të reja.
+
+### Kontrolli plan ↔ peshime (tab i katërt te Raportet)
+
+Për çdo formular krahason **sasinë e planit** me **shumën e tabelave të
+peshimit** dhe nxjerr diferencën në kg dhe përqindje:
+
+| Plani | Peshimi | Diferenca | Statusi |
+|---|---|---|---|
+| 14 160 kg | 2 744 kg | −11 416 kg (−80,6%) | Mangon |
+| 4 160 kg | 4 160 kg | 0 kg | Përputhet |
+
+- Peshimi neto = `KG − ambalazhi`, ose **Shuma** kur është shkruar me dorë.
+- Toleranca është ±0,5 kg ose 1% (më e madhja), që rrumbullakimi i peshores të
+  mos shënohet si gabim.
+- Statuset: **Përputhet**, **Mangon**, **Tepër**, **Pa peshime** (tabelat bosh),
+  **Pa sasi plani**, **Kontrollo me dorë** (copë/thasë, që peshimi nuk i mat) dhe
+  **Peshim pa plan** (peshim që nuk ka produkt në plan — nuk humbet në heshtje).
+- Çdo rresht ka butonin **Hap** që çon te formulari; filtrat e raportit vlejnë.
+
+### Fleta e ditës (PDF)
+
+Butoni **Fleta e ditës (PDF)** te raportet shkarkon një faqe për çdo formular,
+me pamjen e letrës: kreu (dhoma, numri, data, dita, java), përgjegjësja dhe
+ndihmësja, **tri kutitë** plani/peshimi/diferenca, plani i punës, punonjësit me
+orët, peshat rresht për rresht, rreshti i diferencës dhe komentet. Fundi i çdo
+faqeje shënon `Faqe 1 / N`. Skedari ndërtohet i gjithi në pajisje, me shkronjat
+shqipe të embeduara (ë, ç, Ë, Ç kopjohen saktë).
+
+### Excel
+
+Butoni **Të gjitha** jep tani **9 fletë**: *Përmbledhje*, *Prodhimi*,
+*Paketimet*, *Orët*, *Peshimet*, *Kohëzgjatja*, *Gjurmimi*,
+*Plani dhe peshimet* dhe *Fleta e ditës*. Totalet mblidhen me formula reale
+`=SUM(...)` vetëm mbi kolonat numerike.
+
 ## Privatësia dhe kostot e Gemini
 
 - **Aplikacioni nuk i anonimizon automatikisht dokumentet.** Hiq vërtet emrat, firmat, të dhënat personale dhe konfidenciale, përfshirë tekstin e fshehur dhe metadatat. Një mbulim i dukshëm me ngjyrë nuk mjafton domosdoshmërisht. Emrat teknikë të skedarëve/fletëve zëvendësohen, por përmbajtja mund të mbajë ende të dhëna personale.

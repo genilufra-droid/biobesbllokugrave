@@ -1196,3 +1196,41 @@ formularin; formulari i ri e shënon hapin.
 
 **Testet.** `npm test` → **33 suite, 323 teste, zero dështime.**
 
+### 7.26 Kontrolli plan ↔ peshime dhe Fleta e ditës
+
+**Si lindi.** Përdoruesi dha një skanim real (`AMBRA JAVA 46.pdf`, 14 faqe,
+vetëm imazhe — pa tekst, pra u lexua si imazhe) dhe pyeti çfarë raporti tjetër
+duhet. Nga formulari dolën tri gjëra që mungonin: plani kundrejt peshimit,
+komentet që shpjegojnë ditën, dhe një përmbledhje e ditës për lexim.
+
+**Kontrolli plan ↔ peshime.** Formulari 010 shkruan plan `14 160 kg` dhe
+tabelat e peshimit `4 160 kg − 1 416 ambalazh`. Sistemi nuk i krahasonte
+askund: mospërputhja dukej vetëm me sy mbi letër. Tani `planCheckRows()` nxjerr
+për çdo formular planin, peshimin neto (`KG − ambalazhi`, ose **Shuma** kur
+është shkruar), diferencën dhe statusin, me tolerancë ±0,5 kg ose 1%.
+Provuar: 14 160 → 2 744 = **−11 416 kg (−80,6%) “Mangon”**.
+
+**Statuset** dallojnë arsyen, që raporti të mos gënjejë: *Përputhet*, *Mangon*,
+*Tepër*, *Pa peshime* (tabelat krejt bosh — nuk është mangut, mungon matja),
+*Pa sasi plani*, *Kontrollo me dorë* (njësi copë/thasë) dhe *Peshim pa plan*.
+
+**Fleta e ditës (PDF).** Një faqe për formular, e ndërtuar në pajisje me
+`pdf-lib` dhe shkronjat e embeduara. Provuar me `pymupdf`: 2 faqe për 2
+formularë, teksti shqip del saktë (`DHOMA Fabrika e Re`, `Përgjegjësja`,
+`Diferenca −9176 kg`), fundi `Faqe 1 / 2`. Faqja e parë u pa edhe si imazh dhe
+u rregullua tri herë: shkrim më i madh, kuti plani/peshimi/diferenca, minus i
+vërtetë (−), pa “DHOMA DHOMA”, pa “1 rreshta”, fund faqeje në çdo faqe.
+
+**Excel.** Butoni *Të gjitha* kaloi në **9 fletë** (shtuar *Plani dhe peshimet*
+dhe *Fleta e ditës*). Gjatë punës u gjet një gabim i vërtetë në ndërtuesin e
+përbashkët: vlerat e totalit bien një kolonë djathtas, sepse `values[i]` shkruhet
+te kolona `i+1`. U shtua `totalValues({kolona: vlera}, gjatësia)` që vlerën ta
+vendosë sipas **indeksit të kolonës**, dhe formula `=SUM(...)` shkruhet e
+fundit (qeliza e totalit të ketë një burim, jo dy). Verifikuar me `openpyxl`:
+`G12 =SUM(G10:G11)` (Plani), `H12 =SUM(H10:H11)` (Peshimi), pa qelizë të dyfishtë.
+
+**Testet.** `plan_check.test.js` — 10 teste (peshimi neto, mangut/teprim/
+toleranca, statuset, tab-i me link, dy fletët e Excel-it, PDF-ja reale me numër
+faqesh dhe ToUnicode). `reports_filters.test.js` u përditësua për tab-in e
+katërt. **`npm test` → 34 suite, 333 teste, zero dështime.**
+
