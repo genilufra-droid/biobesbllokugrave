@@ -233,36 +233,9 @@ npm install
 npm test
 ```
 
-Gjendja e testeve dhe çfarë nuk është testuar përshkruhen në `../AUDITIM.md` (tani 35 suite, 345 teste). Ndryshimet e reja në `web/` kërkojnë një `workflow_dispatch` manual të GitHub Pages. Ndërveprimet e shfletuesit, printimi në Microsoft Excel dhe printimi në printerin tënd duhet kontrolluar veçmas.
+Gjendja e testeve dhe çfarë nuk është testuar përshkruhen në `../AUDITIM.md`. Ndryshimet e reja në `web/` kërkojnë një `workflow_dispatch` manual të GitHub Pages. Ndërveprimet e shfletuesit, printimi në Microsoft Excel dhe printimi në printerin tënd duhet kontrolluar veçmas.
 
 Dokumentacion: [Supabase Storage dhe RLS](https://supabase.com/docs/guides/storage/security/access-control), [sekretet e Edge Functions](https://supabase.com/docs/guides/functions/secrets), [Vercel Hobby](https://vercel.com/docs/plans/hobby).
-
-## Dorëshkrimi: si shkruhet formulari që lexohet saktë
-
-Saktësia e leximit varet më shumë nga letra dhe nga fotografia sesa nga modeli.
-Fleta **`tools/out/BioBes_Udhezim_Doreshkrimi_A4.pdf`** (1 faqe A4, e printueshme)
-përmban shembujt realë; këtu janë rregullat kryesore.
-
-**Shkrimi.** Shifra të veçanta e jo të lidhura (`1 6 0`, jo `160`); zero e mbyllur;
-ora me katër shifra (`09:00`, jo `Ore°`); shkronja bllok për emrat; gjithçka brenda
-qelizës, larg vijave; ë dhe ç të shkruara. Qeliza të papërdorura mbeten bosh — jo
-`0`, jo `—`. Rresht i anuluar me vijë horizontale dhe iniciale, kurrë me vijë
-diagonale nëpër tabelë.
-
-Pse këto: fotoja e provës, e zvogëluar në 1200 px, linte penën ≈ **1 piksel** të
-trashë, zeroja e hapur lexohej `6`/`C`/`0`, `Ore°` nuk njihej si orë dhe `CILESI E
-MICE` pa ë binte në arsyen *Tjetër* në vend të *Cilësi*.
-
-**Fotografia.** Skanimi (300 dpi, PDF) jep 3–4 herë më shumë detaj se fotoja e
-zvogëluar; është përmirësimi më i madh pa ndryshuar as formularin, as sistemin.
-Nëse mbetet foto: faqja të mbushë kornizën, telefoni paralel, dritë e njëtrajtshme,
-skedari origjinal — jo i zvogëluar nga chat-i.
-
-**Formulari.** Modeli i miratuar nuk ndryshohet. Nëse një ditë shtypet model i ri,
-ndihmësat që e ulin gabimin më shumë janë: kodi i fushës në gri nën tituj
-(`plan.1.planned`, `w1.r1.kg`, `e1.start`), kutiza për shifra te KG / AMBALAZHI /
-SHUMA, kutiza ore `__ : __` dhe kolona *Nr. ambalazheve* pranë *Llojit të
-Paketimit* (`packageCount` ekziston tashmë në aplikacion).
 
 ## Rregullat e leximit (OCR)
 
