@@ -24,7 +24,7 @@ const HOOK = `
   docKind, docFmtSize, docItemsFor, docLinksHTML, docBadge, docLibraryEntries,
   docLibraryFiltered, docLibraryHTML, recordDocCell, cloudAttachmentsHTML,
   docShowList, docClose, docOpen, docOpenLibrary, docOpenFromClick,
-  docRegisterDocs, docStore, docView, state, db, cloud, docNrCell, recordRows, dashboardHTML, historyHTML, renderHistoryList, recordsHTML() { return ''; },
+  docRegisterDocs, docStore, docView, docImageFailed, docBindImage, state, db, cloud, docNrCell, recordRows, dashboardHTML, historyHTML, renderHistoryList, recordsHTML() { return ''; },
 };`;
 
 const boot = (extra = '') => loadApp(null, HOOK + extra).window;
@@ -296,6 +296,27 @@ test('tabelat e regjistrimeve: numri i kolonave përputhet me kryet', () => {
   const cells = table.querySelectorAll('tbody tr:first-child td');
   assert.equal(cells.length, 7, 'regjistrimet: 7 qeliza në rresht');
   assert.ok(table.querySelector('tbody [data-doc-record]'), 'numri/dokumenti hapet me klik');
+});
+
+test('foto që shfletuesi nuk shfaq dot e thotë qartë dhe ofron shkarkimin', async () => {
+  const w = boot();
+  const D = w.__DOC__;
+  const entries = D.docItemsFor({ attachments: [
+    { name: 'foto.HEIC', path: 'user-1/r/c.heic', type: 'image/heic', size: 900 },
+  ] });
+  entries[0].url = 'blob:https://biobes.test/heic';
+  await D.docOpen(entries, 0);
+  const img = w.document.querySelector('#dialog-root img.doc-image');
+  assert.ok(img, 'provohet shfaqja si imazh');
+  // Simulohet dështimi i dekodimit (HEIC në Chrome/Firefox).
+  D.docImageFailed(img);
+  const root = w.document.getElementById('dialog-root');
+  assert.match(root.textContent, /nuk shfaqet në shfletues/i, 'përdoruesi merr shpjegim');
+  assert.match(root.textContent, /foto\.HEIC/, 'emri i skedarit tregohet');
+  assert.match(root.textContent, /Shkarko/, 'rruga e shkarkimit mbetet e dukshme');
+  assert.equal(root.querySelector('img.doc-image'), null, 'nuk mbetet kuti bosh');
+  assert.ok(root.querySelector('.doc-actions a[download]'), 'butoni Shkarko ekziston');
+  D.docClose();
 });
 
 test('Escape e mbyll dokumentin', async () => {
