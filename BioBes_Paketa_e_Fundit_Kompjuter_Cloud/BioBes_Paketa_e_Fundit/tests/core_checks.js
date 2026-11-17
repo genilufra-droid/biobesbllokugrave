@@ -30,15 +30,28 @@ assert.equal(h.num('12.5'), 12.5, 'decimal point');
 assert.equal(h.num(''), null, 'empty numeric input');
 assert.ok(Number.isNaN(h.num('12,5x')), 'reject malformed numeric input');
 
-assert.equal(h.hoursFor({ start: '08:00', end: '08:15' }), 0.25);
-assert.equal(h.hoursFor({ start: '23:30', end: '00:15' }), 0.75, 'overnight shift');
+// Që nga skema e pushimit (breakSchema 1) ora zbret pushimin: 60 minuta si
+// parazgjedhje, ose aq sa shkruhet. Leximi i formularit e nxjerr pushimin e
+// vërtetë nga totali i shtypur (shih ocr_p0_p1.test.js); këtu testohet rregulli.
+assert.equal(h.hoursFor({ start: '08:00', end: '09:15', breakMinutes: '0' }), 1.25, 'pa pushim');
+assert.equal(h.hoursFor({ start: '08:00', end: '08:15', breakMinutes: '0' }), 0.25, 'pa pushim, 15 minuta');
+assert.equal(h.hoursFor({ start: '08:00', end: '16:00' }), 7, 'pushimi i parazgjedhur 60 minuta zbritet');
+assert.equal(h.hoursFor({ start: '08:00', end: '16:00', breakMinutes: '90' }), 6.5, 'pushim 90 minuta');
+assert.equal(h.hoursFor({ start: '08:00', end: '16:00', breakMinutes: 0 }), 8, 'zero numerike = pa pushim');
+assert.equal(h.hoursFor({ start: '23:30', end: '00:15' }), null, 'pushimi 60 > 45 minuta pune → e pacaktuar');
+assert.equal(h.hoursFor({ start: '23:30', end: '00:15', breakMinutes: '0' }), 0.75, 'ndërrim nate pa pushim');
 assert.equal(h.hoursFor({ start: '24:00', end: '24:15' }), null, 'reject invalid clock time');
+assert.equal(h.hoursFor({ start: '08:00', end: '16:00', breakMinutes: 'abc' }), null, 'pushim i pavlefshëm');
+assert.equal(h.hoursFor({ start: '08:00', end: '16:00', breakMinutes: '500' }), null, 'pushim më i gjatë se dita');
 assert.equal(h.roundHoursTotal(29 / 60), 0, 'under half-hour rounds down');
 assert.equal(h.roundHoursTotal(30 / 60), 1, 'half-hour rounds up');
 assert.equal(
-  h.roundHoursTotal(h.hoursFor({ start: '08:00', end: '08:15' }) + h.hoursFor({ start: '09:00', end: '09:15' })),
+  h.roundHoursTotal(
+    h.hoursFor({ start: '08:00', end: '08:20', breakMinutes: '0' })
+    + h.hoursFor({ start: '09:00', end: '09:20', breakMinutes: '0' }),
+  ),
   1,
-  'sum exact employee minutes before rounding the total',
+  'sum exact minutes (20+20) then round: 0.67 → 1, not 0+0',
 );
 
 assert.equal(h.timeFromImport('12:00 AM'), '00:00');

@@ -3,7 +3,8 @@ const assert=require('node:assert/strict'),{loadApp}=require('./dom');
 const dom=loadApp(null,`;globalThis.api={state,db,blankRecord,render,attendanceData,outputs:[],capture(){download=(name,bytes,type)=>this.outputs.push({name,bytes,type})}};`),w=dom.window,api=w.api,doc=w.document;
 (async()=>{
  api.capture();api.db.catalog.employees.push('Ana','Bora');
- const make=(date,name,start,end,demo=false)=>{const r=api.blankRecord('001');r.date=date;r.isDemo=demo;r.employees[0]={name,start,end,comment:'',signature:''};return r};
+ // Pushimi shënohet 0: këto raste matin intervalin e plotë, jo zbritjen e pushimit.
+const make=(date,name,start,end,demo=false)=>{const r=api.blankRecord('001');r.date=date;r.isDemo=demo;r.employees[0]={name,start,end,breakMinutes:'0',comment:'',signature:''};return r};
  api.db.records.push(make('2026-11-02','Ana','08:00','16:30'),make('2026-11-02','Ana','20:00','21:15'),make('2026-11-03','Ana','23:30','00:15'),make('2026-11-04','Ana','08:00',''),make('2026-11-02','Bora','08:00','16:00',true),make('2026-10-02','Ana','08:00','16:00'));
  let data=api.attendanceData(api.db.records,['Ana','Bora'],'2026-11');assert.equal(data.days,30);assert.equal(data.rows[0].total,630);assert.equal(data.rows[0].days[1].minutes,585);assert.equal(data.rows[0].days[3].incomplete,1);assert.equal(data.sundays[0],true);assert.equal(data.hasDemo,true);assert.equal(api.attendanceData([],['Ana'],'2024-02').days,29);assert.equal(api.attendanceData([],['Ana'],'2025-02').days,28);assert.equal(api.attendanceData([],['Ana'],'2026-01').days,31);
  api.state.attendance.month='2026-11';api.state.route='reports';api.render();assert.match(doc.querySelector('#view').textContent,/9:45/);assert.match(doc.querySelector('#view').textContent,/10:30/);assert.match(doc.querySelector('#view').textContent,/Përmban|contém|përmban/);

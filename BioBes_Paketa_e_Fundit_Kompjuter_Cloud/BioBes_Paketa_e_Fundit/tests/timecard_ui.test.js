@@ -5,7 +5,7 @@ const dom=loadApp(null,`;globalThis.api={state,db,cloud,blankRecord,render,outpu
 const w=dom.window,api=w.api,doc=w.document;
 (async()=>{
  api.capture();api.db.catalog.employees.push('Bora Kola','Ana Test');
- const r=api.blankRecord('001');r.date='2026-11-10';r.employees[0]={name:'Ana Test',start:'08:00',end:'16:30',comment:'',signature:''};api.db.records.push(r);
+ const r=api.blankRecord('001');r.date='2026-11-10';r.employees[0]={name:'Ana Test',start:'08:00',end:'16:30',breakMinutes:'0',comment:'',signature:''};api.db.records.push(r);
  api.state.route='reports';api.render();
  assert.match(doc.querySelector('#timecard-choices').textContent,/Bora Kola/);assert.match(doc.querySelector('#timecard-choices').textContent,/Ana Test/);
  const search=doc.querySelector('#timecard-search');search.value='ana';search.dispatchEvent(new w.Event('input',{bubbles:true}));assert.doesNotMatch(doc.querySelector('#timecard-choices').textContent,/Bora/);

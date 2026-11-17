@@ -620,7 +620,7 @@ async function exportAttendancePDF(){
  download('BioBes_listeprezenca_'+data.month+'.pdf',await pdf.save(),'application/pdf');toast('PDF-ja u shkarkua.')}catch(e){console.error(e);toast('PDF-ja nuk u përgatit.','error')}
 }
 function reportsHTML(){const rs=reportRecords(),m=metrics(rs,state.report.product),products=allProducts(),invalid=state.report.from&&state.report.to&&state.report.from>state.report.to;const prod=m.products.map(x=>[x.product,x.packaging,fmt(x.qty),x.unit,String(x.records.size)]),packs=m.packageCounts.map(x=>[x.packaging,fmt(x.count),String(x.records.size)]),staff=m.employees.map(x=>[x.name,fmt(roundHoursTotal(x.hours)),String(x.records.size)]),stock=m.stock.map(x=>[x.product,fmt(x.kg),'kg',fmt(x.bags),String(x.rows)]),weightRows=m.tables.map(x=>[formatDate(x.date),x.nr,String(x.group),x.product,x.source,...['bags','kg','packaging'].map(k=>x.totals.seen[k]?fmt(x.totals[k]):'—'),reportNetLabel(x.net),reportNetNotes(x.net)]);return `<div class="page-head"><div><div class="eyebrow">Nga të dhënat e ruajtura</div><h1 class="page-title">Raportet</h1><p class="page-sub">Shiko prodhimin, paketimet, orët dhe peshimet e marra nga stoku.</p></div></div>${demoNotice()}<div class="card" style="margin-bottom:16px"><div class="card-body"><div class="report-filters">${field('Nga data',`<input class="input" type="date" data-report="from" value="${esc(state.report.from)}" aria-label="Nga data">`)}${field('Deri më',`<input class="input" type="date" data-report="to" value="${esc(state.report.to)}" aria-label="Deri më">`)}${field('Produkti',`<input class="input" data-combo="report-products" value="${esc(state.report.product)}" role="combobox" aria-label="Filtro produktin" aria-autocomplete="list" aria-expanded="false" aria-controls="combo-popover" autocomplete="off" placeholder="Shkruaj për të kërkuar">`)}<button class="btn" data-action="clear-filters">Pastro filtrat</button></div>${invalid?'<div class="notice" style="margin:14px 0 0">Data e fillimit është pas datës së mbarimit.</div>':''}</div></div><div class="stat-grid">${stat('Formularë',String(rs.length),'','Sipas datave të zgjedhura','file')}${stat('Prodhim i regjistruar',fmt(m.producedKg),'kg','Vetëm sasitë e prodhuara në kg','box')}${stat('Orë pune (rrumb.)',fmt(roundHoursTotal(m.hours)),'orë','Për gjithë ditët e filtruara','clock')}${stat('Marrë nga stoku',fmt(m.stockKg),'kg','Vetëm peshime të shënuara si stok','stack')}</div>${m.unknownKg||m.stockMissingKg?`<div class="notice">${icon('alert',15)}<span>${m.unknownKg?`${fmt(m.unknownKg)} kg pa burim.`:''} ${m.stockMissingKg?`${m.stockMissingKg} rreshta pa KG.`:''}</span></div>`:''}<div class="list-tools"><div><span class="eyebrow">Përmbledhje</span></div><div class="report-actions"><span class="small-note">Shkarko Excel:</span>${[['products','Prodhimi','Sasitë e prodhuara sipas produktit'],['packages','Paketimet','Ambalazhet e përdorura'],['hours','Orët','Orët e punës sipas punonjësit'],['stock','Stoku','Pesha e marrë nga stoku'],['weights','Peshimet','Totalet e tabelave të peshimit']].map(([value,label,title])=>`<button class="btn btn-small" data-action="export-report-xlsx" data-type="${value}" title="${title} · Excel">${icon('download',13)} ${label}</button>`).join('')}<button class="btn btn-primary btn-small" data-action="export-report-pro" title="Të gjitha raportet në një skedar, 5 fletë">${icon('download',13)} Të gjitha</button></div></div><div class="report-grid">${attendanceHTML()}${timecardHTML(rs)}<div class="card"><div class="card-head"><div><h3>Prodhimi sipas produktit</h3><p>Sasitë e prodhuara, të ndara sipas njësisë</p></div></div>${reportTable(['Produkti','Paketimi','Sasia','Njësia','Formularë'],prod)}</div><div class="card"><div class="card-head"><div><h3>Paketimet e përdorura</h3><p>Numri i ambalazheve, i futur veçmas në formular</p></div></div>${reportTable(['Paketimi','Nr. ambalazheve','Formularë'],packs)}</div><div class="card"><div class="card-head"><div><h3>Orët e punës</h3></div></div>${reportTable(['Punonjësi','Orë (rrumb.)','Formularë'],staff)}</div><div class="card"><div class="card-head"><div><h3>Marrjet nga stoku</h3><p>Vetëm peshimet e shënuara si stok</p></div></div>${reportTable(['Produkti','Pesha','Njësia','Thasë','Rreshta'],stock)}</div><div class="card report-wide"><div class="card-head"><div><h3>Totalet e tabelave të peshimit</h3></div></div><div class="small-note" style="padding:0 16px 10px">Përdoret Shuma e shënuar; nëse mungon, llogaritet nga KG − ambalazhi. Kur ambalazhi është bosh, duhet Shuma e shkruar. Mospërputhjet shënohen për kontroll.</div>${reportTable(['Data','Nr.','Peshimi','Produkti','Burimi','Σ thasë','Σ KG','Σ ambalazhi','Σ shuma','Kontrolli'],weightRows)}</div></div>`}
-function printHTML(){const saved=state.print.mode==='saved';return `<div class="page-head"><div><div class="eyebrow">Modeli i fundit i miratuar</div><h1 class="page-title">Printim & Excel</h1><p class="page-sub">Përgatit formularë të plotësuar ose bosh, me nga dy faqe A4 për secilin.</p></div></div>${demoNotice()}<div class="tab-line"><button class="pill-tab ${saved?'active':''}" data-action="print-mode" data-mode="saved">Formularë të ruajtur</button><button class="pill-tab ${!saved?'active':''}" data-action="print-mode" data-mode="blank">Formularë bosh, me numra</button></div><div class="print-grid"><div class="card"><div class="card-head"><div><h2>${saved?'Zgjidh regjistrimet':'Formularë bosh'}</h2><p>${saved?'Zgjidh një ose disa formularë për t’i përgatitur së bashku.':'Vendos numrin e parë dhe sa formularë dëshiron.'}</p></div><span class="tag">2+ faqe / formular</span></div><div class="card-body">${saved?`<div class="list-tools"><div class="search">${icon('search',15)}<label class="sr-only" for="print-search">Kërko formular</label><input class="input" id="print-search" placeholder="Kërko nr., datë ose produkt..." value="${esc(state.print.search)}"></div><span class="small-note" id="print-count"></span></div><div class="head-actions" style="margin-bottom:12px"><button class="btn btn-small" data-action="print-select-all">Zgjidh të dukshmet</button><button class="btn btn-small" data-action="print-select-none">Pastro përzgjedhjen</button></div><div class="table-wrap" id="print-list"></div>`:`<div class="fields three">${field('Nr. i parë',`<input class="input" type="number" min="1" max="999999999" step="1" data-print-setting="start" value="${esc(state.print.start||String(nextNr()))}" aria-label="Numri i parë">`)}${field('Sa formularë?',`<input class="input" type="number" min="1" max="50" step="1" data-print-setting="count" value="${esc(state.print.count)}" aria-label="Numri i formularëve">`,'Për shembull 10 ose 15; maksimumi 50 njëherësh.')}${field('Fletë vazhdimi (dy anë)',`<input class="input" type="number" min="0" max="10" step="1" data-print-setting="continuationSheets" value="${esc(state.print.continuationSheets)}" aria-label="Fletë vazhdimi për formular">`)}</div><p class="small-note">Numrat bosh nuk rezervohen automatikisht.</p>`}</div></div><div class="card"><div class="card-head"><div><h2>Gati për përgatitje</h2><p>Modeli i miratuar, me të dyja faqet</p></div></div><div class="card-body"><div class="tag" style="margin-bottom:16px">A4 · Dy anë · Ana e gjatë</div><div class="head-actions"><button class="btn btn-primary" data-action="print-pdf">${icon('printer',15)} Hap PDF për printim</button><button class="btn" data-action="print-xlsx">${icon('download',15)} Eksporto Excel .xlsx</button></div><div id="print-result" class="print-result" aria-live="polite"></div></div></div></div>${saved?docLibraryHTML():""}`}
+function printHTML(){const saved=state.print.mode==='saved';return `<div class="page-head"><div><div class="eyebrow">Modeli i fundit i miratuar</div><h1 class="page-title">Printim & Excel</h1><p class="page-sub">Përgatit formularë të plotësuar ose bosh, me nga dy faqe A4 për secilin.</p></div></div>${demoNotice()}<div class="tab-line"><button class="pill-tab ${saved?'active':''}" data-action="print-mode" data-mode="saved">Formularë të ruajtur</button><button class="pill-tab ${!saved?'active':''}" data-action="print-mode" data-mode="blank">Formularë bosh, me numra</button></div><div class="print-grid"><div class="card"><div class="card-head"><div><h2>${saved?'Zgjidh regjistrimet':'Formularë bosh'}</h2><p>${saved?'Zgjidh një ose disa formularë për t’i përgatitur së bashku.':'Vendos numrin e parë dhe sa formularë dëshiron.'}</p></div><span class="tag">2+ faqe / formular</span></div><div class="card-body">${saved?`<div class="list-tools"><div class="search">${icon('search',15)}<label class="sr-only" for="print-search">Kërko formular</label><input class="input" id="print-search" placeholder="Kërko nr., datë ose produkt..." value="${esc(state.print.search)}"></div><span class="small-note" id="print-count"></span></div><div class="head-actions" style="margin-bottom:12px"><button class="btn btn-small" data-action="print-select-all">Zgjidh të dukshmet</button><button class="btn btn-small" data-action="print-select-none">Pastro përzgjedhjen</button></div><div class="table-wrap" id="print-list"></div>`:`<div class="fields three">${field('Nr. i parë',`<input class="input" type="number" min="1" max="999999999" step="1" data-print-setting="start" value="${esc(state.print.start||String(nextNr()))}" aria-label="Numri i parë">`)}${field('Sa formularë?',`<input class="input" type="number" min="1" max="50" step="1" data-print-setting="count" value="${esc(state.print.count)}" aria-label="Numri i formularëve">`,'Për shembull 10 ose 15; maksimumi 50 njëherësh.')}${field('Fletë vazhdimi (dy anë)',`<input class="input" type="number" min="0" max="10" step="1" data-print-setting="continuationSheets" value="${esc(state.print.continuationSheets)}" aria-label="Fletë vazhdimi për formular">`)}</div><p class="small-note">Numrat bosh nuk rezervohen automatikisht.</p>`}</div></div><div class="card"><div class="card-head"><div><h2>Gati për përgatitje</h2><p>Modeli i miratuar, me të dyja faqet</p></div></div><div class="card-body"><div class="tag" style="margin-bottom:16px">A4 · Dy anë · Ana e gjatë</div>${templateReturnHTML()}<div class="head-actions"><button class="btn btn-primary" data-action="print-pdf">${icon('printer',15)} Hap PDF për printim</button><button class="btn" data-action="print-xlsx">${icon('download',15)} Eksporto Excel .xlsx</button></div><div id="print-result" class="print-result" aria-live="polite"></div></div></div></div>${saved?docLibraryHTML():""}`}
 // ---- Biblioteka e dokumenteve ------------------------------------------------
 // Të gjitha dokumentet e ruajtura në një vend: shkruaj numrin ose emrin,
 // kliko dhe dokumenti hapet. Kjo është rruga e shkurtër kur dikush thotë
@@ -912,7 +912,7 @@ function batchGroupsHTML(){
  return batchState.groups.map((g,i)=>{const names=g.files.map((f,j)=>`<span>${g.files.length>1?`${j+1}. `:''}${esc(f.name)}</span>`).join('');const imageOnly=g.files.every(f=>fileKind(f).startsWith('image/'));const originalNames=(g.privateFiles||g.originalFiles||g.files).map(f=>esc(f.name)).join(' · ');const next=batchState.groups[i+1],join=next&&g.files.length===1&&next.files.length===1&&imageOnly&&fileKind(next.files[0]).startsWith('image/')&&g.status!=='ready'&&next.status!=='ready'&&!g.privateFiles&&!next.privateFiles;const lock=batchState.busy?'disabled':'';return `<div class="batch-group"><div><strong>Grupi ${i+1}</strong> <span class="batch-state ${g.status==='ready'?'good':g.status==='error'?'bad':''}">${esc(batchGroupStatus(g))}</span><div class="batch-file-names">${names}</div>${g.note?`<div class="small-note">${esc(g.note)}</div>`:''}<div class="small-note batch-private-names"><strong>Origjinale për ruajtje private:</strong> ${originalNames}</div><label class="batch-private-picker btn btn-small" for="batch-original-${esc(g.id)}">Zgjidh origjinale private</label><input class="sr-only" type="file" id="batch-original-${esc(g.id)}" data-batch-original="${esc(g.id)}" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx" ${lock}>${g.privateFiles?`<button type="button" class="btn btn-small" data-action="batch-original-reset" data-id="${esc(g.id)}" ${lock}>Përdor dokumentet e ngarkuara</button>`:''}<div class="small-note">${g.privateFiles?'Origjinalet e zgjedhura veçmas nuk dërgohen te Gemini.':'Si parazgjedhje ruhen dokumentet e ngarkuara, të cilat mund të dërgohen te Gemini.'}</div>${g.error?`<p class="batch-error-inline">${esc(g.error)}</p>`:''}</div><div class="batch-group-actions"><button type="button" class="btn btn-small" data-action="batch-up" data-index="${i}" ${i===0?'disabled':lock} aria-label="Lëviz grupin ${i+1} lart">↑</button><button type="button" class="btn btn-small" data-action="batch-down" data-index="${i}" ${i===batchState.groups.length-1?'disabled':lock} aria-label="Lëviz grupin ${i+1} poshtë">↓</button>${g.files.length===2&&imageOnly&&g.status!=='ready'&&!g.privateFiles?`<button type="button" class="btn btn-small" data-action="batch-swap" data-index="${i}" ${lock}>Ndërro faqet</button><button type="button" class="btn btn-small" data-action="batch-split" data-index="${i}" ${lock}>Ndaji</button>`:''}${join?`<button type="button" class="btn btn-small" data-action="batch-join" data-index="${i}" ${lock}>Bashko me tjetrin</button>`:''}<button type="button" class="btn btn-small" data-action="batch-remove" data-index="${i}" ${lock}>Hiq</button></div></div>`}).join('')
 }
  function batchHTML(){
- return `<div class="page-head"><div><div class="eyebrow">Regjistrim me 2 hapa</div><h1 class="page-title">1. Ngarko formularët</h1><p class="page-sub">Foto, PDF, Excel ose Word. Një formular ose deri në 10 bashkë.</p></div></div><div class="batch-steps"><span class="active">1 &nbsp; Ngarko dhe lexo</span><span>2 &nbsp; Kontrollo dhe ruaj</span></div><div class="import-grid batch-layout"><div class="card"><div class="card-head"><div><h2>Dokumentet</h2><p>Zgjidh skedarët, shtyp “Lexo formularët”, pastaj kontrollo dhe ruaj.</p></div></div><div class="card-body"><label class="upload-zone" for="batch-files">${icon('upload',21)}<strong>Zgjidh foto, PDF, Excel ose Word</strong><span>Deri në 10 formularë · 12 MB për skedar</span></label><input class="sr-only" type="file" id="batch-files" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><details class="batch-advanced"><summary>Si grupohen faqet (foto dhe PDF me disa faqe)</summary><p class="small-note">PDF-të me më shumë se 2 faqe ndahen automatikisht në çifte PARA/PAS. Çdo çift kontrollohet si formular më vete dhe ruan numrat realë të faqeve.</p><div class="field"><label for="batch-photo-mode">Kur zgjedh disa foto</label><select id="batch-photo-mode" class="input"><option value="pairs">Dy foto radhazi = një formular</option><option value="single">Çdo foto = një formular</option></select></div><div class="field"><label for="batch-pdf-mode">Nëse një PDF ka disa formularë</label><select id="batch-pdf-mode" class="input"><option value="pairs" selected>Ndaje: çdo 2 faqe = një formular</option><option value="whole">Çdo PDF = një formular</option><option value="pages">Ndaje: çdo faqe = një formular</option></select><span class="small-note">Për skanime si “7 formularë / 14 faqe”, përdor çiftet PARA/PAS.</span></div></details><div class="batch-list-head"><strong>Grupet e dokumenteve</strong><span>Kontrollo që faqet e secilit formular të jenë bashkë.</span></div><div id="batch-groups" aria-live="polite">${batchGroupsHTML()}</div><div class="head-actions batch-start-actions"><button type="button" class="btn btn-primary" data-action="batch-read">${icon('search',15)} Lexo formularët</button>${batchPendingCount()&&batchState.groups.some(g=>g.status==='ready')?`<button type="button" class="btn btn-soft" data-action="batch-read-pending">${icon('search',15)} Lexo vetëm ${batchPendingCount()} grupet e mbetura</button>`:''}<button type="button" class="btn" data-action="batch-cancel" hidden>Anulo leximin</button><button type="button" class="btn btn-soft" data-action="batch-manual" title="Pa Gemini, pa kuotë: formularë bosh për t’i plotësuar me dorë">${icon('edit',15)} Kontrollo pa Gemini</button><button type="button" class="btn" data-action="batch-review-ready" hidden>Kontrollo të lexuarit</button><button type="button" class="btn btn-quiet" data-action="batch-reset" ${batchState.groups.length?'':'hidden'}>Fillo nga e para</button><button type="button" class="btn btn-small" data-action="batch-raw" ${batchState.groups.some(g=>g.raw)?'':'hidden'}>Shkarko leximin JSON</button></div><div id="batch-error" class="import-error" role="alert" ${batchState.error?'':'hidden'}>${esc(batchState.error)}</div><div id="batch-progress" class="read-progress" role="status" aria-live="polite" hidden><span class="read-spinner" aria-hidden="true"></span><div><strong>Po përpunohen formularët</strong><span id="batch-progress-text"></span><small id="batch-elapsed" aria-hidden="true"></small></div></div></div></div><div class="card"><div class="card-head"><div><h2>Leximi me Gemini</h2><p>Për foto, PDF, Word dhe Excel-e të tjera. Çdo formular lexohet më vete; mund të zgjasë disa minuta.</p></div></div><div class="card-body"><div class="notice import-privacy">${icon('info',16)}<span>Excel-i i modelit të BioBes lexohet në këtë pajisje pa Gemini. Dokumentet ruhen privatisht në cloud vetëm kur konfirmon ruajtjen.</span></div><p class="small-note batch-key-field">Çelësi Gemini konfigurohet privatisht vetëm në server. Çdo grup ka mundësi të zgjedhë origjinalet për ruajtje private, veçmas nga kopjet që lexon AI.</p><label class="import-consent"><input id="batch-anonymous" type="checkbox"> <span>Konfirmoj se dokumentet që do të dërgohen nuk përmbajnë emra, firma, të dhëna personale ose konfidenciale, dhe se projekti i çelësit Gemini në server është Free Tier pa faturim të lidhur.</span></label><details class="batch-advanced"><summary>Privatësia dhe kostot – lexo një herë</summary><p class="small-note">Dokumentet nuk anonimizohen automatikisht: hiqi të dhënat, mos i mbulo vetëm në pamje, dhe kontrollo metadatat. Emrat e skedarëve zëvendësohen, por përmbajtja dhe metadatat mund të dërgohen. Google mund të përdorë dhe të shqyrtojë leximet falas. Aplikacioni nuk verifikon planin; projektet me faturim mund të kenë kosto. Në EEA, Zvicër dhe MB Google kërkon shërbime me pagesë kur aplikacionet API u ofrohen përdoruesve atje. <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">Kushtet e Google ↗</a></p></details><label class="import-consent"><input id="batch-catalog" type="checkbox"> <span>Pranoj shprehimisht dërgimin te Gemini të emrave në listat bazë më poshtë, vetëm nëse janë të anonimizuar dhe jokonfidencialë.</span></label><p class="small-note">Opsionale: listat bazë të përgjegjëseve, punonjësve, produkteve, paketimit, statuseve, njësive dhe burimeve. Mos e zgjidh nëse përmbajnë emra realë ose të dhëna konfidenciale.</p><label class="import-consent"><input id="batch-device-notice" type="checkbox" ${importState.notify?'checked':''}> <span>Më njofto kur të përfundojë leximi.</span></label></div></div></div>`
+ return `<div class="page-head"><div><div class="eyebrow">Regjistrim me 2 hapa</div><h1 class="page-title">1. Ngarko formularët</h1><p class="page-sub">Foto, PDF, Excel ose Word. Një formular ose deri në 10 bashkë.</p></div></div><div class="batch-steps"><span class="active">1 &nbsp; Ngarko dhe lexo</span><span>2 &nbsp; Kontrollo dhe ruaj</span></div><div class="import-grid batch-layout"><div class="card"><div class="card-head"><div><h2>Dokumentet</h2><p>Zgjidh skedarët, shtyp “Lexo formularët”, pastaj kontrollo dhe ruaj.</p></div></div><div class="card-body"><label class="upload-zone" for="batch-files">${icon('upload',21)}<strong>Zgjidh foto, PDF, Excel ose Word</strong><span>Deri në 10 formularë · 12 MB për skedar</span></label><input class="sr-only" type="file" id="batch-files" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><details class="batch-advanced"><summary>Si grupohen faqet (foto dhe PDF me disa faqe)</summary><p class="small-note">PDF-të me më shumë se 2 faqe ndahen automatikisht në çifte PARA/PAS. Çdo çift kontrollohet si formular më vete dhe ruan numrat realë të faqeve.</p><div class="field"><label for="batch-photo-mode">Kur zgjedh disa foto</label><select id="batch-photo-mode" class="input"><option value="pairs">Dy foto radhazi = një formular</option><option value="single">Çdo foto = një formular</option></select></div><div class="field"><label for="batch-pdf-mode">Nëse një PDF ka disa formularë</label><select id="batch-pdf-mode" class="input"><option value="pairs" selected>Ndaje: çdo 2 faqe = një formular</option><option value="whole">Çdo PDF = një formular</option><option value="pages">Ndaje: çdo faqe = një formular</option></select><span class="small-note">Për skanime si “7 formularë / 14 faqe”, përdor çiftet PARA/PAS.</span></div></details><div class="batch-list-head"><strong>Grupet e dokumenteve</strong><span>Kontrollo që faqet e secilit formular të jenë bashkë.</span></div><div id="batch-groups" aria-live="polite">${batchGroupsHTML()}</div><div class="head-actions batch-start-actions"><button type="button" class="btn btn-primary" data-action="batch-read">${icon('search',15)} Lexo formularët</button>${batchPendingCount()&&batchState.groups.some(g=>g.status==='ready')?`<button type="button" class="btn btn-soft" data-action="batch-read-pending">${icon('search',15)} Lexo vetëm ${batchPendingCount()} grupet e mbetura</button>`:''}<button type="button" class="btn" data-action="batch-cancel" hidden>Anulo leximin</button><button type="button" class="btn btn-soft" data-action="batch-manual" title="Pa Gemini, pa kuotë: formularë bosh për t’i plotësuar me dorë">${icon('edit',15)} Kontrollo pa Gemini</button><button type="button" class="btn" data-action="template-download" title="Shabllon Excel me formula: plotësohet vetë">${icon('download',15)} Shkarko shabllonin Excel</button><button type="button" class="btn" data-action="batch-review-ready" hidden>Kontrollo të lexuarit</button><button type="button" class="btn btn-quiet" data-action="batch-reset" ${batchState.groups.length?'':'hidden'}>Fillo nga e para</button><button type="button" class="btn btn-small" data-action="batch-raw" ${batchState.groups.some(g=>g.raw)?'':'hidden'}>Shkarko leximin JSON</button></div><div id="batch-error" class="import-error" role="alert" ${batchState.error?'':'hidden'}>${esc(batchState.error)}</div><div id="batch-progress" class="read-progress" role="status" aria-live="polite" hidden><span class="read-spinner" aria-hidden="true"></span><div><strong>Po përpunohen formularët</strong><span id="batch-progress-text"></span><small id="batch-elapsed" aria-hidden="true"></small></div></div></div></div><div class="card"><div class="card-head"><div><h2>Leximi me Gemini</h2><p>Për foto, PDF, Word dhe Excel-e të tjera. Çdo formular lexohet më vete; mund të zgjasë disa minuta.</p></div></div><div class="card-body"><div class="notice import-privacy">${icon('info',16)}<span>Excel-i i modelit të BioBes lexohet në këtë pajisje pa Gemini. Dokumentet ruhen privatisht në cloud vetëm kur konfirmon ruajtjen.</span></div><p class="small-note batch-key-field">Çelësi Gemini konfigurohet privatisht vetëm në server. Çdo grup ka mundësi të zgjedhë origjinalet për ruajtje private, veçmas nga kopjet që lexon AI.</p><label class="import-consent"><input id="batch-anonymous" type="checkbox"> <span>Konfirmoj se dokumentet që do të dërgohen nuk përmbajnë emra, firma, të dhëna personale ose konfidenciale, dhe se projekti i çelësit Gemini në server është Free Tier pa faturim të lidhur.</span></label><details class="batch-advanced"><summary>Privatësia dhe kostot – lexo një herë</summary><p class="small-note">Dokumentet nuk anonimizohen automatikisht: hiqi të dhënat, mos i mbulo vetëm në pamje, dhe kontrollo metadatat. Emrat e skedarëve zëvendësohen, por përmbajtja dhe metadatat mund të dërgohen. Google mund të përdorë dhe të shqyrtojë leximet falas. Aplikacioni nuk verifikon planin; projektet me faturim mund të kenë kosto. Në EEA, Zvicër dhe MB Google kërkon shërbime me pagesë kur aplikacionet API u ofrohen përdoruesve atje. <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">Kushtet e Google ↗</a></p></details><label class="import-consent"><input id="batch-catalog" type="checkbox"> <span>Pranoj shprehimisht dërgimin te Gemini të emrave në listat bazë më poshtë, vetëm nëse janë të anonimizuar dhe jokonfidencialë.</span></label><p class="small-note">Opsionale: listat bazë të përgjegjëseve, punonjësve, produkteve, paketimit, statuseve, njësive dhe burimeve. Mos e zgjidh nëse përmbajnë emra realë ose të dhëna konfidenciale.</p><label class="import-consent"><input id="batch-device-notice" type="checkbox" ${importState.notify?'checked':''}> <span>Më njofto kur të përfundojë leximi.</span></label></div></div></div>`
  }
 function batchError(message){batchState.error=str(message,700);const el=document.getElementById('batch-error');if(el){el.textContent=batchState.error;el.hidden=!batchState.error}}
 function batchPaint(){const el=document.getElementById('batch-groups');if(el)el.innerHTML=batchGroupsHTML();const reset=view.querySelector('[data-action="batch-reset"]'),raw=view.querySelector('[data-action="batch-raw"]'),ready=view.querySelector('[data-action="batch-review-ready"]');if(reset)reset.hidden=!batchState.groups.length;if(raw)raw.hidden=!batchState.groups.some(g=>g.raw);if(ready)ready.hidden=!(batchState.groups.some(g=>g.status==='ready')&&batchState.groups.some(g=>g.status!=='ready'))}
@@ -983,7 +983,11 @@ function readGeneratedContinuations(wb,names){
  found.warnings.push(...warnings);return found;
 }
 function batchResultsFromWorkbook(wb){
- const names=visibleSheets(wb);if(!names.length||!names.every(name=>looksLikeApproved(wb.Sheets[name])||(/^NR_\d+_V\d+$/.test(name)&&fold(cellText(wb.Sheets[name],'C6')).includes('produkt')&&fold(cellText(wb.Sheets[name],'E1')).includes('dhoma'))))return null;if(names.some(name=>/^NR_\d+_V\d+$/i.test(name))){const groups=[];for(const name of names){const m=/^NR_(\d+)(?:_V(\d+))?$/.exec(name);if(!m)throw new Error('Emrat e fletëve të vazhdimit nuk janë të vlefshëm.');const nr=Number(m[1]),part=Number(m[2]||1);let group=groups[groups.length-1];if(part===1){if(groups.some(x=>x.nr===nr))throw new Error('Numri i formularit përsëritet në Excel; importi u ndal.');group={nr,names:[]};groups.push(group)}if(!group||group.nr!==nr||part!==group.names.length+1)throw new Error('Fletët e vazhdimit mungojnë ose janë në rend të gabuar.');group.names.push(name)}if(groups.length>BATCH_MAX)throw new Error('Excel-i ka më shumë se 10 formularë.');const hidden=wb.Sheets.TE_DHENAT_PLOTA;if(!hidden)throw new Error('Mungojnë të dhënat e plota; importi u ndal.');const rows=XLSX.utils.sheet_to_json(hidden,{header:1,raw:true,defval:''});return groups.map(g=>{const selected=rows.slice(1).filter(row=>/^\d+$/.test(str(row[0]).trim())&&Number(row[0])===g.nr);if(!selected.length)throw new Error('Mungojnë të dhënat e plota të një formulari.');const sub={SheetNames:[...g.names,'TE_DHENAT_PLOTA'],Sheets:{TE_DHENAT_PLOTA:XLSX.utils.aoa_to_sheet([rows[0]||[],...selected])},Workbook:{Sheets:[...g.names.map(()=>({Hidden:0})),{Hidden:1}]}};for(const name of g.names)sub.Sheets[name]=wb.Sheets[name];const found=readGeneratedContinuations(sub,g.names);return {...found,missingNumber:false}})}if(names.length>BATCH_MAX)throw new Error('Excel-i ka më shumë se 10 formularë. Ndaje në grupe më të vogla.');
+ const names=visibleSheets(wb);
+ // Shablloni i BioBes lexohet me koordinata fikse, para çdo hamendjeje tjetër.
+ const templateSheet=names.length===1&&xlIsTemplateSheet(wb.Sheets[names[0]])?wb.Sheets[names[0]]:null;
+ if(templateSheet){const found=readTemplateExcel(templateSheet);return [{...found,formNumber:1,formCount:1}]}
+if(!names.length||!names.every(name=>looksLikeApproved(wb.Sheets[name])||(/^NR_\d+_V\d+$/.test(name)&&fold(cellText(wb.Sheets[name],'C6')).includes('produkt')&&fold(cellText(wb.Sheets[name],'E1')).includes('dhoma'))))return null;if(names.some(name=>/^NR_\d+_V\d+$/i.test(name))){const groups=[];for(const name of names){const m=/^NR_(\d+)(?:_V(\d+))?$/.exec(name);if(!m)throw new Error('Emrat e fletëve të vazhdimit nuk janë të vlefshëm.');const nr=Number(m[1]),part=Number(m[2]||1);let group=groups[groups.length-1];if(part===1){if(groups.some(x=>x.nr===nr))throw new Error('Numri i formularit përsëritet në Excel; importi u ndal.');group={nr,names:[]};groups.push(group)}if(!group||group.nr!==nr||part!==group.names.length+1)throw new Error('Fletët e vazhdimit mungojnë ose janë në rend të gabuar.');group.names.push(name)}if(groups.length>BATCH_MAX)throw new Error('Excel-i ka më shumë se 10 formularë.');const hidden=wb.Sheets.TE_DHENAT_PLOTA;if(!hidden)throw new Error('Mungojnë të dhënat e plota; importi u ndal.');const rows=XLSX.utils.sheet_to_json(hidden,{header:1,raw:true,defval:''});return groups.map(g=>{const selected=rows.slice(1).filter(row=>/^\d+$/.test(str(row[0]).trim())&&Number(row[0])===g.nr);if(!selected.length)throw new Error('Mungojnë të dhënat e plota të një formulari.');const sub={SheetNames:[...g.names,'TE_DHENAT_PLOTA'],Sheets:{TE_DHENAT_PLOTA:XLSX.utils.aoa_to_sheet([rows[0]||[],...selected])},Workbook:{Sheets:[...g.names.map(()=>({Hidden:0})),{Hidden:1}]}};for(const name of g.names)sub.Sheets[name]=wb.Sheets[name];const found=readGeneratedContinuations(sub,g.names);return {...found,missingNumber:false}})}if(names.length>BATCH_MAX)throw new Error('Excel-i ka më shumë se 10 formularë. Ndaje në grupe më të vogla.');
  if(names.length===1){const found=readApprovedExcel(wb);if(!found)return null;const missing=found.warnings.some(w=>w.startsWith('Numri nuk ishte i plotësuar'));return [{...found,missingNumber:missing}]}
  const numbers=names.map(name=>afterLabel(cellRaw(wb.Sheets[name],'E2'),'Nr\\.?')),duplicates=new Map();for(const n of numbers)if(/^\d+$/.test(n))duplicates.set(Number(n),(duplicates.get(Number(n))||0)+1);
  const hidden=wb.Sheets['TE_DHENAT_PLOTA'],rows=hidden?XLSX.utils.sheet_to_json(hidden,{header:1,raw:true,defval:''}):[];
@@ -1292,7 +1296,7 @@ function announceReading(ok){
  }
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&importState.pendingNotice){const {message,kind}=importState.pendingNotice;importState.pendingNotice=null;toast(message,kind)}});
-function fileKind(file){const name=file.name.toLowerCase(),m=file.type.toLowerCase();if(/\.(xlsx|xltx|xlsm|xltm|xls|xlt)$/.test(name)||m.includes('spreadsheet')||m.includes('excel'))return 'excel';if(/\.(docx|docm|dotx)$/.test(name)||m.includes('wordprocessingml'))return 'word';if(name.endsWith('.pdf')||m==='application/pdf')return 'application/pdf';const types=[['.jpg','image/jpeg'],['.jpeg','image/jpeg'],['.png','image/png'],['.webp','image/webp'],['.heic','image/heic'],['.heif','image/heif']];return types.find(([ext])=>name.endsWith(ext))?.[1]||(['image/jpeg','image/png','image/webp','image/heic','image/heif'].includes(m)?m:'')}
+function fileKind(file){const name=str(file?.name||'').toLowerCase(),m=str(file?.type||'').toLowerCase();if(/\.(xlsx|xltx|xlsm|xltm|xls|xlt)$/.test(name)||m.includes('spreadsheet')||m.includes('excel'))return 'excel';if(/\.(docx|docm|dotx)$/.test(name)||m.includes('wordprocessingml'))return 'word';if(name.endsWith('.pdf')||m==='application/pdf')return 'application/pdf';const types=[['.jpg','image/jpeg'],['.jpeg','image/jpeg'],['.png','image/png'],['.webp','image/webp'],['.heic','image/heic'],['.heif','image/heif']];return types.find(([ext])=>name.endsWith(ext))?.[1]||(['image/jpeg','image/png','image/webp','image/heic','image/heif'].includes(m)?m:'')}
 function checkImportFiles(files){if(!files.length)throw new Error('Zgjidh të paktën një skedar.');if(files.length>6)throw new Error('Zgjidh deri në 6 skedarë për një formular.');if(files.some(f=>/\.(doc|dot|rtf|odt)$/i.test(f.name)))throw new Error('Word i vjetër (.doc) nuk lexohet. Hape në Word dhe ruaje si .docx ose PDF.');if(files.some(f=>!fileKind(f)))throw new Error('Formati nuk mbështetet. Përdor foto, PDF, Excel ose Word (.docx).');if(files.reduce((n,f)=>n+f.size,0)>IMPORT_LIMIT)throw new Error('Skedarët së bashku duhet të jenë deri në 12 MB.');if(files.some(f=>f.size===0))throw new Error('Njëri prej skedarëve është bosh.')}
 function validateExcelArchive(buffer){const b=new Uint8Array(buffer);if(b.length<4||b[0]!==0x50||b[1]!==0x4b)return;const d=new DataView(buffer);let end=-1;for(let i=b.length-22;i>=Math.max(0,b.length-65557);i--)if(d.getUint32(i,true)===0x06054b50){end=i;break}if(end<0)throw new Error('Arkiva e Excel-it është e dëmtuar.');const count=d.getUint16(end+10,true),size=d.getUint32(end+12,true),offset=d.getUint32(end+16,true);if(count===0xffff||size===0xffffffff||offset===0xffffffff||count>10000||offset+size>b.length)throw new Error('Excel-i është shumë i madh ose përdor një arkiv të pambështetur.');let cursor=offset,total=0;for(let i=0;i<count;i++){if(cursor+46>b.length||d.getUint32(cursor,true)!==0x02014b50)throw new Error('Arkiva e Excel-it është e dëmtuar.');const flags=d.getUint16(cursor+8,true),uncompressed=d.getUint32(cursor+24,true),name=d.getUint16(cursor+28,true),extra=d.getUint16(cursor+30,true),comment=d.getUint16(cursor+32,true);if(flags&1)throw new Error('Excel-i i mbrojtur me fjalëkalim nuk lexohet.');total+=uncompressed;if(uncompressed===0xffffffff||uncompressed>50*1024*1024||total>80*1024*1024)throw new Error('Excel-i i zbërthyer është shumë i madh. Ndaje në skedarë më të vegjël.');cursor+=46+name+extra+comment;if(cursor>offset+size)throw new Error('Arkiva e Excel-it është e dëmtuar.')}}
 async function readExcelFile(file){let wb;const buffer=await file.arrayBuffer();validateExcelArchive(buffer);try{wb=XLSX.read(buffer,{type:'array',cellDates:false,cellText:true,cellNF:true,bookVBA:false})}catch(e){throw new Error(`Excel-i “${file.name}” nuk u hap. Kontrollo që nuk është i dëmtuar ose i mbrojtur me fjalëkalim.`)}if(!wb.SheetNames?.length)throw new Error('Excel-i nuk përmban fletë.');return wb}
@@ -1640,7 +1644,17 @@ function auditAIObservations(data,r,warnings){
  if(nonempty(data.total_hours)){
   const printed=parseAlNumber(looseNumberText(data.total_hours)),people=r.employees.filter(e=>nonempty(e.name)||nonempty(e.start)||nonempty(e.end));
   if(printed===null||!people.length||people.some(e=>!e.start||!e.end||hoursFor(e)===null))warnings.push('Totali i shkruar i orëve nuk mund të verifikohet nga orët e lexuara. Kontrolloje.');
-  else{const calculated=roundHoursTotal(people.reduce((sum,e)=>sum+hoursFor(e),0));if(Math.abs(printed-calculated)>0.005)warnings.push(`Totali i shkruar i orëve (${str(data.total_hours,80)}) nuk përputhet me totalin e llogaritur (${fmt(calculated)}). Kontrolloje.`)}
+  else{
+   // Pushimi nxirret te aiReadBlock, aty ku ndërtohet regjistrimi; ky bllok
+   // punon mbi kopje auditimi dhe vetëm raporton mospërputhjen e mbetur.
+   // Totali i shtypur në formular është shuma e saktë e minutave (7,25), jo e
+   // rrumbullakuar; prandaj krahasimi bëhet mbi minutat, jo mbi orët e rrumb.
+   const exact=people.reduce((sum,e)=>sum+hoursFor(e),0);
+   const calculated=Math.round(exact*60)/60;
+   // Nëse pushimi u nxor pikërisht nga ky total, totali përputhet nga ndërtimi
+   // dhe nuk ka kuptim të qortohet vetë burimi i llogaritjes.
+   if(!r.breakFromPrinted&&Math.abs(printed-calculated)>0.005)warnings.push(`Totali i shkruar i orëve (${str(data.total_hours,80)}) nuk përputhet me totalin e llogaritur (${fmt(calculated)}). Kontrolloje.`);
+  }
  }
  // Qelizat mund të vijnë si tekst ose si objekt {value,page,confidence}; totali
  // krahasohet gjithmonë me tekstin e lexuar, pavarësisht formatit.
@@ -1942,14 +1956,49 @@ function aiReadBlock(block,formNumber,proposedNr,info){
    const field=get(`employees.${i}.${key}`,p[key],`${area} · ${label}`,value=>({value:timeFromImport(value)||null}));
    target[key]=field.value||'';
    if(nonempty(aiText(p[key]))&&!field.value)warnings.push(`${area}: kontrollo orën ${key==='start'?'e fillimit':'e mbarimit'}.`)}
+  // Pushimi: vetëm nëse formulari e shkruan shprehimisht. Totali i shtypur
+  // "Orë gjithsej" është total i ditës për të gjithë punonjësit, prandaj nuk
+  // përdoret për të nxjerrë pushimin e një personi — ai krahasohet më poshtë,
+  // në nivel dite, ku i takon.
+  const breakField=get(`employees.${i}.break_minutes`,p.break_minutes??p.breakMinutes,`${area} · Pushimi (min)`);
+  const breakRaw=str(breakField.value??'').trim();
+  // '' do të thotë "formulari nuk e shkruan pushimin"; nuk guxon të ngatërrohet
+  // me parazgjedhjen 60 minuta që vjen nga blankRecord-i.
+  target.breakMinutes=/^\d{1,4}$/.test(breakRaw)&&Number(breakRaw)<=1440?String(Number(breakRaw)):'';
   target.comment=get(`employees.${i}.comment`,p.comment,`${area} · Komente`).value||'';
   target.signature=get(`employees.${i}.signature`,p.signature,`${area} · Firma e Punonjësit`).value||'';
   if(p.total_hours!==undefined&&p.total_hours!==null)get(`employees.${i}.total_hours_printed`,p.total_hours,`${area} · Orë Gjithsej`,value=>({value:importedNumber(value,`${area}, Orë Gjithsej`,warnings)||null}));
-  const hours=hoursFor(target);
+
+  // Pushimi i nxjerrë nga totali i ditës llogaritet më poshtë; ora e shfaqur
+  // përditësohet atje, prandaj këtu nuk zbritet parazgjedhja 60 në heshtje.
+  const hours=hoursFor({...target,breakMinutes:target.breakMinutes||'0'});
   if(hours!==null&&target.start&&target.end)fields[`employees.${i}.total_hours`]={value:fmt(hours),page:fields[`employees.${i}.start`]?.page??null,
    formArea:`${area} · Orë Gjithsej (llogaritur nga orari)`,confidence:null,
    needsReview:Boolean(fields[`employees.${i}.start`]?.needsReview||fields[`employees.${i}.end`]?.needsReview),readAs:null,note:'llogaritur'};
  });
+ // Pushimi: "Orë gjithsej" në formular është total i ditës për të gjithë
+ // punonjësit. Që nga skema e pushimit ora neto zbret pushimin, prandaj pa të
+ // totali i saktë do të dukej gabim. Kur pushimi nuk lexohet, nxirret një herë
+ // për të gjithë ditën: (intervali bruto i të gjithëve − totali i shtypur).
+ // Vetëm kur diferenca është numër i plotë minutash brenda 0–1440; përndryshe
+ // pushimi mbetet 60 minuta dhe mospërputhja raportohet si më parë.
+ {
+  const people=record.employees.filter(e=>nonempty(e.name)||nonempty(e.start)||nonempty(e.end));
+  const printed=parseAlNumber(looseNumberText(header?.total_hours));
+  const given=people.map(e=>/^\d{1,4}$/.test(str(e.breakMinutes).trim()));
+  if(printed!==null&&people.length&&given.some(g=>!g)){
+   const spans=people.map(e=>hoursFor({...e,breakMinutes:'0'}));
+   const derived=spans.some(x=>x===null)?null:(spans.reduce((a,b)=>a+b,0)-printed)*60;
+   if(derived!==null&&derived>=-0.5&&derived<=1440.5){
+    const perPerson=Math.max(0,Math.round(derived));
+    people.forEach(e=>{if(!/^\d{1,4}$/.test(str(e.breakMinutes).trim()))e.breakMinutes=String(perPerson)});
+    record.breakFromPrinted=true;
+   }
+  }
+  // Aty ku as pushimi as totali nuk e përcaktojnë, mbetet 60 minuta — e njëjta
+  // parazgjedhje që përdor formulari dhe që shkruhet në udhëzim.
+  people.forEach(e=>{if(!/^\d{1,4}$/.test(str(e.breakMinutes).trim()))e.breakMinutes='60'});
+ }
  // Faqja PAS dhe tabelat e peshimit: numri i shtypur vendos tabelën, kolonat nuk zhvendosen.
  const weighings=(Array.isArray(block.weighings)?block.weighings:[]).filter(x=>x&&typeof x==='object');
  if(weighings.length>60)throw aiTooMany('60 tabela peshimi');
@@ -2154,6 +2203,16 @@ const XL = {
   muted:'FF72808D', badBg:'FFFFF3F2', warnBg:'FFFFF7E8', white:'FFFFFFFF',
 };
 function colName(i){let s='',n=i;do{s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)-1}while(n>=0);return s}
+// "B" -> 1, "AA" -> 26 (anasjelltas e colName)
+// "08:00" -> 0.3333 (fraksion i ditës, siç ruan Excel-i orën)
+function xlTime(v){
+ const m=/^(\d{1,2}):(\d{2})/.exec(String(v||'').trim());
+ if(!m)return null;
+ const h=Number(m[1]),mi=Number(m[2]);
+ if(h>23||mi>59)return null;
+ return (h*60+mi)/1440;
+}
+function xlColIndex(letters){let n=0;for(const ch of String(letters).toUpperCase())n=n*26+(ch.charCodeAt(0)-64);return n-1}
 const xlEsc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 
 // Stilet: 21 xf të paracaktuara (indekset përdoren direkt nga qelizat).
@@ -2256,6 +2315,21 @@ function sheetSpec(spec){
     r++;
   }
 
+  // 2b) Rreshta të lirë me formula (shablloni): çdo qelizë {v,f,style,t}
+  // `f` shkruhet si formulë e vërtetë Excel, pa “=”. Kështu skedari i shkarkuar
+  // llogaritet vetë në Excel — pa asnjë llogaritje në server.
+  // `spec.custom` është listë e sheshtë qelizash: {r:'B10', v, f, style, t}.
+  for(const cell of spec.custom||[]){
+    const m=/^([A-Z]+)(\d+)$/.exec(String(cell.r||''));
+    if(!m)continue;
+    const ci=xlColIndex(m[1]),row=Number(m[2])-1;
+    if(row<0)continue;
+    const style=cell.style??3;
+    if(cell.f)put(row,ci,cell.f,style,{t:cell.t||'n',f:true});
+    else if(cell.v!==undefined&&cell.v!==null&&cell.v!=='')put(row,ci,cell.v,style,{t:cell.t||(typeof cell.v==='number'?'n':'s')});
+    if(row+1>r)r=row+1;
+  }
+
   // 3) Kryet e kolonave
   const headRow=r;
   cols.forEach((c,ci)=>put(r,ci,c.h,2));
@@ -2354,6 +2428,7 @@ function sheetSpec(spec){
   const merges=[];
   if(spec.title)merges.push(`A1:${colName(lastCol)}1`);
   if(spec.subtitle)merges.push(`A2:${colName(lastCol)}2`);
+  for(const ref of spec.mergeAll||[])merges.push(ref);
   if(merges.length)xml+=`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`;
   // Formatim i kushtëzuar: krahasim i saktë i tekstit, jo SEARCH me formulë.
   if(spec.conditional&&lastData>=firstData){
@@ -2400,7 +2475,7 @@ ${names.map((x,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentT
 </Relationships>`;
   f['docProps/core.xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-<dc:title>${xlEsc(spec.title||'BioBes')}</dc:title><dc:creator>BioBes</dc:creator><cp:lastModifiedBy>BioBes</cp:lastModifiedBy>
+<dc:title>${xlEsc(spec.docTitle||spec.title||'BioBes')}</dc:title><dc:creator>BioBes</dc:creator><cp:lastModifiedBy>BioBes</cp:lastModifiedBy>
 <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
   f['docProps/app.xml']=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>BioBes</Application></Properties>`;
@@ -2567,7 +2642,252 @@ function xlStockSheet(m){
     notes:['Vetëm rreshtat me burim “stok” hyjnë këtu.','Rreshtat pa KG numërohen si “rreshta”, por nuk shtojnë peshë.'],
   };
 }
+// ---- Shablloni i Excel-it që plotësohet vetë ---------------------------------
+// Kërkesa: "Duhet dhe një formë template shembull që shkarkohet e plotësohet —
+// pra nga sistemi, tip shembulli."
+//
+// Skedari i shkarkuar është shembulli i plotë i formës së BioBes, me formulat e
+// sistemit brenda: shuma e rreshtit, numri i thasëve, diferenca, kontrolli,
+// orët e ditës dhe totalet nuk shkruhen si numra — llogariten nga Excel-i.
+// Rreshtat provë janë qeliza të zakonshme: fshihen dhe formulat mbeten.
+const XLT={title:0,sub:1,head:2,text:3,label:4,num:10,d2:12,date:14,center:18,hours:20,totalText:7,totalNum:8,note:6};
+const XLT_DEMO={
+ products:[['Saj Mali','Kafe Arta','Përfunduar','kg',320,305,'thasë',61],
+           ['Boronicë','Market Besa','Në proces','kg',180,175,'kuti',35]],
+ staff:[['Arta Hoxha','08:00','16:00'],['Besa Kola','08:00','17:30']],
+ weights:[['Saj Mali','Marrë nga stoku',12,240,36,276],
+          ['Boronicë','Tjetër / jo nga stoku',6,175,35,210]],
+};
+const XLT_PLAN_COLS=['Produkti','Klienti','Statusi','Njësia','Sasia e porositur','Sasia e prodhuar','Paketimi','Nr. ambalazheve'];
+const XLT_STAFF_COLS=['Emri e mbiemri','Fillim pune','Mbarim pune','Orë gjithsej','Komente'];
+const XLT_WEIGH_COLS=['Produkti','Burimi','Nr. thasëve','KG','Ambalazhi','Shuma','SH (kontroll)','Diferenca','Kontrolli'];
+
+// Ndërton qelizat e shabllonit. Numrat e rreshtave janë fiks, që formulat të
+// tregojnë ekzaktësisht ku duhet dhe të mos thyhen kur ndryshon përmbajtja.
+function xlTemplateCells(){
+ const C=[],put=(r,ci,v,style,t)=>{C.push({r:colName(ci)+r,v,f:undefined,style,t:t||(typeof v==='number'?'n':'s')})};
+ const formula=(r,ci,f,style)=>C.push({r:colName(ci)+r,f,style:style??XLT.d2,t:'n'});
+ // Titull dhe shpjegim
+ put(1,0,'FORMULARI DITOR — SHABLLON',XLT.title,'s');
+ put(2,0,'Plotëso qelizat e bardha. Shumat, orët, diferencat dhe kontrolli llogariten vetë nga formulat.',XLT.sub,'s');
+ // 1) Të dhënat e ditës
+ put(4,0,'TË DHËNAT E DITËS',XLT.head,'s');
+ put(5,0,'Nr. formulari',XLT.label,'s');put(5,1,String(nextNr()).padStart(3,'0'),XLT.text,'s');
+ put(5,3,'Data',XLT.label,'s');const stamp=xlDate(today());put(5,4,stamp==null?today():stamp,XLT.date,'n');
+ put(5,6,'Dhoma',XLT.label,'s');put(5,7,'',XLT.text,'s');
+ put(6,0,'Përgjegjësja',XLT.label,'s');put(6,1,'',XLT.text,'s');
+ put(6,3,'Ndihmësja',XLT.label,'s');put(6,4,'',XLT.text,'s');
+ // 2) Plani i punës
+ put(8,0,'PLANI I PUNËS',XLT.head,'s');
+ XLT_PLAN_COLS.forEach((h,i)=>put(9,i,h,XLT.head,'s'));
+ XLT_DEMO.products.forEach((row,ri)=>{
+  const r=10+ri;
+  row.forEach((v,i)=>put(r,i,v,i>=4&&i<=5?XLT.num:(i===2||i===3||i===7)?XLT.center:XLT.text));
+ });
+ formula(15,4,'SUM(E10:E14)',XLT.totalNum);
+ formula(15,5,'SUM(F10:F14)',XLT.totalNum);
+ formula(15,7,'SUM(H10:H14)',XLT.totalNum);
+ put(15,0,'TOTALI I PLANIT',XLT.totalText,'s');
+ // 3) Punonjësit — ora llogaritet nga sistemi
+ put(17,0,'PUNONJËSIT',XLT.head,'s');
+ XLT_STAFF_COLS.forEach((h,i)=>put(18,i,h,XLT.head,'s'));
+ XLT_DEMO.staff.forEach((row,ri)=>{
+  const r=19+ri;
+  put(r,0,row[0],XLT.text,'s');
+  // Ora shkruhet si vlerë kohe (fraksion i ditës) me formatin [h]:mm — jo si
+  // tekst “08:00”, që formula (C−B)*24 të japë gjithmonë orë të sakta.
+  const t1=xlTime(row[1]),t2=xlTime(row[2]);
+  put(r,1,t1==null?row[1]:t1,XLT.hours,t1==null?'s':'n');
+  put(r,2,t2==null?row[2]:t2,XLT.hours,t2==null?'s':'n');
+  put(r,4,'',XLT.text,'s');
+ });
+ for(let r=19;r<=23;r++){ // orët për të pesë rreshtat, jo vetëm provat
+  formula(r,3,`IF(AND(B${r}<>"",C${r}<>""),(C${r}-B${r})*24,"")`,XLT.hours);
+ }
+ put(24,0,'ORË GJITHSEJ',XLT.totalText,'s');
+ formula(24,3,'SUM(D19:D23)',XLT.totalNum);
+ // 4) Peshimet — SH, diferenca dhe kontrolli llogariten vetë
+ put(26,0,'PESHIMET',XLT.head,'s');
+ XLT_WEIGH_COLS.forEach((h,i)=>put(27,i,h,XLT.head,'s'));
+ XLT_DEMO.weights.forEach((row,ri)=>{
+  const r=28+ri;
+  put(r,0,row[0],XLT.text,'s');
+  put(r,1,row[1],XLT.text,'s');
+  put(r,2,row[2],XLT.num,'n');
+  put(r,3,row[3],XLT.d2,'n');
+  put(r,4,row[4],XLT.d2,'n');
+  put(r,5,row[5],XLT.d2,'n');   // Shuma e shkruar (si te formulari)
+  put(r,6,row[5],XLT.d2,'n');   // SH që lexohet nga printimi
+
+ });
+ for(let r=28;r<=32;r++){
+  formula(r,7,`IF(G${r}="","",G${r}-(D${r}+E${r}))`,XLT.d2); // diferenca
+  // Kontrolli: krahasohet SH me sistemin (KG + Ambalazhi), si në aplikacion.
+  C.push({r:colName(8)+r,f:`IF(G${r}="","",IF(G${r}-(D${r}+E${r})<>0,"GABIM","OK"))`,style:XLT.center,t:'n'});
+ }
+ put(33,0,'TOTALI I PESHIMEVE',XLT.totalText,'s');
+ formula(33,2,'SUM(C28:C32)',XLT.totalNum);
+ formula(33,3,'SUM(D28:D32)',XLT.totalNum);
+ formula(33,4,'SUM(E28:E32)',XLT.totalNum);
+ formula(33,5,'SUM(F28:F32)',XLT.totalNum);
+ // 5) Udhëzimi i shkurtër
+ put(35,0,'Rreshtat provë janë shembull: fshiji dhe shkruaj të dhënat e tua. Formulat mbeten dhe llogarisin vetë.',XLT.note,'s');
+ put(36,0,'Kontrolli shkruan GABIM kur Shuma nuk përputhet me KG + Ambalazhin. Kështu gabimi i mbledhjes duket menjëherë.',XLT.note,'s');
+ put(37,0,'Kur ta plotësosh, ngarko skedarin te “Lexo formularë” — sistemi e lexon dhe e kontrollon sërish.',XLT.note,'s');
+ return C;
+}
+function xlTemplateSheet(){
+ const cells=xlTemplateCells();
+ return {
+  name:'Formulari',
+  // Titulli vizatohet brenda qelizave të shabllonit; `docTitle` shkon vetëm te
+  // vetitë e skedarit, që të mos përzihen rreshtat e meta me formularin.
+  docTitle:'BioBes — shabllon formulari ditor',
+  freezeRow:9,landscape:true,mergeAll:['A1:J1','A2:J2','A4:J4','A8:J8','A17:J17','A26:J26','A35:J35','A36:J36','A37:J37'],
+  columns:[{w:24},{w:22},{w:13},{w:10},{w:15},{w:15},{w:14},{w:15},{w:12},{w:12}],
+  rows:[],
+  custom:cells,
+  notes:['Shablloni është shembull: të dhënat provë nuk ruhen askund.','Formula e kontrollit shkruan GABIM kur Shuma ≠ KG + Ambalazhi.'],
+ };
+}
+// A jemi në shfletues me rrjet? (mailto duhet të funksionojë edhe offline)
+function xlRecipient(){
+ const email=String(cloud?.user?.email||'').trim();
+ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:'';
+}
 // Një raport i vetëm Excel — një skedar, një fletë, i plotë me stile.
+// Butoni: shkarko shabllonin e plotësuar me formula.
+// ---- Leximi i shabllonit të plotësuar ----------------------------------------
+// Shablloni është një formë e re, jo modeli i vjetër me dy faqe. Prandaj lexohet
+// me koordinata fikse (siç e shkruam vetë): asnjë hamendje, asnjë vlerë e
+// shpikur. Çdo fushë që mungon shënohet si e pacaktuar, jo si zero.
+function xlIsTemplateSheet(sh){
+ if(!sh)return false;
+ const head=x=>fold(cellText(sh,x)).replace(/\s+/g,' ');
+ return head('A1').startsWith('formulari ditor') && head('A9')==='produkti' && head('B9')==='klienti'
+  && head('A18').startsWith('emri e mbiemri') && head('A27')==='produkti' && head('I27').startsWith('kontrolli');
+}
+function xlTemplateNumbers(sh){
+ const num=a=>{const v=cellRaw(sh,a);if(v===''||v===null||v===undefined)return null;const n=Number(v);return Number.isFinite(n)?Math.round(n*100)/100:null};
+ const text=a=>cleanPlaceholder(cellText(sh,a));
+ const time=a=>{const v=cellRaw(sh,a);const t=xlTimeFromCell(v);return t};
+ return {num,text,time};
+}
+// Ora nga qeliza: numër (fraksion dite) ose tekst "08:00".
+function xlTimeFromCell(v){
+ if(typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<1){
+  const total=Math.round(v*1440),h=Math.floor(total/60)%24,m=total%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+ }
+ const m=/^(\d{1,2}):(\d{2})/.exec(String(v??'').trim());
+ if(!m)return '';
+ const h=Number(m[1]),mi=Number(m[2]);
+ return h>23||mi>59?'':`${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}`;
+}
+// Kthen një regjistrim të plotë nga shablloni, plus paralajmërimet e çdo fushe
+// që duhet kontrolluar. Asnjë vlerë nuk shpiket: bosh mbetet bosh.
+function readTemplateExcel(sh){
+ const {num,text,time}=xlTemplateNumbers(sh);
+ const warnings=[],record=blankRecord(nextNr());
+ // Nëse shablloni sjell numër, ai respektohet; nëse jo, mbetet numri i radhës
+ // që propozon vetë formulari (kurrë zero dhe kurrë bosh i heshtur).
+ const nr=text('B5');
+ const missingNumber=!/^\d+$/.test(nr);
+ if(!missingNumber)record.nr=String(Number(nr)).padStart(3,'0');
+ else warnings.push('Numri i formularit nuk u gjet në shabllon; u propozua numri i radhës.');
+ const date=dateFromImport(cellRaw(sh,'E5'));
+ if(date)record.date=date;else warnings.push('Data nuk u lexua nga shablloni; vendose dhe kontrolloje.');
+ record.room=text('H5');
+ record.responsible={name:text('B6'),signature:''};
+ record.assistant={name:text('E6'),signature:''};
+ // Plani: rreshtat 10–14
+ const plan=record.plan;
+ for(let i=0;i<5;i++){
+  const r=10+i,line=plan[i];
+  if(!line)continue;
+  line.product=text('A'+r);line.client=text('B'+r);line.status=text('C'+r);line.unit=text('D'+r);
+  const planned=num('E'+r),actual=num('F'+r),pkg=num('H'+r);
+  line.planned=planned===null?'':String(planned);
+  line.actual=actual===null?'':String(actual);
+  line.packaging=text('G'+r);
+  line.packageCount=pkg===null?'':String(pkg);
+  if(line.actual!==''&&!line.unit)warnings.push(`Plani, rreshti ${r}: sasia e prodhuar ka vlerë, por njësia mungon.`);
+ }
+ // Kontrolli: SH duhet të përputhet me KG + Ambalazhin (i njëjti rregull si në app).
+ for(let r=28;r<=32;r++){
+  const kg=num('D'+r),amb=num('E'+r),sh=num('G'+r);
+  if(kg===null&&amb===null)continue;
+  if(sh!==null&&Math.abs(sh-((kg||0)+(amb||0)))>0.009)
+   warnings.push(`Peshimet, rreshti ${r}: Shuma e shkruar (${sh}) nuk përputhet me KG + Ambalazh (${(kg||0)+(amb||0)}).`);
+ }
+ // Punonjësit: rreshtat 19–23
+ record.employees=record.employees.map((e,i)=>{
+  const r=19+i;
+  if(r>23)return e;
+  const name=text('A'+r);
+  if(!name)return e;
+ // Qeliza e orës lexohet përmes xlTimeFromCell: numër (fraksion dite) ose tekst.
+  const start=xlTimeFromCell(cellRaw(sh,'B'+r)),end=xlTimeFromCell(cellRaw(sh,'C'+r));
+  if(start&&!end)warnings.push(`Punonjësi ${name}: ora e mbarimit mungon.`);
+  if(end&&!start)warnings.push(`Punonjësi ${name}: ora e fillimit mungon.`);
+  return {name,start,end,comment:text('E'+r),signature:''};
+ });
+ // Peshimet: rreshtat 28–32 → grupet e formularit (6 grupe, 25 rreshta secili)
+ const groups=[];let cur=null;
+ for(let r=28;r<=32;r++){
+  const product=text('A'+r),source=text('B'+r),bags=num('C'+r),kg=num('D'+r),amb=num('E'+r),sh=num('G'+r);
+  if(!product&&!source&&bags===null&&kg===null&&amb===null&&sh===null)continue;
+  if(!cur||(cur.product&&product&&fold(cur.product)!==fold(product))){
+   cur={product,source:'',sourceLabel:source,rows:[],printedTotal:{bags:'',kg:'',packaging:'',sum:''}};
+   groups.push(cur);
+  }
+  cur.rows.push({bags:bags===null?'':String(bags),kg:kg===null?'':String(kg),packaging:amb===null?'':String(amb),sum:sh===null?'':String(sh)});
+ }
+ if(groups.length){
+  record.weighings=record.weighings.map((g,i)=>{
+   const src=groups[i];
+   if(!src)return g;
+   // Burimi: njihet nga lista e burimeve, që rregulli i formularit të kalojë.
+   const exact=comboOptions('sources').find(o=>fold(o.label)===fold(src.sourceLabel));
+   return {product:src.product,source:exact?exact.kind:'',sourceLabel:exact?exact.label:src.sourceLabel,
+     rows:src.rows.concat(Array.from({length:Math.max(0,25-src.rows.length)},newRow)),
+     printedTotal:src.printedTotal};
+  });
+ }
+ return {record,warnings,missingNumber};
+}
+// Shablloni i plotësuar kthehet në të njëjtën rrugë si çdo formular tjetër:
+// lexohet, kontrollohet dhe mbahet për konfirmim. Nuk ruhet pa u kontrolluar.
+async function templateUpload(file){
+ if(!file)return;
+ if(!/\.(xlsx|xltx|xlsm|xltm|xls)$/i.test(file.name)){toast('Zgjidh skedarin Excel të shabllonit (.xlsx).','error');return}
+ try{
+  checkImportFiles([file]);
+ }catch(e){toast(str(e?.message||'Skedari nuk pranohet.',300),'error');return}
+ if(!await canLeave())return;
+ try{
+  await clearImportReview();
+  batchReset();
+  batchState.groups=[{id:uid(),files:[file],originalFiles:[file],privateFiles:null,status:'pending',error:'',results:null,raw:null,workbook:null,sources:[],note:'Shabllon i plotësuar'}];
+  state.route='batch';
+  render();
+  toast('Shablloni u ngarkua. Shtyp “Lexo formularët” për ta kontrolluar.','warn');
+  window.setTimeout(()=>{const b=document.querySelector('[data-action="batch-read"]');if(b)b.focus()},60);
+ }catch(e){toast(str(e?.message||'Shablloni nuk u ngarkua.',300),'error')}
+}
+function exportTemplateXlsx(){
+ try{
+  const sheet=xlTemplateSheet();
+  const bytes=xlsxBytes({title:'BioBes — shabllon formulari',sheets:[sheet]});
+  const stamp=new Date().toISOString().slice(0,10);
+  download(`BioBes_shabllon_${stamp}.xlsx`,bytes,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  toast('Shablloni u shkarkua. Plotësoje dhe ngarko skedarin te “Lexo formularë”.');
+ }catch(e){console.error(e);toast('Shablloni nuk u përgatit.','error')}
+}
+// Kthimi: skedari u plotësua jashtë dhe kthehet për lexim.
+function templateReturnHTML(){
+ return `<div class="card template-return"><div class="card-head"><div class="section-heading"><span class="section-index">${icon('doc',15)}</span><div><h2>Shablloni i plotësuar kthehet këtu</h2><p>Shkarko shabllonin, plotësoje në Excel dhe ngarko skedarin: sistemi e lexon dhe e kontrollon sërish.</p></div></div></div><div class="card-body"><div class="inline-buttons"><button class="btn btn-primary" data-action="template-download">${icon('download',15)} Shkarko shabllonin Excel</button><button class="btn" data-action="template-upload">${icon('upload',15)} Ngarko shabllonin e plotësuar</button></div><p class="small-note" style="margin:10px 0 0">Skedari pranon vetëm formën e BioBes: formulari i ditës, plani, punonjësit dhe peshimet. Nuk dërgohet askund — lexohet në këtë pajisje.</p></div></div>`;
+}
 function exportReportXlsx(type){
   const titles={products:'Prodhimi',packages:'Paketimet',hours:'Orët',stock:'Stoku',weights:'Peshimet'};
   try{
@@ -2712,9 +3032,9 @@ document.addEventListener('click',async e=>{const suggestion=e.target.closest('[
  const dlib=e.target.closest('[data-doc-lib]');if(dlib){await docOpenLibrary(dlib.dataset.docLib,dlib.dataset.docName);return}
  const dopen=e.target.closest('[data-doc-open],[data-doc-record]');if(dopen){await docOpenFromClick(dopen);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='staff-sign')await captureStaffSignature(Number(btn.dataset.index));else if(a==='staff-sign-clear')await clearStaffSignature(Number(btn.dataset.index));else if(a==='add-plan')addPlanProduct();else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',employee:'',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='export-report-pro')await exportReportExcelPro();else if(a==='export-report-xlsx')exportReportXlsx(btn.dataset.type||'products');else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='recalc-all-weights')await recalcAllWeights();else if(a==='catalog-template')exportCatalogTemplate();else if(a==='catalog-import-add')document.getElementById('catalog-import-add-file').click();else if(a==='catalog-import-replace')document.getElementById('catalog-import-replace-file').click();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
   else if(a==='batch-read-pending')await batchReadPending()
-  else if(a==='batch-manual')await batchManualReview();else if(a==='batch-cancel')batchCancel();else if(a==='batch-review-ready')await batchReviewCompleted();else if(a==='batch-reset')await batchStartOver();else if(a==='batch-raw')batchRawDownload();else if(a==='batch-up')batchMove(Number(btn.dataset.index),-1);else if(a==='batch-down')batchMove(Number(btn.dataset.index),1);else if(a==='batch-swap')batchSwap(Number(btn.dataset.index));else if(a==='batch-split')batchSplit(Number(btn.dataset.index));else if(a==='batch-join')batchJoin(Number(btn.dataset.index));else if(a==='batch-remove')await batchRemove(Number(btn.dataset.index));else if(a==='batch-original-reset')batchPrivateReset(btn.dataset.id);else if(a==='batch-open')batchOpen(Number(btn.dataset.index));else if(a==='batch-remove-review')await batchRemoveReview();else if(a==='batch-draft')batchDraftDownload();else if(a==='batch-save')await batchSave();else if(a==='cloud-open-original')await cloudOpenOriginal(Number(btn.dataset.index));else if(a==='sample')await sample();else if(a==='clear-demo')await clearDemo();else if(a==='catalog-import')document.getElementById('catalog-import-file').click();else if(a==='catalog-add')await addCatalog(btn.dataset.kind);else if(a==='catalog-edit')await editCatalog(btn.dataset.kind,Number(btn.dataset.index));else if(a==='catalog-delete')await deleteCatalog(btn.dataset.kind,Number(btn.dataset.index))});
+  else if(a==='batch-manual')await batchManualReview();else if(a==='batch-cancel')batchCancel();else if(a==='batch-review-ready')await batchReviewCompleted();else if(a==='batch-reset')await batchStartOver();else if(a==='batch-raw')batchRawDownload();else if(a==='batch-up')batchMove(Number(btn.dataset.index),-1);else if(a==='batch-down')batchMove(Number(btn.dataset.index),1);else if(a==='batch-swap')batchSwap(Number(btn.dataset.index));else if(a==='batch-split')batchSplit(Number(btn.dataset.index));else if(a==='batch-join')batchJoin(Number(btn.dataset.index));else if(a==='batch-remove')await batchRemove(Number(btn.dataset.index));else if(a==='batch-original-reset')batchPrivateReset(btn.dataset.id);else if(a==='batch-open')batchOpen(Number(btn.dataset.index));else if(a==='batch-remove-review')await batchRemoveReview();else if(a==='batch-draft')batchDraftDownload();else if(a==='batch-save')await batchSave();else if(a==='cloud-open-original')await cloudOpenOriginal(Number(btn.dataset.index));else if(a==='sample')await sample();else if(a==='clear-demo')await clearDemo();else if(a==='template-download')exportTemplateXlsx();else if(a==='template-upload')document.getElementById('template-upload-file').click();else if(a==='catalog-import')document.getElementById('catalog-import-file').click();else if(a==='catalog-add')await addCatalog(btn.dataset.kind);else if(a==='catalog-edit')await editCatalog(btn.dataset.kind,Number(btn.dataset.index));else if(a==='catalog-delete')await deleteCatalog(btn.dataset.kind,Number(btn.dataset.index))});
 document.addEventListener('input',e=>{const el=e.target;if(el.dataset.combo==='sources'&&state.route==='editor'){setPath(state.draft,el.dataset.bind.replace(/sourceLabel$/,'source'),'')}if(el.dataset.combo)showCombo(el);if(el.id==='history-search'){state.search=el.value;renderHistoryList();return}if(el.id==='doc-search'){state.docSearch=el.value;renderDocList();return}if(el.id==='print-search'){state.print.search=el.value;renderPrintList();return}if(el.dataset.printSetting){state.print[el.dataset.printSetting]=el.value;return}if(el.dataset.bind&&state.route==='editor'&&state.mode!=='view'){setPath(state.draft,el.dataset.bind,el.value);state.dirty=true;batchMarkChanged();recalcWeightInput(el.dataset.bind);updateDerived(el.dataset.bind)}});
-document.addEventListener('change',e=>{const el=e.target;if(state.route==='editor'&&state.mode!=='view'&&/^employees\.\d+\.(start|end)$/.test(el.dataset.bind||'')){const parsed=timeFromImport(el.value);if(parsed){el.value=parsed;setPath(state.draft,el.dataset.bind,parsed);state.dirty=true;batchMarkChanged();updateDerived(el.dataset.bind)}}if(el.id==='catalog-import-add-file'||el.id==='catalog-import-replace-file'){const file=el.files?.[0],mode=el.id==='catalog-import-add-file'?'add':'replace';el.value='';importCatalogFile(file,mode);return}if(el.id==='batch-files'){batchAddFiles(el);return}if(el.dataset.batchOriginal){batchPrivateChanged(el);return}if(el.id==='batch-review-original'){batchReviewPrivateChanged(el);return}if(el.id==='batch-device-notice'){setDeviceNotice(el);return}if(el.id==='batch-reviewed'&&batchIsReview()){const it=batchState.items[batchState.index];it.confirmedDigest=el.checked?JSON.stringify(it.record):'';batchUpdateSummary();return}if(el.id==='confirm-import-review'&&importState.review){importState.review.confirmed=el.checked;return}if(el.dataset.printId){if(el.checked)state.print.selected.add(el.dataset.printId);else state.print.selected.delete(el.dataset.printId);updatePrintCount();return}if(el.dataset.attendance){state.attendance[el.dataset.attendance]=el.value;render();return}if(el.dataset.report){state.report[el.dataset.report]=el.value;render()}if(el.id==='catalog-import-file'){const file=el.files&&el.files[0];el.value='';catalogImportFile(file);return}if(el.id==='import-file'){const file=el.files&&el.files[0];el.value='';importBackup(file)}});
+document.addEventListener('change',e=>{const el=e.target;if(state.route==='editor'&&state.mode!=='view'&&/^employees\.\d+\.(start|end)$/.test(el.dataset.bind||'')){const parsed=timeFromImport(el.value);if(parsed){el.value=parsed;setPath(state.draft,el.dataset.bind,parsed);state.dirty=true;batchMarkChanged();updateDerived(el.dataset.bind)}}if(el.id==='catalog-import-add-file'||el.id==='catalog-import-replace-file'){const file=el.files?.[0],mode=el.id==='catalog-import-add-file'?'add':'replace';el.value='';importCatalogFile(file,mode);return}if(el.id==='batch-files'){batchAddFiles(el);return}if(el.dataset.batchOriginal){batchPrivateChanged(el);return}if(el.id==='batch-review-original'){batchReviewPrivateChanged(el);return}if(el.id==='batch-device-notice'){setDeviceNotice(el);return}if(el.id==='batch-reviewed'&&batchIsReview()){const it=batchState.items[batchState.index];it.confirmedDigest=el.checked?JSON.stringify(it.record):'';batchUpdateSummary();return}if(el.id==='confirm-import-review'&&importState.review){importState.review.confirmed=el.checked;return}if(el.dataset.printId){if(el.checked)state.print.selected.add(el.dataset.printId);else state.print.selected.delete(el.dataset.printId);updatePrintCount();return}if(el.dataset.attendance){state.attendance[el.dataset.attendance]=el.value;render();return}if(el.dataset.report){state.report[el.dataset.report]=el.value;render()}if(el.id==='template-upload-file'){const file=el.files&&el.files[0];el.value='';templateUpload(file);return}if(el.id==='catalog-import-file'){const file=el.files&&el.files[0];el.value='';catalogImportFile(file);return}if(el.id==='import-file'){const file=el.files&&el.files[0];el.value='';importBackup(file)}});
 document.addEventListener('toggle',e=>{const el=e.target;if(el.isConnected&&el.matches('.weight-card')&&state.route==='editor'){const i=Number(el.dataset.weightIndex);if(el.open)state.weightOpen.add(i);else state.weightOpen.delete(i)}},true);document.addEventListener('focusin',e=>{if(e.target.dataset.combo&&!suppressComboFocus)showCombo(e.target)});document.addEventListener('focusout',e=>{if(e.target.dataset.combo)setTimeout(()=>{if(activeCombo===e.target&&!document.activeElement?.closest('#combo-popover'))finishCombo(e.target)},160)});window.addEventListener('scroll',()=>{if(activeCombo)positionCombo(activeCombo)},true);window.addEventListener('resize',()=>{if(activeCombo)positionCombo(activeCombo)});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&e.target.closest('#combo-popover')){e.preventDefault();const el=activeCombo;hideCombo();if(el&&el.isConnected){suppressComboFocus=true;el.focus();suppressComboFocus=false}return}if(e.target.dataset.combo&&handleComboKey(e))return;if(e.key==='Enter'&&e.target.id?.startsWith('add-')){e.preventDefault();addCatalog(e.target.id.slice(4))}});
 window.addEventListener('beforeunload',e=>{if((state.route==='editor'&&state.dirty&&state.mode!=='view')||cloud.busy||cloud.uncertain||batchState.busy||batchIsReview()||(state.route==='batch'&&batchState.groups.some(g=>g.results?.length))){e.preventDefault();e.returnValue=''}});
 

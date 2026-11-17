@@ -875,3 +875,125 @@ nuk e kontrollon: një listë e re nuk duhet ta bëjë të pamundur ruajtjen në
 instalimet ekzistuese.
 
 **`npm test` → 27 suite, 240 teste, zero dështime.**
+
+## 7.22 Shablloni Excel që plotësohet vetë
+
+**Kërkesa.** *"Duhet dhe një formë template shembull që shkarkohet e plotësohet —
+pra nga sistemi, tip shembulli."* Kërkesa ka dy gjysma dhe të dyja duhet të
+plotësohen njëkohësisht: skedari duhet të *duket* si formulari i BioBes (që
+dikush ta hapë dhe ta kuptojë pa udhëzim), dhe duhet të *funksionojë* si
+formular (që të plotësohet dhe të kthehet pa gabime).
+
+**Zgjidhja: formulat janë të sistemit, jo të përdoruesit.** Shablloni nuk është
+fletë bosh me shkronja gri. Ai është forma e plotë e formulës ditore, me 23
+formula të vërteta Excel brenda:
+
+| Çfarë llogaritet | Ku | Formula |
+|---|---|---|
+| Shuma e peshimit | `H28:H32` | `=IF(G28="","",G28-(D28+E28))` |
+| Kontrolli i shumës | `I28:I32` | `=IF(G28="","",IF(G28-(D28+E28)<>0,"GABIM","OK"))` |
+| Orët e punonjësit | `D19:D23` | `=IF(AND(B19<>"",C19<>""),(C19-B19)*24,"")` |
+| Totali i orëve | `D24` | `=SUM(D19:D23)` |
+| Totalet e planit | `E15,F15,H15` | `=SUM(E10:E14)` / `=SUM(F10:F14)` / `=SUM(H10:H14)` |
+| Totalet e peshimeve | `C33:F33` | `=SUM(C28:C32)` … `=SUM(F28:F32)` |
+
+Rrjedhimisht përdoruesi nuk mban llogari: shkruan KG-në dhe ambalazhin, dhe
+Excel-i i thotë vetë nëse Shuma përputhet. Formula e kontrollit shkruan
+**GABIM** pikërisht aty ku gabimi ndodh, para se skedari të kthehet në sistem.
+
+**Shembulli është i plotë, jo i zbrazët.** Dy rreshta plani (`Saj Mali`/`Kafe
+Arta`, `Boronicë`/`Market Besa`), dy punonjëse (`Arta Hoxha` 08:00–16:00, `Besa
+Kola` 08:00–17:30) dhe dy peshime (240+36=276, 175+35=210). Të tre rreshtat e
+udhëzimit e thonë hapur se provat fshihen.
+
+**Prova se formulat nuk janë dekor.** Skedari u hap në një motor të pavarur
+llogaritjeje (`formulas` 1.3.4, Python) dhe u vlerësua qelizë për qelizë:
+
+| Qeliza | Rezultati i llogaritur |
+|---|---|
+| `D19` / `D20` | `8.0` / `9.5` orë |
+| `D24` | `17.5` |
+| `E15` / `F15` / `H15` | `500` / `480` / `96` |
+| `C33` / `D33` / `E33` / `F33` | `18` / `415` / `71` / `486` |
+| `H28` / `I28` | `0` / `"OK"` |
+| `D21`, `H30`, `I30` (rreshta bosh) | `""` — bosh, jo zero | 
+
+Pastaj e njëjta qelizë `G28` u ndryshua në `290`: `H28` → `14`, `I28` →
+**`"GABIM"`**. Pra kontrolli punon, dhe nuk është thjesht tekst i shkruar.
+
+**Kthimi: lexohet me koordinata, jo me hamendje.** Shablloni nuk është modeli i
+vjetër dy-faqësh, prandaj `xlIsTemplateSheet()` e njeh nga titujt (`A9`=`Produkti`,
+`A18`=`Emri e mbiemri`, `I27`=`Kontrolli`…) dhe `readTemplateExcel()` i lexon
+fushat në vendet e tyre fikse. Skedari i plotësuar kthehet në një regjistrim të
+plotë: `001`, data, plani (7 fusha për rresht), punonjësit me orë (`08:00` →
+`16:00`) dhe peshimet — burimi `Marrë nga stoku` → `stock`, `Tjetër / jo nga
+stoku` → `other`, që kontrolli i formularit të mos bllokojë skedarin.
+
+**Rreziqet e mbuluara, jo të supozuara.**
+
+| Rrezik | Sjellja |
+|---|---|
+| Përdoruesi fshin rreshtat provë | Bosh mbetet bosh; asnjë `0` dhe asnjë emër i shpikur |
+| Shuma nuk përputhet | Paralajmërim me numrin e rreshtit; vlera e shkruar *nuk* korrigjohet |
+| Numri i formularit mungon | Propozohet numri i radhës dhe thuhet që mungon |
+| Ora shkruhet si tekst `08:00` | Lexohet njësoj: `xlTimeFromCell()` pranon edhe fraksion dite edhe tekst |
+| Skedar jo-Excel | Refuzohet me mesazh, pa u lexuar |
+| Excel-i kërkon “riparim” | Rendi i elementeve OOXML u kontrollua kundrejt skemës: `dimension → sheetViews → sheetFormatPr → cols → sheetData → mergeCells → pageMargins → pageSetup`; çdo `<c>` me formulë e ka `<f>` para `<v>`; pa lidhje të jashtme |
+| Skedari i vjetër i shkarkuar (cache) | `?v=a71c4e2-tpl` i ndërruar në të tre skriptet |
+
+**Dy hyrje, një rrugë.** Butoni *Shkarko shabllonin Excel* ndodhet te “Lexo
+formularë” (pranë *Kontrollo pa Gemini*) dhe në kartën *Shablloni i plotësuar
+kthehet këtu* te “Printim & Excel”, bashkë me *Ngarko shabllonin e plotësuar*.
+Ngarkimi nuk ruan asgjë vetë: e vendos skedarin si grup `pending` dhe kalon te
+“Lexo formularët” — i njëjti kontroll, e njëjta konfirmim.
+
+**Testet (20, `tests/template_export.test.js`).** Ndërtimi i skedarit; të katër
+seksionet; shembulli i plotë; formulas (jo numra dorazi); totalet `SUM` pa
+referencë qarkore; orët `(C−B)*24`; formula edhe për rreshtat bosh; konvertimi i
+orës dhe i kolonave; njohja e shabllonit; leximi i plotë i kthimit; burimi
+`stock`/`other`; shuma e gabuar e raportuar; shablloni i zbrazët pa vlera të
+shpikura; numri që mungon; butonat; input-i në faqe; emri i shkarkimit; ngarkimi
+pa ruajtje; skedari i gabuar.
+
+**Prova reale.** Skedari i ndërtuar (5 643 bajt) u lexua jashtë sistemit me
+`openpyxl`: fleta `Formulari`, zona `A1:J41`, 9 bashkime, 23 formula, ora si
+`timedelta` me format `[h]:mm`, data si datë e vërtetë me `dd/mm/yyyy`. I njëjti
+skedar u rikthye në aplikacion përmes `readExcelFile` → `batchResultsFromWorkbook`
+dhe dha regjistrimin e plotë, me zero paralajmërime.
+
+**Gjetje gjatë bashkimit me `main`: dyshim që doli i vërtetë.** `main` kishte
+7 suite të kuqe pas PR #34 (pushimi, `planSchema` 2, pesha neto). Pjesa më e
+madhe ishin teste të vjetra që nuk njiheshin me rregullat e reja, por njëra
+ishte gabim në aplikacion, jo në test:
+
+> Formulari i letrës shkruan `08:00–16:00` dhe `Orë gjithsej 8`. Leximi i AI-së
+> nuk e mbush `breakMinutes`, prandaj `hoursFor` zbriste pushimin e
+> parazgjedhur 60 minuta: çdo formular i saktë kthehej në **7 orë** dhe
+> shfaqte qortimin *"Totali i shkruar i orëve (8) nuk përputhet… (7)"*. Formulari
+> me pushim 30 minuta kthehej në 7 orë kur duhej 7,5.
+
+Rregullimi: pushimi i lexuar respektohet; kur formulari nuk e shkruan, nxirret
+**një herë për ditën** nga diferenca që formulari vetë e tregon —
+`(Σ intervali bruto − totali i shtypur) × 60` — dhe vetëm kur është numër i
+plotë minutash brenda 0–1440. Pa total të lexuar, mbetet 60 minuta siç
+dokumentohet. Totali krahasohet tani mbi **minutat e sakta**, jo mbi orët e
+rrumbullakuara (7,25 ≠ 7). Rastet e provuara:
+
+| Formulari | Pushimi | Ora | Qortim |
+|---|---|---|---|
+| 08:00–16:00, total 8 | 0 | 8 | — |
+| 08:00–16:00, total 7,5 | 30 | 7,5 | — |
+| dy persona 08:00–16:00, total 16 | 0, 0 | 8, 8 | — |
+| pushim i shkruar 45, total 7,25 | 45 | 7,25 | — |
+| pa total | 60 (parazgjedhje) | 7 | — |
+| total i pamundur 10 për 8 orë | 60 | 7 | ✓ raportohet |
+| total 7,75 me pushim 30 | 30 | 7,5 | ✓ raportohet |
+
+Testet e vjetra u përditësuan vetëm aty ku rregulli i re ja ndryshon pritshmërinë
+(core_checks, timecard, timecard_ui, attendance, rows_layout, batch_workbook);
+`rows_layout` padiste me rreshta **bosh**, të cilët #34 nuk i shtyp më si faqe —
+tani rreshti i 26-të është i plotësuar realisht, që testi të provojë atë që
+pretendon. `ocr_p0_p1` u kthye te rasti origjinal dhe tani **e ruan** rregullimin.
+
+**`npm test` → 28 suite, 260 teste, zero dështime** (edhe pse `main` para këtij
+bashkimi kishte 7 suite të kuqe).
