@@ -25,9 +25,9 @@ Origjinalet ngarkohen në Storage privat gjatë ruajtjes, jo gjatë leximit. Reg
 
 Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose origjinalesh**. Për një PDF të ndarë ruhet PDF-ja e plotë origjinale për secilin formular; për një Excel me shumë formularë ruhet një kopje për secilin. Kjo përdor më shumë hapësirë dhe secila kopje duhet të jetë brenda kufirit. Një draft i shkarkuar nuk përmban origjinalet; pasi ta rihapësh, përdor butonin në kontrollin e secilit formular për t'i zgjedhur sërish, pastaj rikonfirmo.
 
-## Raportet: prodhimi, kohëzgjatja dhe gjurmimi
+## Raportet: prodhimi, kohëzgjatja, gjurmimi dhe plani
 
-Faqja **Raportet** ka tri tab-e dhe të njëjtat filtra sipër:
+Faqja **Raportet** ka gjashtë tab-e dhe të njëjtat filtra sipër:
 
 - **Përmbledhje** — sa u prodhua në ditë (sasia dhe ambalazhet e shënuara në
   formular), orët, stoku dhe totalet e peshimeve.
@@ -106,7 +106,7 @@ sërish.
 Nga formularët e skanuar (p.sh. plani 14 160 kg kundrejt tabelave të peshimit)
 doli nevoja për dy raporte të reja.
 
-### Kontrolli plan ↔ peshime (tab i katërt te Raportet)
+### Kontrolli plan ↔ peshime (tab i pestë te Raportet)
 
 Për çdo formular krahason **sasinë e planit** me **shumën e tabelave të
 peshimit** dhe nxjerr diferencën në kg dhe përqindje:
@@ -124,6 +124,32 @@ peshimit** dhe nxjerr diferencën në kg dhe përqindje:
   **Peshim pa plan** (peshim që nuk ka produkt në plan — nuk humbet në heshtje).
 - Çdo rresht ka butonin **Hap** që çon te formulari; filtrat e raportit vlejnë.
 
+### Prodhimi kundrejt planit (tab i tretë te Raportet)
+
+Për çdo ditë krahason **planin** me **prodhimin** e shënuar në të njëjtin
+formular, rresht për rresht dhe ditë për ditë:
+
+| Produkti | Njësia | Plani | Prodhimi | Diferenca | % | Statusi |
+|---|---|---|---|---|---|---|
+| Boronicë | kg | 16 000 | 14 160 | −1 840 | 88,5% | Nën plan |
+| Mjedër | kg | 14 000 | 14 200 | +200 | 101,4% | Mbi plan |
+
+- **Kg dhe copë nuk mblidhen kurrë bashkë**; secila njësi ka rreshtin e vet.
+- Kur plani mungon shkruhet *Pa plan*, kur prodhimi mungon *Pa prodhim* — jo 0.
+- Statusi është **Realizuar** brenda 99,5–100,5 %, **Nën plan** poshtë, **Mbi
+  plan** sipër. Toleranca e vogël mbulon rrumbullakimin e peshores.
+- Poshtë tabelës ditore del **përmbledhja javore**: sa ditë kishin plan, sa u
+  realizuan, sa mbetën nën ose mbi plan, sa ditë pa prodhim dhe mungesa totale.
+
+### Komentet dhe arsyet (tab i gjashtë te Raportet)
+
+Mblidhen komentet e ditës, të punonjësve dhe të produkteve, më i riu i pari, dhe
+grupohen sipas arsyes: *Shënim pozitiv*, *Stok / lëndë e parë*, *Mungesë
+punëtorësh*, *Pritje / vonesë*, *Riparim / defekt*, *Cilësi / dendësi*, *Mot /
+energji*, *Plan i ndryshuar* dhe *Tjetër*. Teksti shfaqet gjithmonë siç është
+shkruar — grupimi është vetëm ndihmë për t'i gjetur shpejt; një koment mund të
+bjerë në më shumë se një grup. Çdo rresht ka linkun **Hap** te formulari.
+
 ### Fleta e ditës (PDF)
 
 Butoni **Fleta e ditës (PDF)** te raportet shkarkon një faqe për çdo formular,
@@ -135,10 +161,10 @@ shqipe të embeduara (ë, ç, Ë, Ç kopjohen saktë).
 
 ### Excel
 
-Butoni **Të gjitha** jep tani **9 fletë**: *Përmbledhje*, *Prodhimi*,
-*Paketimet*, *Orët*, *Peshimet*, *Kohëzgjatja*, *Gjurmimi*,
-*Plani dhe peshimet* dhe *Fleta e ditës*. Totalet mblidhen me formula reale
-`=SUM(...)` vetëm mbi kolonat numerike.
+Butoni **Të gjitha** jep tani **11 fletë**: *Përmbledhje*, *Prodhimi*,
+*Paketimet*, *Orët*, *Peshimet*, *Kohëzgjatja*, *Prodhimi kundrejt planit*,
+*Gjurmimi*, *Plani dhe peshimet*, *Fleta e ditës* dhe *Komentet*. Totalet
+mblidhen me formula reale `=SUM(...)` vetëm mbi kolonat numerike.
 
 ## Privatësia dhe kostot e Gemini
 
@@ -207,7 +233,7 @@ npm install
 npm test
 ```
 
-Gjendja e testeve dhe çfarë nuk është testuar përshkruhen në `../AUDITIM.md`. Ndryshimet e reja në `web/` kërkojnë një `workflow_dispatch` manual të GitHub Pages. Ndërveprimet e shfletuesit, printimi në Microsoft Excel dhe printimi në printerin tënd duhet kontrolluar veçmas.
+Gjendja e testeve dhe çfarë nuk është testuar përshkruhen në `../AUDITIM.md` (tani 35 suite, 345 teste). Ndryshimet e reja në `web/` kërkojnë një `workflow_dispatch` manual të GitHub Pages. Ndërveprimet e shfletuesit, printimi në Microsoft Excel dhe printimi në printerin tënd duhet kontrolluar veçmas.
 
 Dokumentacion: [Supabase Storage dhe RLS](https://supabase.com/docs/guides/storage/security/access-control), [sekretet e Edge Functions](https://supabase.com/docs/guides/functions/secrets), [Vercel Hobby](https://vercel.com/docs/plans/hobby).
 
