@@ -49,6 +49,42 @@ input[data-combo="responsibles"]{padding-right:34px;background-image:url("data:i
 .cloud-recovery{position:fixed;inset:0;z-index:8900;display:grid;place-items:center;background:#172d21ae;padding:20px}.cloud-recovery-card{width:min(100%,550px);background:white;padding:24px;border-radius:16px;box-shadow:0 20px 60px #122b1c55}.cloud-recovery-card h2{margin:0 0 8px}.cloud-recovery-card p{line-height:1.5}.cloud-recovery-card .head-actions{flex-wrap:wrap}
 .read-progress{display:flex;gap:12px;align-items:center;margin-top:14px;padding:13px 15px;background:#eef8f0;border:1px solid #b9dcc1;border-radius:10px;color:#174f2e}.read-progress>div{display:grid;gap:3px}.read-progress span:not(.read-spinner),.read-progress small{font-size:12px}.read-spinner{display:inline-block;flex:none;width:22px;height:22px;border:3px solid #c7e3cd;border-top-color:#1b7542;border-radius:50%;animation:biobes-spin .8s linear infinite}.cloud-overlay .read-spinner{margin:0 auto 12px}@keyframes biobes-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.read-spinner{animation:none;border-color:#1b7542}}
 .batch-advanced{margin:12px 0;border:1px solid #e1e7eb;border-radius:8px;padding:9px 12px;background:#fafcfc}.batch-advanced summary{cursor:pointer;font-size:12px;font-weight:700;color:#527087}.batch-advanced[open] summary{margin-bottom:10px}
+/* ---- Shikuesi i dokumenteve: një klik dhe dokumenti hapet brenda faqes ---- */
+.modal-layer.doc-layer{z-index:9060;background:rgba(15,31,43,.62);backdrop-filter:blur(3px);align-items:stretch}
+.modal.doc-modal{width:min(100%,1080px);max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:12px}
+.doc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:15px 18px;border-bottom:1px solid var(--line2);background:#fcfdfe}
+.doc-head h2{margin:0;font-size:15px;color:#22394b;overflow-wrap:anywhere}
+.doc-meta{margin:2px 0 0;font-size:11.5px;color:var(--muted)}
+.doc-close{flex:none;padding:7px;border-radius:7px}
+.doc-close:hover{background:#eef3f6;color:#22394b}
+.doc-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:14px 18px;background:#f4f6f7;overflow:auto}
+.doc-frame{flex:1;width:100%;min-height:min(72vh,760px);border:1px solid #dde5ea;border-radius:8px;background:#fff}
+.doc-image{max-width:100%;max-height:min(74vh,780px);margin:0 auto;display:block;border-radius:8px;background:#fff;box-shadow:0 2px 14px rgba(26,45,61,.10);object-fit:contain}
+.doc-note{background:#fff;border:1px solid #e6ecef;border-radius:8px;padding:9px 12px;margin:0}
+.doc-actions{padding:12px 18px;border-top:1px solid var(--line2);background:#fcfdfe}
+.doc-links{display:flex;flex-direction:column;gap:7px}
+.doc-link{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border:1px solid #dde5ea;border-radius:8px;background:#fff;color:#2c4557;font-weight:700;font-size:12.5px;transition:border-color .12s,background .12s,transform .12s}
+.doc-link:hover{border-color:#9dbdd2;background:#f4f9fc;transform:translateY(-1px)}
+.doc-link:focus-visible{outline:3px solid #a2c1d5;outline-offset:1px}
+.doc-link .doc-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.doc-open-hint{color:#4a7590;font-size:11px;white-space:nowrap}
+.doc-tag{background:#eef3f6;color:#54708a;font-size:9.5px}
+.doc-inline{margin-top:9px}
+.doc-nr{border:0;background:transparent;padding:0;color:#1f5d87;font-weight:800;font-size:12.5px;text-decoration:underline;text-decoration-color:#a8c6d9;text-decoration-thickness:1.5px;text-underline-offset:3px;border-radius:3px}
+.doc-nr:hover{color:#123d5b;text-decoration-color:#1f5d87}
+.doc-nr:focus-visible{outline:3px solid #a2c1d5;outline-offset:2px}
+.doc-library{margin-top:18px}
+.doc-list{display:flex;flex-direction:column;gap:6px;max-height:min(52vh,520px);overflow:auto;padding-right:2px}
+.doc-sub{display:block;font-weight:600;font-size:11px;color:var(--muted);margin-top:1px}
+.doc-wait{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:52px 16px;background:#fff;border:1px solid #e6ecef;border-radius:8px;color:#4a6578}
+.doc-wait p{margin:0;font-weight:700;font-size:12.5px}
+.doc-stage{display:contents}
+.doc-nav{display:flex;flex-wrap:wrap;gap:6px}
+.doc-nav .btn{font-size:11px}
+.doc-row-open{font-size:11px}
+.table .doc-row-open .doc-name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom}
+.doc-inline .doc-link{padding:7px 10px;font-size:12px}
+@media(max-width:640px){.modal.doc-modal{max-height:calc(100vh - 12px)}.doc-frame{min-height:min(60vh,560px)}.doc-body{padding:10px}.doc-head{padding:11px 12px}.doc-actions{padding:9px 12px}.doc-open-hint{display:none}}
 .cloud-documents{margin-bottom:16px}.cloud-file-list{display:flex;flex-wrap:wrap;gap:8px}.cloud-email{font-size:12px;overflow-wrap:anywhere;color:#a5bdad;margin:6px 2px}
 
 /* ==== Tabelat e raporteve: më të lexueshme, si ERP ==== */
@@ -463,8 +499,8 @@ License: GPL-2+
 <script src="vendor/fontkit.min.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/supabase.min.js"></script>
-<script src="cloud-config.js?v=546040a-d2"></script>
-<script src="app.js?v=546040a-d2"></script>
-<script src="cloud.js?v=546040a-d2"></script>
+<script src="cloud-config.js?v=17b2e07-doc"></script>
+<script src="app.js?v=17b2e07-doc"></script>
+<script src="cloud.js?v=17b2e07-doc"></script>
 </body>
 </html>
