@@ -5,7 +5,7 @@ a24296e54891528a05b1668c075e50f957cc87eb2fb03d64e8eebe0de693f0a9  ./BioBes_Cloud
 1de6de5d3f18b7efe8467314e7ffcd1d6a15f91610da8154d137c353d1c67033  ./BioBes_Cloud/supabase/config.toml
 83652c4b9a258a9e8c1fcaf70b30e87839c1a51c85c3a2c53d8fde2b0527f9ad  ./BioBes_Cloud/supabase/functions/biobes-read-form/index.ts
 088ab017a4f31160b660f3cb7726a36613b0e18b6e71c4e3b82902523a30cca0  ./BioBes_Cloud/supabase/migrations/20261104000000_biobes_daily.sql
-dd0099fbb46d7d4777ef4245db49bdca3f48b0cde5d340c05bf12734d66d3265  ./BioBes_Cloud/web/app.js
+9d8712947acda629e96419d96f278d59652374572e306d54efc0d6370e4c6476  ./BioBes_Cloud/web/app.js
 6cadf31ae07de09ce95fecc1ceb528ded78415a929e3693a8223a21513b34b97  ./BioBes_Cloud/web/cloud-config.js
 10c6c4b7bd548bdffe49f914146d7236c1aedda64e356bb4e55f5f0899e135c5  ./BioBes_Cloud/web/cloud.js
 bb635b44b74e0da284952743a015da80f51b74f6eb6de9a86e8b487719f66e60  ./BioBes_Cloud/web/index.html
