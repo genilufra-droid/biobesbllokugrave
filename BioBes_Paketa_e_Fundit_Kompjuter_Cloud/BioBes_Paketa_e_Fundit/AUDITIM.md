@@ -1161,3 +1161,38 @@ ditë↔orë, fushat e formularit (përfshirë hyrjen e pavlefshme), rimodelimi 
 ndryshimit të ditës, gjurma, kalimet, linku që hap formularin, dhe dy fletët e
 Excel-it. **`npm test` → 32 suite, 313 teste, zero dështime.**
 
+### 7.25 Kthimi mbrapa pas hapjes së formularit nga linku
+
+**Kërkesa.** *"Pasi klikon link hapet formulari, mirpo nuk kthehesh dot mbrapa —
+duhet vendos kjo."*
+
+**Shkaku i vërtetë.** Ekranet ndryshonin vetëm në kujtesë (`state.route`), pa
+asnjë `pushState`. Historiku i shfletuesit mbetej një hap i vetëm, pra "mbrapa"
+nuk kishte ku të kthehej: ose nxirrte nga faqja, ose rikthente një ekran pa
+filtrat. `data-nav="records"` te formulari e çonte gjithmonë te lista, edhe kur
+ishe ardhur nga raporti.
+
+**Zgjidhja.** Shtresë e vogël historiku në `app.js`:
+
+- `navWrite(replace)` — shënon pamjen e tanishme (`route`, `report` me tab-in e
+  filtrave, `search`, `docSearch`, numri/id-ja e draftit, pozicioni i faqes).
+  `replace` për navigimin normal (një ekran = një hap), `push` për hapjen e një
+  formulari.
+- `navRestore(snap)` — rikthen ekranin; nëse ekrani është formular, e rihap në
+  mënyrë leximi nga id-ja; nëse formulari është me ndryshime të paruajtura, pyet
+  përmes `canLeave()` ekzistues dhe, po u anulua, e mban hapin e tanishëm.
+- `navBack()` — butoni **Kthehu mbrapa** (lart dhe poshtë në formular) thërret
+  `history.back()`; pa histori shkon te pamja kryesore.
+- `navStart()` — thirret pas hyrjes (`cloud.js`) dhe shënon hapin e parë, që
+  "mbrapa" të mos dalë nga faqja.
+- Tab-i i raportit dhe filtrat shënohen me `navWrite(true)` (filtrat me një
+  pritje 350 ms, që të mos krijohet një hap për çdo shkronjë).
+
+**Provuar me jsdom** (`navigation_back.test.js`, 10 teste): raportet → tab-i
+*Gjurmimi* → linku `002` → **Kthehu mbrapa** → `route=reports`,
+`report.tab=tracking`, `draft=null`; e njëjta gjë me `history.back()`; formulari
+nga lista kthehet te lista; formulari me ndryshime pyet dhe *Anulo* e mban
+formularin; formulari i ri e shënon hapin.
+
+**Testet.** `npm test` → **33 suite, 323 teste, zero dështime.**
+

@@ -55,7 +55,7 @@ async function cloudEnter(session){
   if(batchState.groups.length||batchState.items.length)await batchResetCloud(snap.data);db=snap.data;cloud.revision=snap.revision;storageOK=true;state.editorBase=null;
   state.route='dashboard';state.draft=null;state.dirty=false;cloud.uncertain=null;cloud.conflict=null;
   cloudAuth.hidden=true;cloudApp.hidden=false;cloudRecoveryHide();cloudHideNotice();
-  document.getElementById('cloud-email').textContent=cloud.user.email||'';cloudStatus('Ruajtur në cloud');render();
+  document.getElementById('cloud-email').textContent=cloud.user.email||'';cloudStatus('Ruajtur në cloud');navStart();render();
  } finally {cloudBusy(false)}
 }
 async function cloudStart(){

@@ -68,7 +68,9 @@ Tabela e gjurmimit ka një rresht për çdo pjesë të ditës së një punonjës
 
 Te **Formulari** shkruhet numri (p.sh. `001`) dhe pranë tij butoni
 **dokumenti**; të dy hapin pikërisht atë formular në regjistrimet e ruajtura,
-në mënyrë leximi, që të kontrollosh vetë hyrjen, daljen dhe dhomën. Kolona
+në mënyrë leximi, që të kontrollosh vetë hyrjen, daljen dhe dhomën. Pas
+kontrollit, **Kthehu mbrapa** të rikthen te raporti me të njëjtat filtra (shih
+më poshtë). Kolona
 **Shkoi te** tregon dhomën tjetër të së njëjtës ditë, dhe **Ndërprerja**
 shfaqet si `13:00 → 13:30 (30 min)`. Rreshti i fundit i ditës e ka me `—`, sepse
 nuk ka kalim brenda ditës; ditët nuk lidhen me njëra-tjetrën.
@@ -84,6 +86,20 @@ Butoni **Të gjitha** shkarkon një Excel me 7 fletë, përfshirë *Kohëzgjatja
 mbi kolonat numerike (`Minuta`, `Kohë / njësi`, `Sasia`, `Rreshta`), kurrë mbi
 tekstin e ditëve. Fleta *Gjurmimi* ka po ato 11 kolona si tabela e faqes dhe,
 poshtë totalit, bllokun **KALIMET NGA NJË DHOMË NË TJETRËN**.
+
+## Kthimi mbrapa nga formulari
+
+Kur hap një formular nga raporti, nga lista ose nga një link, sistemi e mban
+mend ekranin prej nga erdhe. Te formulari ka butonin **Kthehu mbrapa** (lart,
+pranë statusit) dhe të njëjtin buton në fund të faqes; po ashtu funksionon butoni
+i shfletuesit dhe gjesti i telefonit. Kthimi të çon përsëri te raporti, **te i
+njëjti tab** (p.sh. *Gjurmimi*) dhe me **të njëjtat filtra**, pa i shkruar
+sërish.
+
+- Navigimi midis faqeve nuk grumbullon hapa bosh në histori: një ekran, një hap.
+- Nëse formulari ka ndryshime të paruajtura, kthimi pyet *“Ndryshime të
+  paruajtura — vazhdo pa ruajtur?”*; me *Anulo* qëndron te formulari.
+- Formulari që po shikon (i ruajtur, në mënyrë leximi) kthehet pa pyetje.
 
 ## Privatësia dhe kostot e Gemini
 
