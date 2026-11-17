@@ -25,6 +25,28 @@ Origjinalet ngarkohen në Storage privat gjatë ruajtjes, jo gjatë leximit. Reg
 
 Kufiri i cloud-it është **12 MB për skedar dhe për grup dokumentesh ose origjinalesh**. Për një PDF të ndarë ruhet PDF-ja e plotë origjinale për secilin formular; për një Excel me shumë formularë ruhet një kopje për secilin. Kjo përdor më shumë hapësirë dhe secila kopje duhet të jetë brenda kufirit. Një draft i shkarkuar nuk përmban origjinalet; pasi ta rihapësh, përdor butonin në kontrollin e secilit formular për t'i zgjedhur sërish, pastaj rikonfirmo.
 
+## Raportet: prodhimi, kohëzgjatja dhe gjurmimi
+
+Faqja **Raportet** ka tri tab-e dhe të njëjtat filtra sipër:
+
+- **Përmbledhje** — sa u prodhua në ditë (sasia dhe ambalazhet e shënuara në
+  formular), orët, stoku dhe totalet e peshimeve.
+- **Kohëzgjatja e proceseve** — sa minuta zgjati secili produkt dhe sa kohë
+  hyri për një njësi (`minuta ÷ sasi`). Rreshtat pa minuta numërohen veç dhe
+  nuk hyjnë në total.
+- **Gjurmimi i punonjësit** — kur punoi secili dhe te cila dhomë kaloi. Kur
+  formulari ka intervale (07:00–13:00 Dhoma A, 13:30–17:00 Dhoma B), secili
+  interval del si rresht më vete; kur nuk ka, del dita e plotë e shënuar
+  `(dita)`.
+
+Minutat e procesit shkruhen te formulari, te fusha **Kohëzgjatja (min)** e çdo
+produkti; intervalet dhe dhomat te kartela **Intervalet dhe dhomat**, ku ora
+llogaritet vetë. Filtrat (produkt, ambalazh, status, klient, punonjës, dhomë,
+data) kërkojnë edhe pjesë të tekstit dhe nuk dallojnë shkronjat e mëdha.
+
+Butoni **Të gjitha** shkarkon një Excel me 7 fletë, përfshirë *Kohëzgjatja* dhe
+*Gjurmimi*; secili tab ka edhe butonin e vet.
+
 ## Privatësia dhe kostot e Gemini
 
 - **Aplikacioni nuk i anonimizon automatikisht dokumentet.** Hiq vërtet emrat, firmat, të dhënat personale dhe konfidenciale, përfshirë tekstin e fshehur dhe metadatat. Një mbulim i dukshëm me ngjyrë nuk mjafton domosdoshmërisht. Emrat teknikë të skedarëve/fletëve zëvendësohen, por përmbajtja mund të mbajë ende të dhëna personale.
