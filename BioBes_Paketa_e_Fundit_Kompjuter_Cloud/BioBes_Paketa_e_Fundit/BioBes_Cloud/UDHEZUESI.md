@@ -243,6 +243,28 @@ Për Gemini, fotot përgatiten në pajisje me orientimin e dekoderit, maksimum 2
 
 Katalogu i listave bazë nuk dërgohet pa zgjedhjen e checkbox-it të tij të veçantë. Zgjidhe vetëm nëse **të gjitha** listat bazë janë anonime dhe jokonfidenciale; ato mund të përmbajnë emra njerëzish. Aplikacioni nuk i anonimizon. Kufiri është 20 KiB dhe nuk përfshihet historiku i regjistrimeve. Kontrollo të gjitha paralajmërimet dhe vlerat përpara ruajtjes. Datat lexohen si ditë/muaj (`6.11.26` është 6 nëntor); kur data mund të lexohet në dy mënyra dhe në letër nuk ka ditë jave, del një paralajmërim për ta kontrolluar. Në OCR `1.250` do të thotë një mijë e dyqind e pesëdhjetë, ndërsa `1,250` është 1,25; kjo është një paqartësi që duhet kontrolluar në dokument.
 
+### Një klik: lexo dhe ruaj pa ndërhyrje
+
+Në faqen "Lexo formularë" ka një buton **Një klik: lexo dhe ruaj**. Ai lexon
+skedarët, plotëson fushat me AI, ngarkon origjinalet dhe ruan regjistrimet — pa
+asnjë konfirmim në mes.
+
+Herën e parë kërkon një pëlqim të vetëm: që dokumentet mund të dërgohen te
+Gemini, dhe cila është përgjegjësja e parazgjedhur (plotësohet kur nuk lexohet
+nga formulari). Pëlqimi ruhet në pajisje, ndaj nuk pyetet më.
+
+Ruhen vetëm formularët ku **çdo qelizë u lexua me siguri** dhe ku
+`KG − Ambalazhi = Shuma` përputhet në total dhe në rreshta. Formularët me një
+qelizë të dyshimtë, me datë ose numër të palexuar, ose me shumë që nuk del, nuk
+ruhen në heshtje: hapen në faqen e kontrollit me listën e saktë të qelizave që
+duhen parë. Kështu shumica kalon me një klik, dhe asnjë shifër e dyshimtë nuk
+shkon në raport pa u parë.
+
+Nëse të njëjtët skedarë zgjidhen përsëri, aplikacioni pyet përpara se të
+krijojë regjistrime të dyfishta. Butoni **Zhbëj ruajtjen e fundit** i fshin
+regjistrimet e grupit të fundit automatik, bashkë me dokumentet private në
+cloud.
+
 ### Cila teknologji lexon dhe pse
 
 Vlerat i lexon **Gemini Flash** në server, me skemë JSON të detyruar: shkrimi me

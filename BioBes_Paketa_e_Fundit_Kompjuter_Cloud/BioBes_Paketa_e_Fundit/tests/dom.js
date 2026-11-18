@@ -30,6 +30,9 @@ function loadApp(appOverride = null, customHook = null) {
         removeListener() {},
       });
       window.scrollTo = () => {};
+      // jsdom nuk ka URL.createObjectURL; batchBuildItems e përdor për pamje.
+      window.URL.createObjectURL = () => 'blob:test';
+      window.URL.revokeObjectURL = () => {};
       window.alert = () => {};
       window.confirm = () => true;
     },
@@ -62,6 +65,10 @@ function loadApp(appOverride = null, customHook = null) {
   ocrHintsFromPageCounts, ocrHintsForFiles, geminiForParts, scannedPageWarning,
   readingRows, readingRiskRows, readingRiskHTML, readingReviewHTML,
   batchEconomyGroups, batchEconomyOn, ECONOMY_PAGES,
+  autoSettings, autoSaveSettings, autoLastBatch, autoClearLast, autoSignature,
+  autoVerifyItem, autoDefaultResponsible, autoPanelHTML, batchBuildItems,
+  batchPersist, batchPersistMessage, batchAutoFinish, autoRun, autoUndoLast,
+  AUTO_KEY, AUTO_LAST_KEY,
   aiArea, aiAreaCode, readCacheKey, readCacheGet, readCacheSet, readCacheClear,
   wordForAI, fileKind, checkImportFiles, batchHTML, updateNav, render,
   state, db, cloud, batchState, importState,

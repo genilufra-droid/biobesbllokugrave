@@ -1437,3 +1437,64 @@ Testet: `tests/quota_economy.test.js` — 6 teste (7 formularë → 4 kërkesa, 
 bashkim mes PDF-ve të ndryshëm, pa bashkim kur mungon faqja, grupi i lexuar i
 paprekur, Excel/foto të paprekura, origjinalet private të paprekura). `npm test` →
 381 teste, zero dështime.
+
+## 11. Një klik: lexo → plotëso → ngarko → ruaj (18 nëntor 2026)
+
+Kërkesa ishte një rrjedhë e vetme: lexo formularin, ngarko skedarin, plotëso me
+AI, pa asnjë konfirmim manual në mes. Problemi nuk është teknik, është i
+besueshmërisë: të dhënat që ruhen janë paga, orë pune dhe pesha neto. Një
+"ruaj vetë" i verbër mbi dorëshkrim shqip do të thoshte të ruash në heshtje
+shifra që AI-ja i ka hamendësuar.
+
+Zgjidhja është **portë verifikimi deterministike**, jo besim te modeli.
+
+### 11.1 Si funksionon
+
+`autoRun()` është hyrja e një kliku. Kërkon pëlqimin një herë (ruhet në
+`localStorage` nën `biobes.auto.v1`), shënon vetë kutinë e anonimitetit, dhe
+thirret `batchRead({auto:true})`. Në fund të leximit, në vend të
+`batchBeginReview()`, thirret `batchAutoFinish()`.
+
+`batchAutoFinish()` ndërton artikujt (`batchBuildItems`), cakton numrat që
+mungojnë (`batchAssignNumbers`), plotëson përgjegjësen e parazgjedhur, dhe
+kalon çdo formular në `autoVerifyItem()`. Formularët që kalojnë ruhen menjëherë
+me `batchPersist()` — e njëjta funksion që përdor "Ruaj të gjitha", pra të dyja
+rrugët nuk ndryshojnë në asnjë kontroll. Formularët që nuk kalojnë hapen në
+faqen e kontrollit me listën e saktë të qelizave (`readingRiskRows`).
+
+### 11.2 Çfarë e ndalon ruajtjen automatike
+
+`autoVerifyItem()` kthen `{ok, blockers}`. Ruajtja automatike lejohet vetëm me
+zero pengues:
+
+- numri i formularit nuk u lexua (`missingNumber`);
+- data e pavlefshme;
+- çdo qelizë e dyshimtë: `needsReview`, vlerë `[e paqartë]`, ose siguri < 0.8;
+- çdo mospërputhje aritmetike `KG − Ambalazhi = Shuma`, në total dhe në rreshta
+  (`weighCheckIssues`, i njëjti kontroll që shfaqet në ekran);
+- formulari i lexuar bosh (pa plan, pa peshim, pa punonjës);
+- përgjegjësja e palexuar dhe pa parazgjedhje;
+- çdo gabim i `validateRecord()` (njësi/status i panjohur, produkt që mungon
+  për një peshim me të dhëna, numër i përsëritur).
+
+Kjo është pika thelbësore: "pa ndërhyrje" zbatohet për shumicën e pastër, por
+nuk kthehet kurrë në "pa kontroll" për qelizat e dyshimta.
+
+### 11.3 Mbrojtja nga dyprekja dhe zhbërja
+
+`autoSignature()` ndërton një vulë nga `name|size|lastModified` të skedarëve.
+Nëse e njëjta zgjedhje ruhet sërish, `autoRun()` pyet përpara se të krijojë
+regjistrime të dyfishta. `autoUndoLast()` fshin grupin e fundit të ruajtur
+automatikisht bashkë me dokumentet private në cloud.
+
+### 11.4 Testet
+
+`tests/one_click.test.js` — 17 teste: formulari i pastër kalon; qeliza e
+dyshimtë, siguria e ulët, aritmetika e gabuar, formulari bosh, numri/data dhe
+përgjegjësja e palexuar e ndalojnë; pëlqimi ruhet; signatura dallon; paneli
+shfaq butonin dhe zhbërjen; dhe një test integrimi që kalon nëpër
+`batchRead({auto:true})` → `batchAutoFinish()` → `batchPersist()` me Gemini të
+imitueshëm, duke verifikuar se ruhet vetëm formulari i pastër dhe tjetri mbetet
+për kontroll.
+
+`npm test` → 398 teste, zero dështime.
