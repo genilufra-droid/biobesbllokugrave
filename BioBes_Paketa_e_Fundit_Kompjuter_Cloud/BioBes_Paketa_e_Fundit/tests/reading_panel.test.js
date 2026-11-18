@@ -55,4 +55,47 @@ test('paneli i kontrollit shfaq faqen, zonën, sigurinë dhe needsReview', () =>
   assert.ok(panel.querySelectorAll('tr.reading-flag').length >= 1, 'rreshtat për kontroll theksohen');
 });
 
+test('kontrolli i shpejtë liston vetëm qelizat e dyshimta, para tabelës së plotë', () => {
+  const item = { record: api.blankRecord('072'), warnings: [], reading: reading(), formNumber: 2, formCount: 2, sources: [], originals: [] };
+  api.batchState.items = [item];
+  api.batchState.index = 0;
+  api.batchState.phase = 'review';
+  api.state.route = 'editor';
+  api.state.draft = item.record;
+  api.state.mode = 'new';
+  api.render();
+  const panel = w.document.getElementById('view').querySelector('.reading-panel');
+  const risk = panel.querySelector('.reading-risk');
+  assert.ok(risk, 'lista e rrezikut duhet të shfaqet');
+  const rows = risk.querySelectorAll('li');
+  assert.equal(rows.length, api.readingRiskRows(item).length, 'numri i qelizave të dyshimta përputhet');
+  assert.ok(rows.length >= 2 && rows.length < 10, 'lista është e shkurtër, jo tabela e plotë');
+  assert.match(risk.textContent, /Kontrollo vetëm këto \d+ qeliza/);
+  assert.match(risk.textContent, /Mbarim Pune/, 'vlera e paqartë listohet e para');
+  assert.match(risk.textContent, /faqja 3/, 'faqja reale e qelizës tregohet');
+  // Rreshtat e sigurt nuk futen në listë.
+  assert.doesNotMatch(risk.textContent, /Nr\. thas\./);
+  // Tabela e plotë vazhdon të jetë aty, për krahasim me letrën.
+  assert.ok(panel.querySelectorAll('table.reading-table tbody tr').length > rows.length);
+});
+
+test('kur asnjë qelizë nuk është e dyshimtë, lista e thotë qartë', () => {
+  const clean = reading();
+  clean.header.responsible = cell('Besa Provë', 3, 'Përgjegjësja', 0.97);
+  clean.employees[0].end = cell('15:00', 3, 'Punonjësi 1 · Mbarim Pune', 0.95);
+  clean.uncertain = [];
+  clean.needsReview = false;
+  const item = { record: api.blankRecord('072'), warnings: [], reading: clean, formNumber: 2, formCount: 2, sources: [], originals: [] };
+  api.batchState.items = [item];
+  api.batchState.index = 0;
+  api.batchState.phase = 'review';
+  api.state.route = 'editor';
+  api.state.draft = item.record;
+  api.state.mode = 'new';
+  api.render();
+  const panel = w.document.getElementById('view').querySelector('.reading-panel');
+  assert.equal(panel.querySelectorAll('.reading-risk').length, 0, 'pa dyshime, pa listë');
+  assert.match(panel.textContent, /Asnjë qelizë e dyshimtë/);
+});
+
 run();

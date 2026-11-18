@@ -1358,3 +1358,59 @@ përkohshëm riprovohet, suksesi i parë nuk riprovohet, dështim i vazhdueshëm
 provime, kuota nuk riprovohet, grupi i lexuar nuk preket). `tests/quota_429.test.js`
 dhe `tests/dom.js` u përshtatën me flamurin e re. `npm test` → 373 teste, zero
 dështime; `tests/ocr_prepass_test.py` → 14 teste, OK.
+
+## 10. Zgjedhja teknologjike për leximin e formularëve (18 nëntor 2026)
+
+Pyetja ishte: *me çfarë teknologjie dhe me çfarë metode lexohen formularët?* Përgjigja
+e zbatuar, me arsyet:
+
+**Lexuesi i vlerave: Gemini Flash, në server, me skemë JSON të detyruar.** Shkrimi
+me dorë në shqip (emra me ë/ç, shifra 1/7, 4/9, 5/6) është pjesa që asnjë OCR i
+lirë nuk e zgjidh sot; modelet e vogla lokale e lexojnë atë dukshëm më keq. Prandaj
+Gemini mbetet i vetmi që nxjerr vlera, me `responseSchema` që nuk lejon tekst të
+lirë, `temperature: 0` dhe dy modele në zinxhir.
+
+**Ndihmësi lokal: RapidOCR/PP-OCRv5, vetëm për strukturë.** `tools/ocr_prepass.py`
+nxjerr faqet, çiftin PARA/PAS, etiketat e shtypura dhe masat e cilësisë — pa
+internet, pa kuotë. Këto shkojnë te modeli si *hints* të shënuara si të
+pabesueshme. Nuk zëvendësojnë leximin dhe nuk shkruajnë vlera.
+
+**Çfarë u refuzua.** (a) Tesseract për vlera: 86 % e etiketave të shtypura dhe
+praktikisht asgjë e shkruar me dorë. (b) Një VLM i vogël lokal (Qwen2-VL 2B,
+MiniCPM-V): kërkon GPU ose minuta për faqe, dhe gabon më shumë në shqip. (c) Një
+"lexo në pajisje" në shfletues me Tesseract.js: do të prodhonte rekorde të
+gabuara që duken të vërteta — më keq se një gabim i dukshëm.
+
+**Metoda, në rend:** cache lokal sipas hash-it (i njëjti skanim nuk dërgohet dy
+herë) → grupim PARA/PAS, një formular për kërkesë → përgatitje e fotos (orientim,
+gri, shtrirje kontrasti, 3000 px, JPEG 0.85) → radhë e vetme AI, 5 provime me
+pritje eksponenciale, riprovim automatik i grupeve → kontroll aritmetik në pajisje
+(SHUMA = KG − AMBALAZHI, totalet e shtypura) → **kontroll njerëzor vetëm i
+qelizave të dyshimta**.
+
+### 10.1 Rezolucioni i fotos u ngrit në 3000 piksela
+
+2400 px në anën më të gjatë ≈ 205 DPI për A4, kufi për shifra të vogla me dorë.
+3000 px ≈ 260 DPI i bën të dallueshme 1/7, 4/9, 5/6; JPEG 0.85 e mban skedarin
+brenda kufirit të kërkesës (6 faqe ≈ 9 MB, nën 19 MB). Testi në
+`tests/ocr_p0_p1.test.js` verifikon zvogëlimin 4800×800 → 3000×500.
+
+### 10.2 "Kontrollo vetëm këto N qeliza"
+
+Një lexim jep dhjetëra vlera; vetëm disa janë të dyshimta. `readingRiskRows`
+rendit sipas rrezikut (i paqartë ose `needsReview` para sigurisë së ulët dhe
+zonave të listuara në `uncertain`) dhe `readingRiskHTML` i vendos si listë e
+shkurtër mbi tabelën e plotë, me faqen dhe kodin e zonës. Kur nuk ka dyshime,
+shkruan *"Asnjë qelizë e dyshimtë"*. Tabela e plotë mbetet për krahasim me letrën.
+Testet: `tests/reading_panel.test.js` (3 teste).
+
+### 10.3 Mesazhi i kuotës nuk premton më një buton që nuk ekziston
+
+Mesazhi i 429-sës thoshte *"përdor «Lexo në pajisje»"*, por aplikacioni nuk ka
+lexim në pajisje — vetëm *"Kontrollo pa Gemini"* (plotësim me dorë). Mesazhi tani
+tregon atë buton, shpjegon se dokumentet nuk humbin, dhe përmend parapranuesin
+lokal për skanime pa kuotë. `tests/batch_resume.test.js` kontrollon që mesazhi nuk
+e përmend më butonin e pabërë.
+
+**Testet.** `npm test` → 375 teste, zero dështime; `tests/ocr_prepass_test.py` → 14
+OK; `SHA256SUMS.txt` verifikohet pastër.

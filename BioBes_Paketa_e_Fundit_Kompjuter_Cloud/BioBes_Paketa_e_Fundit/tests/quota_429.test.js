@@ -76,7 +76,7 @@ test('mesazhi i kuotës thotë qartë që dokumentet nuk humbën', async () => {
   try {
     await api.cloudGemini([{ text: 'x' }], signal());
   } catch (e) {
-    assert.match(e.message, /Nuk humbi asgjë/i);
+    assert.match(e.message, /dokumentet nuk humbin/i);
   }
 });
 
