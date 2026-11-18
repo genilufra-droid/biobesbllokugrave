@@ -1562,11 +1562,239 @@ function batchGroupsHTML(){
  if(!batchState.groups.length)return '<div class="batch-empty">Asnjë skedar i zgjedhur.</div>';
  return batchState.groups.map((g,i)=>{const names=g.files.map((f,j)=>`<span>${g.files.length>1?`${j+1}. `:''}${esc(f.name)}</span>`).join('');const imageOnly=g.files.every(f=>fileKind(f).startsWith('image/'));const originalNames=(g.privateFiles||g.originalFiles||g.files).map(f=>esc(f.name)).join(' · ');const next=batchState.groups[i+1],join=next&&g.files.length===1&&next.files.length===1&&imageOnly&&fileKind(next.files[0]).startsWith('image/')&&g.status!=='ready'&&next.status!=='ready'&&!g.privateFiles&&!next.privateFiles;const lock=batchState.busy?'disabled':'';return `<div class="batch-group"><div><strong>Grupi ${i+1}</strong> <span class="batch-state ${g.status==='ready'?'good':g.status==='error'?'bad':''}">${esc(batchGroupStatus(g))}</span><div class="batch-file-names">${names}</div>${g.note?`<div class="small-note">${esc(g.note)}</div>`:''}<div class="small-note batch-private-names"><strong>Origjinale për ruajtje private:</strong> ${originalNames}</div><label class="batch-private-picker btn btn-small" for="batch-original-${esc(g.id)}">Zgjidh origjinale private</label><input class="sr-only" type="file" id="batch-original-${esc(g.id)}" data-batch-original="${esc(g.id)}" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx" ${lock}>${g.privateFiles?`<button type="button" class="btn btn-small" data-action="batch-original-reset" data-id="${esc(g.id)}" ${lock}>Përdor dokumentet e ngarkuara</button>`:''}<div class="small-note">${g.privateFiles?'Origjinalet e zgjedhura veçmas nuk dërgohen te Gemini.':'Si parazgjedhje ruhen dokumentet e ngarkuara, të cilat mund të dërgohen te Gemini.'}</div>${g.error?`<p class="batch-error-inline">${esc(g.error)}</p>`:''}</div><div class="batch-group-actions"><button type="button" class="btn btn-small" data-action="batch-up" data-index="${i}" ${i===0?'disabled':lock} aria-label="Lëviz grupin ${i+1} lart">↑</button><button type="button" class="btn btn-small" data-action="batch-down" data-index="${i}" ${i===batchState.groups.length-1?'disabled':lock} aria-label="Lëviz grupin ${i+1} poshtë">↓</button>${g.files.length===2&&imageOnly&&g.status!=='ready'&&!g.privateFiles?`<button type="button" class="btn btn-small" data-action="batch-swap" data-index="${i}" ${lock}>Ndërro faqet</button><button type="button" class="btn btn-small" data-action="batch-split" data-index="${i}" ${lock}>Ndaji</button>`:''}${join?`<button type="button" class="btn btn-small" data-action="batch-join" data-index="${i}" ${lock}>Bashko me tjetrin</button>`:''}<button type="button" class="btn btn-small" data-action="batch-remove" data-index="${i}" ${lock}>Hiq</button></div></div>`}).join('')
 }
- function autoPanelHTML(){
+ // ---------------------------------------------------------------------------
+// Mësim nga korrigjimet (hapi 1).
+//
+// Çdo qelizë që njeriu e korrigjon pas leximit është një fakt për skanerin tonë:
+// "kjo pamje u lexua X, e sakta ishte Y". E ruajmë në pajisje dhe, kur e njëjta
+// gabim përsëritet të paktën dy herë, e zbatojmë vetë në leximet e reja. Kështu
+// saktësia rritet pa asnjë kërkesë shtesë kuote dhe pa prekur modelin.
+const LEARN_KEY='biobes.learn.v1',LEARN_MIN=2,LEARN_MAX=200;
+const LEARN_PATHS=/^(nr|date|room|comments|responsible\.name|assistant\.name|plan\.\d+\.(product|status|planned|actual|unit|packaging|client|packageCount|minutes|comment)|weighings\.\d+\.rows\.\d+\.(bags|kg|packaging|sum)|weighings\.\d+\.(product|sourceLabel)|employees\.\d+\.(name|start|end|breakMinutes|room|comment))$/;
+function getPath(obj,p){return p.split('.').reduce((o,k)=>(o===null||o===undefined?undefined:o[k]),obj)}
+function learnAll(){
+ try{const raw=JSON.parse(localStorage.getItem(LEARN_KEY)||'[]');return Array.isArray(raw)?raw.filter(x=>x&&typeof x.path==='string'&&typeof x.read==='string'&&typeof x.correct==='string'&&Number(x.count)>0):[]}
+ catch(e){return []}
+}
+function learnSave(list){
+ try{localStorage.setItem(LEARN_KEY,JSON.stringify(list.slice(0,LEARN_MAX)))}catch(e){}
+}
+function learnClear(){try{localStorage.removeItem(LEARN_KEY)}catch(e){}}
+function learnKeyOf(path,read,correct){return `${path}\u0000${fold(read)}\u0000${fold(correct)}`}
+// Regjistro një korrigjim njerëzor: read → correct për këtë fushë.
+function learnRecord(path,read,correct){
+ if(!LEARN_PATHS.test(path))return;
+ const a=str(read,80).trim(),b=str(correct,80).trim();
+ if(!a||!b||fold(a)===fold(b))return;
+ const list=learnAll(),key=learnKeyOf(path,a,b),hit=list.find(x=>learnKeyOf(x.path,x.read,x.correct)===key);
+ if(hit){hit.count=Number(hit.count)+1;hit.at=new Date().toISOString();hit.read=a;hit.correct=b}
+ else list.push({path,read:a,correct:b,count:1,at:new Date().toISOString()});
+ list.sort((x,y)=>Number(y.count)-Number(x.count));
+ learnSave(list);
+}
+// Zbato mësimin: vetëm kur i njëjti gabim është korrigjuar të paktën dy herë.
+function learnApply(record){
+ const applied=[];
+ for(const entry of learnAll()){
+  if(Number(entry.count)<LEARN_MIN)continue;
+  const current=getPath(record,entry.path);
+  if(current===undefined||current===null)continue;
+  if(fold(current)!==fold(entry.read))continue;
+  if(fold(current)===fold(entry.correct))continue;
+  setPath(record,entry.path,entry.correct);
+  applied.push({path:entry.path,from:str(current,60),to:entry.correct,count:Number(entry.count)});
+ }
+ return applied;
+}
+function learnTop(limit=5){return learnAll().filter(x=>Number(x.count)>=LEARN_MIN).slice(0,limit)}
+function learnPanelHTML(){
+ const top=learnTop(),total=learnAll().reduce((n,x)=>n+Number(x.count),0);
+ if(!top.length)return '';
+ const items=top.map(x=>`<li><code>${esc(x.path)}</code>: «${esc(x.read)}» → «${esc(x.correct)}» · ${Number(x.count)} herë</li>`).join('');
+ return `<details class="learn-panel"><summary>Mësimi nga korrigjimet: ${total} korrigjime, ${top.length} modele të përsëritura</summary><p class="small-note">Këto gabime janë korrigjuar nga ti të paktën dy herë; aplikacioni i zbaton vetë në leximet e reja dhe i shënon në paralajmërime.</p><ul>${items}</ul><button type="button" class="btn btn-small" data-action="learn-clear">Fshi mësimin</button></details>`;
+}
+
+// ---------------------------------------------------------------------------
+// Përputhja horizontale brenda ditës (hapi 3).
+//
+// Të njëjtët produkte, punonjës dhe paketime përsëriten në çdo formular të ditës.
+// Nëse "Djathë" del "Djatë" në një rresht dhe "Djathë" në dymbëdhjetë të tjerë,
+// e sakta dihet pa AI. Zëvendësohet vetëm kur kandidati shfaqet të paktën dy
+// herë ose është në listat bazë, dhe distanca është e vogël.
+function editDistance(a,b){
+ const x=fold(a),y=fold(b);
+ if(x===y)return 0;
+ if(!x.length||!y.length)return Math.max(x.length,y.length);
+ let prev=Array.from({length:y.length+1},(_,i)=>i);
+ for(let i=1;i<=x.length;i++){
+  const row=[i];
+  for(let j=1;j<=y.length;j++)row[j]=Math.min(prev[j]+1,row[j-1]+1,prev[j-1]+(x[i-1]===y[j-1]?0:1));
+  prev=row;
+ }
+ return prev[y.length];
+}
+function autoCloseEnough(value,candidate){
+ const a=fold(value),b=fold(candidate);
+ if(!a||!b||a===b)return false;
+ const d=editDistance(a,b),len=Math.max(a.length,b.length);
+ if(len<5)return false;               // fjalë të shkurtra: shumë rrezik
+ if(len<=7)return d===1;
+ if(len<=11)return d<=2;
+ return d<=2;
+}
+// Mbledh kandidatët: listat bazë + të gjitha vlerat e grupit, me numërimin e tyre.
+function autoCandidateCounts(items){
+ const counts=new Map();
+ // `cat` shënon emrin që vjen nga listat bazë: ai është burim i sigurt edhe kur
+ // shfaqet vetëm një herë. Vlera e lexuar, pa këtë flamur, duhet të përsëritet
+ // të paktën dy herë në dokument që të pranohet si e sakta.
+ const bump=(kind,value,cat)=>{const v=str(value).trim();if(!v)return;const key=kind+'\u0000'+fold(v);const hit=counts.get(key);if(hit){hit.n++;if(cat)hit.cat=true}else counts.set(key,{kind,label:v,n:1,cat:!!cat})};
+ for(const [kind,list] of [['product',db.catalog.products],['packaging',db.catalog.packages],['client',db.catalog.clients],['employee',db.catalog.employees],['responsible',db.catalog.responsibles]])for(const v of list||[])bump(kind,v,true);
+ for(const it of items){
+  const r=it.record;
+  for(const p of r.plan||[]){bump('product',p.product);bump('packaging',p.packaging);bump('client',p.client)}
+  for(const g of r.weighings||[])bump('product',g.product);
+  for(const e of r.employees||[])bump('employee',e.name);
+  bump('responsible',r.responsible?.name);
+ }
+ return counts;
+}
+function autoNormalizeNames(items){
+ const counts=autoCandidateCounts(items),notes=[];
+ const fix=(kind,value,label)=>{
+  const v=str(value).trim();
+  if(!v)return value;
+  // Përputhje e plotë: ose emri i listës bazë, ose një vlerë e përsëritur në
+  // dokument. Vlera e vetme e vetë vetes nuk është provë, ndaj kërkohet n>=2.
+  const exact=[...counts.values()].find(x=>x.kind===kind&&(x.cat||x.n>=2)&&fold(x.label)===fold(v));
+  if(exact)return exact.label;                       // vetëm shkronja të mëdha/ë ↔ e: e sigurt
+  const near=[...counts.values()].filter(x=>x.kind===kind&&x.n>=2&&autoCloseEnough(v,x.label)).sort((a,b)=>b.n-a.n)[0];
+  if(!near)return value;
+  notes.push({kind,from:v,to:near.label,count:near.n,label});
+  return near.label;
+ };
+ for(const it of items){
+  const r=it.record;
+  r.responsible.name=fix('responsible',r.responsible?.name,'Përgjegjësja');
+  for(const p of r.plan||[]){p.product=fix('product',p.product,'Produkti');p.packaging=fix('packaging',p.packaging,'Paketimi');p.client=fix('client',p.client,'Klienti')}
+  for(const g of r.weighings||[])g.product=fix('product',g.product,'Produkti i peshimit');
+  for(const e of r.employees||[])e.name=fix('employee',e.name,'Punonjësi');
+ }
+ for(const note of notes)it_notes_add(items,note);
+ return notes;
+}
+// Paralajmërimet shkojnë te formulari ku ndodhi ndryshimi, jo te të gjithë.
+function it_notes_add(items,note){
+ const text=`U përputh me listën: «${note.from}» → «${note.to}» (${note.count} herë në dokument). Kontrolloje.`;
+ for(const it of items){
+  const r=it.record,hit=[r.responsible?.name,...(r.plan||[]).flatMap(p=>[p.product,p.packaging,p.client]),...(r.weighings||[]).map(g=>g.product),...(r.employees||[]).map(e=>e.name)];
+  if(hit.some(v=>fold(v)===fold(note.to))){it.warnings=[...new Set([...(it.warnings||[]),text])];return}
+ }
+}
+
+// ---------------------------------------------------------------------------
+// Kontrolli i orëve (hapi 4).
+//
+// Peshat kanë prej kohësh kontrollin KG − Ambalazhi = Shuma. Orari nuk kishte
+// asgjë ekuivalente, ndaj një "17:00" i lexuar "11:00" kalonte pa u vënë re.
+// Këtu kontrollohen dy gjëra: Mbarim − Fillim − Pushim = Orë, dhe shuma e
+// orëve të punonjësve = totali i ditës.
+function hoursValue(text){
+ const raw=str(text,20).trim().replace(/\s+/g,'');
+ if(!raw)return null;
+ const hm=/^(\d{1,2})[:.,](\d{2})$/.exec(raw);
+ if(hm){const h=Number(hm[1]),m=Number(hm[2]);if(h>24||m>59)return null;return h+m/60}
+ const dec=/^(\d{1,2})(?:[.,](\d{1,2}))?$/.exec(raw);
+ if(!dec)return null;
+ const h=Number(dec[1]),frac=dec[2]?Number('0.'+dec[2]):0;
+ if(h>24)return null;
+ return h+frac;
+}
+function hoursIssues(record,reading){
+ const out=[];
+ const rows=(reading?.employees||[]).filter(x=>x&&(x.start?.value||x.end?.value||x.totalHours?.value));
+ (record.employees||[]).forEach((emp,index)=>{
+  const hours=hoursFor(emp);
+  if(hours===null)return;
+  const printed=hoursValue(rows[index]?.totalHours?.value);
+  if(printed===null||printed===undefined)return;
+  if(Math.abs(printed-hours)>0.01){
+   const label=str(emp.name).trim()||`Punonjësi ${index+1}`;
+   out.push(`Orari, ${label}: ${emp.start}–${emp.end} me pushim ${emp.breakMinutes||0} min = ${fmt(hours)} orë, por formulari shkruan ${fmt(printed)}. Kontrollo.`);
+  }
+ });
+ const printedTotal=hoursValue(reading?.header?.totalHours?.value);
+ if(printedTotal!==null&&printedTotal!==undefined){
+  const sum=(record.employees||[]).reduce((n,e)=>{const h=hoursFor(e);return n+(h===null?0:h)},0);
+  if(sum>0&&Math.abs(printedTotal-sum)>0.01)out.push(`Orët gjithsej: shuma e punonjësve është ${fmt(sum)} orë, por formulari shkruan ${fmt(printedTotal)}. Kontrollo.`);
+ }
+ return out;
+}
+
+// ---------------------------------------------------------------------------
+// Lexim i dytë vetëm për qelizat e dyshimta (hapi 2).
+//
+// Nuk i besojmë një leximi të vetëm kur qeliza është e paqartë. Pyetemi edhe një
+// herë dhe pranojmë vetëm përputhjen e plotë të dy leximeve të pavarura. Kosto:
+// një kërkesë shtesë vetëm për grupet që kanë qeliza të dyshimta, dhe vetëm kur
+// kuota e lejon; përndryshe leximi i parë mbetet si është.
+function readingFieldMap(reading){
+ const map=new Map();
+ for(const row of readingRows({reading}))if(row?.field?.formArea)map.set(row.field.formArea,row.field);
+ return map;
+}
+function readingUncertainAreas(reading){
+ const areas=new Set();
+ for(const x of reading?.uncertain||[])if(x?.formArea)areas.add(String(x.formArea));
+ for(const [area,field] of readingFieldMap(reading))if(field.needsReview||(field.confidence!=null&&Number(field.confidence)<0.8))areas.add(area);
+ return [...areas];
+}
+function mergeSecondOpinion(first,second){
+ if(!first||!second)return 0;
+ const a=readingFieldMap(first),b=readingFieldMap(second);
+ let promoted=0;
+ for(const [area,fieldA] of a){
+  const fieldB=b.get(area);
+  if(!fieldB)continue;
+  const va=fold(fieldA.value),vb=fold(fieldB.value);
+  if(!va||!vb||va!==vb)continue;                       // duhet përputhje e plotë
+  const alreadySure=fieldA.confidence!=null&&Number(fieldA.confidence)>=0.8&&!fieldA.needsReview;
+  if(alreadySure)continue;
+  fieldA.value=fieldB.value;fieldA.confidence=0.99;fieldA.needsReview=false;fieldA.secondOpinion=true;
+  promoted++;
+ }
+ if(promoted){
+  first.uncertain=(first.uncertain||[]).filter(x=>!a.get(x?.formArea)?.secondOpinion);
+  first.warnings=[...new Set([...(first.warnings||[]),`${promoted} qeliza u verifikuan me lexim të dytë (të dy leximet u përputhën).`])];
+ }
+ return promoted;
+}
+async function autoSecondOpinion(groups,signal,catalog){
+ const targets=groups.filter(g=>g.status==='ready'&&(g.results||[]).some(r=>readingUncertainAreas(r.reading).length));
+ if(!targets.length)return {groups:0,promoted:0};
+ let promoted=0,quota=false;
+ for(let t=0;t<targets.length;t++){
+  const g=targets[t];
+  if(signal.aborted)throw new DOMException('aborted','AbortError');
+  batchSetBusy(true,`Lexim i dytë për qelizat e dyshimta (${t+1} nga ${targets.length})…`);
+  try{
+   const {safe,cache}=batchGenericFiles(g.files,g.workbook),warnings=[];
+   const data=await readFilesWithGemini(safe,signal,catalog,warnings,cache,{noCache:true});
+   if(signal.aborted)throw new DOMException('aborted','AbortError');
+   const again=aiReadings(data,{fileName:g.files.map(f=>f.name).join(' · '),pageCount:g.pageCount});
+   for(let i=0;i<(g.results||[]).length;i++)if(again.forms[i])promoted+=mergeSecondOpinion(g.results[i].reading,again.forms[i].reading);
+  }catch(e){
+   if(e?.name==='AbortError')throw e;
+   if(e?.quota){quota=true;break}                     // kuota mbaroi: leximi i parë mbetet
+  }
+ }
+ return {groups:targets.length,promoted,quota};
+}
+function autoPanelHTML(){
  const s=autoSettings(),last=autoLastBatch();
  const state=s.consent?`Pëlqimi u ruajt${s.responsible?` · përgjegjësja: ${esc(s.responsible)}`:' · përgjegjësja merret nga formulari'}`:'Kërkohet pëlqim një herë';
  const undo=last.ids.length?`<button type="button" class="btn btn-small" data-action="auto-undo">Zhbëj ruajtjen e fundit (${last.ids.length})</button>`:'';
- return `<div class="oneclick" id="oneclick"><div class="oneclick-head"><strong>Një klik</strong><span class="oneclick-state">${esc(state)}</span></div><p>Lexon, plotëson dhe ruan vetë: pa konfirmim në mes. Ruhen vetëm formularët ku çdo qelizë u lexua me siguri dhe shumat përputhen; të tjerët hapen me listën e saktë të qelizave që duhen parë.</p><div class="oneclick-actions"><button type="button" class="btn btn-primary" data-action="auto-run">${icon('check',15)} Një klik: lexo dhe ruaj</button>${undo}</div></div>`;
+ return `<div class="oneclick" id="oneclick"><div class="oneclick-head"><strong>Një klik</strong><span class="oneclick-state">${esc(state)}</span></div><p>Lexon, plotëson dhe ruan vetë: pa konfirmim në mes. Ruhen vetëm formularët ku çdo qelizë u lexua me siguri dhe shumat përputhen; të tjerët hapen me listën e saktë të qelizave që duhen parë.</p><div class="oneclick-actions"><button type="button" class="btn btn-primary" data-action="auto-run">${icon('check',15)} Një klik: lexo dhe ruaj</button>${undo}</div></div>${learnPanelHTML()}`;
 }
 function batchHTML(){
  return `<div class="page-head"><div><div class="eyebrow">Regjistrim me 2 hapa</div><h1 class="page-title">1. Ngarko formularët</h1><p class="page-sub">Foto, PDF, Excel ose Word. Një formular ose deri në 10 bashkë.</p></div></div><div class="batch-steps"><span class="active">1 &nbsp; Ngarko dhe lexo</span><span>2 &nbsp; Kontrollo dhe ruaj</span></div>${autoPanelHTML()}<div class="import-grid batch-layout"><div class="card"><div class="card-head"><div><h2>Dokumentet</h2><p>Zgjidh skedarët, shtyp “Lexo formularët”, pastaj kontrollo dhe ruaj.</p></div></div><div class="card-body"><label class="upload-zone" for="batch-files">${icon('upload',21)}<strong>Zgjidh foto, PDF, Excel ose Word</strong><span>Deri në 10 formularë · 12 MB për skedar</span></label><input class="sr-only" type="file" id="batch-files" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><details class="batch-advanced"><summary>Si grupohen faqet (foto dhe PDF me disa faqe)</summary><p class="small-note">PDF-të me më shumë se 2 faqe ndahen automatikisht në çifte PARA/PAS. Çdo çift kontrollohet si formular më vete dhe ruan numrat realë të faqeve.</p><div class="field"><label for="batch-photo-mode">Kur zgjedh disa foto</label><select id="batch-photo-mode" class="input"><option value="pairs">Dy foto radhazi = një formular</option><option value="single">Çdo foto = një formular</option></select></div><div class="field"><label for="batch-pdf-mode">Nëse një PDF ka disa formularë</label><select id="batch-pdf-mode" class="input"><option value="pairs" selected>Ndaje: çdo 2 faqe = një formular</option><option value="whole">Çdo PDF = një formular</option><option value="pages">Ndaje: çdo faqe = një formular</option></select><span class="small-note">Për skanime si “7 formularë / 14 faqe”, përdor çiftet PARA/PAS.</span></div><label class="import-consent"><input id="batch-economy" type="checkbox" checked> <span>Kursim kuote: dy formularë (4 faqe) në një kërkesë me Gemini. Përgjysmon kërkesat, që kuota e pakët e Free Tier të mjaftojë për gjithë skanimin. Hiqe shenjën për një kërkesë për formular (më e saktë, më shumë kuotë).</span></label></details><div class="batch-list-head"><strong>Grupet e dokumenteve</strong><span>Kontrollo që faqet e secilit formular të jenë bashkë.</span></div><div id="batch-groups" aria-live="polite">${batchGroupsHTML()}</div><div class="head-actions batch-start-actions"><button type="button" class="btn btn-primary" data-action="batch-read">${icon('search',15)} Lexo formularët</button>${batchPendingCount()&&batchState.groups.some(g=>g.status==='ready')?`<button type="button" class="btn btn-soft" data-action="batch-read-pending">${icon('search',15)} Lexo vetëm ${batchPendingCount()} grupet e mbetura</button>`:''}<button type="button" class="btn" data-action="batch-cancel" hidden>Anulo leximin</button><button type="button" class="btn btn-soft" data-action="batch-manual" title="Pa Gemini, pa kuotë — por nuk lexon vlera: krijon formularët bosh, me numrin e datën e gjetura në emrin e skedarit">${icon('edit',15)} Plotëso me dorë (pa Gemini)</button><button type="button" class="btn" data-action="template-download" title="Shabllon Excel me formula: plotësohet vetë">${icon('download',15)} Shkarko shabllonin Excel</button><button type="button" class="btn" data-action="batch-review-ready" hidden>Kontrollo të lexuarit</button><button type="button" class="btn btn-quiet" data-action="batch-reset" ${batchState.groups.length?'':'hidden'}>Fillo nga e para</button><button type="button" class="btn btn-small" data-action="batch-raw" ${batchState.groups.some(g=>g.raw)?'':'hidden'}>Shkarko leximin JSON</button></div><div id="batch-error" class="import-error" role="alert" ${batchState.error?'':'hidden'}>${esc(batchState.error)}</div><div id="batch-progress" class="read-progress" role="status" aria-live="polite" hidden><span class="read-spinner" aria-hidden="true"></span><div><strong>Po përpunohen formularët</strong><span id="batch-progress-text"></span><small id="batch-elapsed" aria-hidden="true"></small></div></div></div></div><div class="card"><div class="card-head"><div><h2>Leximi me Gemini</h2><p>Për foto, PDF, Word dhe Excel-e të tjera. Çdo formular lexohet më vete; mund të zgjasë disa minuta.</p></div></div><div class="card-body"><div class="notice import-privacy">${icon('info',16)}<span>Excel-i i modelit të BioBes lexohet në këtë pajisje pa Gemini. Dokumentet ruhen privatisht në cloud vetëm kur konfirmon ruajtjen.</span></div><p class="small-note batch-key-field">Çelësi Gemini konfigurohet privatisht vetëm në server. Çdo grup ka mundësi të zgjedhë origjinalet për ruajtje private, veçmas nga kopjet që lexon AI.</p><label class="import-consent"><input id="batch-anonymous" type="checkbox"> <span>Konfirmoj se dokumentet që do të dërgohen nuk përmbajnë emra, firma, të dhëna personale ose konfidenciale, dhe se projekti i çelësit Gemini në server është Free Tier pa faturim të lidhur.</span></label><details class="batch-advanced"><summary>Privatësia dhe kostot – lexo një herë</summary><p class="small-note">Dokumentet nuk anonimizohen automatikisht: hiqi të dhënat, mos i mbulo vetëm në pamje, dhe kontrollo metadatat. Emrat e skedarëve zëvendësohen, por përmbajtja dhe metadatat mund të dërgohen. Google mund të përdorë dhe të shqyrtojë leximet falas. Aplikacioni nuk verifikon planin; projektet me faturim mund të kenë kosto. Në EEA, Zvicër dhe MB Google kërkon shërbime me pagesë kur aplikacionet API u ofrohen përdoruesve atje. <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">Kushtet e Google ↗</a></p></details><label class="import-consent"><input id="batch-catalog" type="checkbox"> <span>Pranoj shprehimisht dërgimin te Gemini të emrave në listat bazë më poshtë, vetëm nëse janë të anonimizuar dhe jokonfidencialë.</span></label><p class="small-note">Opsionale: listat bazë të përgjegjëseve, punonjësve, produkteve, paketimit, statuseve, njësive dhe burimeve. Mos e zgjidh nëse përmbajnë emra realë ose të dhëna konfidenciale.</p><label class="import-consent"><input id="batch-device-notice" type="checkbox" ${importState.notify?'checked':''}> <span>Më njofto kur të përfundojë leximi.</span></label></div></div></div>`
@@ -1732,6 +1960,9 @@ async function batchRead(options={}){
     }
    };
    await Promise.all(Array.from({length:Math.min(BATCH_WORKERS,queue.length)},worker));
+   // Hapi 2: vetëm për një klik, qelizat e dyshimta rilexohen një herë; pranohet
+   // vetëm përputhja e plotë e dy leximeve të pavarura.
+   if(options.auto&&!controller.signal.aborted)try{await autoSecondOpinion(groups,controller.signal,catalog)}catch(e){if(e?.name==='AbortError')throw e}
    // Riprovim automatik: një gabim i përkohshëm (503 UNAVAILABLE, rrjet) nuk
    // duhet t'i mbetet përdoruesit si “Nuk u lexua”. Grupet e dështuara provohen
    // edhe një herë, një nga një, vetëm kur gabimi nuk është kuotë e shpenzuar.
@@ -1783,9 +2014,12 @@ function batchBuildItems(groups){
    const record=normalizeRecord(result.record),warnings=[...new Set(result.warnings||[])];
    if(record.attachments?.length)warnings.push('Lidhjet e vjetra të dokumenteve nuk importohen; do të ruhen origjinalet e zgjedhura këtu.');
    record.attachments=[];record.id=uid();
+   // Hapi 1: mësimi nga korrigjimet e mëparshme zbatohet para verifikimit.
+   const learned=learnApply(record);
+   for(const x of learned)warnings.push(`U korrigjua nga mësimi: «${x.from}» → «${x.to}» (${x.count} herë më parë). Kontrolloje.`);
    const sources=g.files.map(f=>({name:f.name,url:URL.createObjectURL(f)}));
    const originals=(g.privateFiles||g.originalFiles||g.files).map(f=>({name:f.name,file:f,uploaded:null,pendingPath:''}));
-   items.push({record,warnings,missingNumber:!!result.missingNumber,reading:result.reading||null,formNumber:result.formNumber||null,formCount:result.formCount||null,sources,originals,confirmedDigest:''});
+   items.push({record,warnings,missingNumber:!!result.missingNumber,reading:result.reading||null,formNumber:result.formNumber||null,formCount:result.formCount||null,sources,originals,confirmedDigest:'',autoOriginal:clone(record)});
   }
  }
  return {items};
@@ -2099,6 +2333,8 @@ function autoVerifyItem(item){
   const g=r.weighings[i];
   for(const w of weighCheckIssues(g.rows,g.printedTotal,`Peshimi ${i+1}`))blockers.push(w);
  }
+ // Hapi 4: orari kontrollohet si peshat, jo vetëm shihet.
+ for(const w of hoursIssues(r,item.reading))blockers.push(w);
  const hasPlan=(r.plan||[]).some(p=>nonempty(p.product)||nonempty(p.actual)||nonempty(p.planned));
  const hasWeigh=(r.weighings||[]).some(g=>(g.rows||[]).some(row=>['bags','kg','packaging','sum'].some(k=>nonempty(row[k])))||Object.values(g.printedTotal||{}).some(nonempty));
  const hasStaff=(r.employees||[]).some(e=>nonempty(e.name));
@@ -2143,6 +2379,8 @@ async function batchAutoFinish(){
  const items=built.items;
  if(items.length>BATCH_MAX){batchTooMany(items);return}
  batchAssignNumbers(items);
+ // Hapi 3: përputhja me listat bazë dhe me formularët e tjerë të së njëjtës ditë.
+ autoNormalizeNames(items);
  const fallback=autoDefaultResponsible();
  for(const it of items)if(!str(it.record.responsible?.name).trim()&&fallback)it.record.responsible.name=fallback;
  const clean=[],eyes=[];
@@ -2543,7 +2781,7 @@ async function scannedPageWarning(files,warnings){
  return total;
 }
 // Lexon një grup skedarësh; PDF-të e gjata ndahen dhe ribashkohen vetë.
-async function readFilesWithGemini(files,signal,catalog,warnings=[],cache=new Map()){
+async function readFilesWithGemini(files,signal,catalog,warnings=[],cache=new Map(),options={}){
  await scannedPageWarning(files,warnings);
  const calls=await planReadingCalls(files);
  const single=calls.length===1&&!calls[0].offset;
@@ -2552,11 +2790,13 @@ async function readFilesWithGemini(files,signal,catalog,warnings=[],cache=new Ma
   if(signal.aborted)throw new DOMException('aborted','AbortError');
   const parts=await prepareGeminiParts(call.files,signal,cache,warnings,catalog);
   // I njëjti skanim nuk dërgohet dy herë: hash-i i përmbajtjes e gjen në pajisje.
-  const cacheKey=await readCacheKey(call.files[0]);
+  // Leximi i dytë (hapi 2) nuk guxon të marrë përgjigjen e ruajtur të të njëjtit
+  // skanim: do të ishte i njëjti lexim i quajtur "i dytë". Prandaj noCache.
+  const cacheKey=options.noCache?null:await readCacheKey(call.files[0]);
   const cached=cacheKey?readCacheGet(cacheKey):null;
   const hints=cached?[]:await ocrHintsForFiles(call.files);
   const data=cached||parseAIJson(await geminiForParts(parts,signal,hints));
-  if(!cached&&cacheKey)readCacheSet(cacheKey,data);
+  if(!cached&&cacheKey&&!options.noCache)readCacheSet(cacheKey,data);
   if(single)return data;
   chunks.push({data,offset:call.offset});
  }
@@ -4488,14 +4728,17 @@ document.addEventListener('click',async e=>{const suggestion=e.target.closest('[
  if(e.target.closest('#doc-search'))return;
  const dlib=e.target.closest('[data-doc-lib]');if(dlib){await docOpenLibrary(dlib.dataset.docLib,dlib.dataset.docName);return}
  const dopen=e.target.closest('[data-doc-open],[data-doc-record]');if(dopen){await docOpenFromClick(dopen);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='nav-back')await navBack();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='use-shared-shift')applySharedShift();else if(a==='stop-shared-shift')stopSharedShift();else if(a==='use-shared-pack')applySharedPack(Number(btn.dataset.index));else if(a==='stop-shared-pack')stopSharedPack(Number(btn.dataset.index));else if(a==='staff-sign')await captureStaffSignature(Number(btn.dataset.index));else if(a==='staff-sign-clear')await clearStaffSignature(Number(btn.dataset.index));else if(a==='set-workday')setWorkday(Number(btn.dataset.minutes)/60);else if(a==='report-tab'){state.report.tab=btn.dataset.tab||'summary';navWrite(true);renderReportResults()}else if(a==='add-plan')addPlanProduct();else if(a==='add-interval')addInterval();else if(a==='del-interval')delInterval(Number(btn.dataset.emp),Number(btn.dataset.iv));else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',packaging:'',status:'',client:'',employee:'',room:'',tab:state.report.tab||'summary',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='export-report-pro')await exportReportExcelPro();else if(a==='export-day-pdf')await exportDayPDF();else if(a==='export-report-xlsx')exportReportXlsx(btn.dataset.type||'products');else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='recalc-all-weights')await recalcAllWeights();else if(a==='catalog-template')exportCatalogTemplate();else if(a==='catalog-import-add')document.getElementById('catalog-import-add-file').click();else if(a==='catalog-import-replace')document.getElementById('catalog-import-replace-file').click();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
-  else if(a==='auto-run')await autoRun();else if(a==='auto-undo')await autoUndoLast()
+  else if(a==='auto-run')await autoRun();else if(a==='auto-undo')await autoUndoLast();else if(a==='learn-clear'){learnClear();render();toast('Mësimi u fshi.','warn')}
   else if(a==='batch-read-pending')await batchReadPending()
   else if(a==='batch-manual')await batchManualReview();else if(a==='batch-cancel')batchCancel();else if(a==='batch-review-ready')await batchReviewCompleted();else if(a==='batch-reset')await batchStartOver();else if(a==='batch-raw')batchRawDownload();else if(a==='batch-up')batchMove(Number(btn.dataset.index),-1);else if(a==='batch-down')batchMove(Number(btn.dataset.index),1);else if(a==='batch-swap')batchSwap(Number(btn.dataset.index));else if(a==='batch-split')batchSplit(Number(btn.dataset.index));else if(a==='batch-join')batchJoin(Number(btn.dataset.index));else if(a==='batch-remove')await batchRemove(Number(btn.dataset.index));else if(a==='batch-original-reset')batchPrivateReset(btn.dataset.id);else if(a==='batch-open')batchOpen(Number(btn.dataset.index));else if(a==='batch-remove-review')await batchRemoveReview();else if(a==='batch-draft')batchDraftDownload();else if(a==='batch-save')await batchSave();else if(a==='cloud-open-original')await cloudOpenOriginal(Number(btn.dataset.index));else if(a==='sample')await sample();else if(a==='clear-demo')await clearDemo();else if(a==='template-download')exportTemplateXlsx();else if(a==='template-upload')document.getElementById('template-upload-file').click();else if(a==='catalog-import')document.getElementById('catalog-import-file').click();else if(a==='catalog-add')await addCatalog(btn.dataset.kind);else if(a==='catalog-edit')await editCatalog(btn.dataset.kind,Number(btn.dataset.index));else if(a==='catalog-delete')await deleteCatalog(btn.dataset.kind,Number(btn.dataset.index))});
 document.addEventListener('input',e=>{const el=e.target;if(el.dataset.combo==='sources'&&state.route==='editor'){setPath(state.draft,el.dataset.bind.replace(/sourceLabel$/,'source'),'')}if(el.dataset.combo)showCombo(el);
  if(el.dataset.report&&state.route==='reports'){state.report[el.dataset.report]=el.value;navReportStep();renderReportResults()}
  if(el.dataset.combo==='tracking-employee'&&state.report.employee!==el.value){state.report.employee=el.value;navReportStep();renderReportResults()}
  if(el.dataset.combo&&el.dataset.combo.startsWith('report-')){const key=reportFilterKey(el.dataset.combo);if(key&&state.report[key]!==el.value){state.report[key]=el.value;navReportStep();renderReportResults()}}if(el.id==='history-search'){state.search=el.value;renderHistoryList();return}if(el.id==='doc-search'){state.docSearch=el.value;renderDocList();return}if(el.id==='print-search'){state.print.search=el.value;renderPrintList();return}if(el.dataset.printSetting){state.print[el.dataset.printSetting]=el.value;return}
- if(el.dataset.workday!==undefined&&state.route==='catalog'){const h=Number(String(el.value).replace(',','.'));if(h>=1&&h<=24)saveWorkday(Math.round(h*60));return}if(el.dataset.duration&&state.route==='editor'&&state.mode!=='view'){const host=el.closest('[data-duration-field]');if(host)syncDurationField(host);return}if(el.dataset.bind&&state.route==='editor'&&state.mode!=='view'){setPath(state.draft,el.dataset.bind,el.value);state.dirty=true;batchMarkChanged();sharedFillOnInput(el.dataset.bind);safeRecalcWeightInput(el.dataset.bind);updateDerived(el.dataset.bind)}});
+ if(el.dataset.workday!==undefined&&state.route==='catalog'){const h=Number(String(el.value).replace(',','.'));if(h>=1&&h<=24)saveWorkday(Math.round(h*60));return}if(el.dataset.duration&&state.route==='editor'&&state.mode!=='view'){const host=el.closest('[data-duration-field]');if(host)syncDurationField(host);return}if(el.dataset.bind&&state.route==='editor'&&state.mode!=='view'){const bindPath=el.dataset.bind,before=getPath(state.draft,bindPath);setPath(state.draft,bindPath,el.value);state.dirty=true;batchMarkChanged();
+  // Hapi 1: nëse kjo fushë erdhi nga leximi dhe njeriu e ndryshoi, mbaje mend.
+  if(batchIsReview()){const item=batchState.items[batchState.index];if(item?.autoOriginal)learnRecord(bindPath,getPath(item.autoOriginal,bindPath),el.value)}
+  sharedFillOnInput(el.dataset.bind);safeRecalcWeightInput(el.dataset.bind);updateDerived(el.dataset.bind)}});
 document.addEventListener('change',e=>{const el=e.target;if(state.route==='editor'&&state.mode!=='view'&&/^employees\.\d+\.name$/.test(el.dataset.bind||'')){sharedFillOnInput(el.dataset.bind,true);updateDerived(el.dataset.bind)}if(state.route==='editor'&&state.mode!=='view'&&/^employees\.\d+\.(start|end)$|^employees\.\d+\.intervals\.\d+\.(start|end)$/.test(el.dataset.bind||'')){const parsed=timeFromImport(el.value);if(parsed){el.value=parsed;setPath(state.draft,el.dataset.bind,parsed);state.dirty=true;batchMarkChanged();updateDerived(el.dataset.bind)}}if(el.id==='catalog-import-add-file'||el.id==='catalog-import-replace-file'){const file=el.files?.[0],mode=el.id==='catalog-import-add-file'?'add':'replace';el.value='';importCatalogFile(file,mode);return}if(el.id==='batch-files'){batchAddFiles(el);return}if(el.dataset.batchOriginal){batchPrivateChanged(el);return}if(el.id==='batch-review-original'){batchReviewPrivateChanged(el);return}if(el.id==='batch-device-notice'){setDeviceNotice(el);return}if(el.id==='batch-reviewed'&&batchIsReview()){const it=batchState.items[batchState.index];it.confirmedDigest=el.checked?JSON.stringify(it.record):'';batchUpdateSummary();return}if(el.id==='confirm-import-review'&&importState.review){importState.review.confirmed=el.checked;return}if(el.dataset.printId){if(el.checked)state.print.selected.add(el.dataset.printId);else state.print.selected.delete(el.dataset.printId);updatePrintCount();return}if(el.dataset.attendance){state.attendance[el.dataset.attendance]=el.value;render();return}if(el.dataset.report){state.report[el.dataset.report]=el.value;navWrite(true);renderReportResults();return}if(el.dataset.workday!==undefined&&state.route==='catalog'){setWorkday(el.value);return}if(el.id==='template-upload-file'){const file=el.files&&el.files[0];el.value='';templateUpload(file);return}if(el.id==='catalog-import-file'){const file=el.files&&el.files[0];el.value='';catalogImportFile(file);return}if(el.id==='import-file'){const file=el.files&&el.files[0];el.value='';importBackup(file)}});
 document.addEventListener('toggle',e=>{const el=e.target;if(el.isConnected&&el.matches('.weight-card')&&state.route==='editor'){const i=Number(el.dataset.weightIndex);if(el.open)state.weightOpen.add(i);else state.weightOpen.delete(i)}},true);document.addEventListener('focusin',e=>{if(e.target.dataset.combo&&!suppressComboFocus)showCombo(e.target)});document.addEventListener('focusout',e=>{if(e.target.dataset.combo)setTimeout(()=>{if(activeCombo===e.target&&!document.activeElement?.closest('#combo-popover'))finishCombo(e.target)},160)});window.addEventListener('scroll',()=>{if(activeCombo)positionCombo(activeCombo)},true);window.addEventListener('resize',()=>{if(activeCombo)positionCombo(activeCombo)});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&e.target.closest('#combo-popover')){e.preventDefault();const el=activeCombo;hideCombo();if(el&&el.isConnected){suppressComboFocus=true;el.focus();suppressComboFocus=false}return}if(e.target.dataset.combo&&handleComboKey(e))return;if(e.key==='Enter'&&e.target.id?.startsWith('add-')){e.preventDefault();addCatalog(e.target.id.slice(4))}});
 window.addEventListener('beforeunload',e=>{if((state.route==='editor'&&state.dirty&&state.mode!=='view')||cloud.busy||cloud.uncertain||batchState.busy||batchIsReview()||(state.route==='batch'&&batchState.groups.some(g=>g.results?.length))){e.preventDefault();e.returnValue=''}});

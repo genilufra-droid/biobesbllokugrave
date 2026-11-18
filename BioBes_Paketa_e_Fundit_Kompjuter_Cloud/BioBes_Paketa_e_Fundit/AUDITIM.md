@@ -1498,3 +1498,100 @@ imitueshëm, duke verifikuar se ruhet vetëm formulari i pastër dhe tjetri mbet
 për kontroll.
 
 `npm test` → 398 teste, zero dështime.
+
+## 12. Katër burime shtesë saktësie për një klik (18 nëntor 2026)
+
+Porta e besimit e seksionit 11 thotë *"nëse dyshon, mos ruaj"*. Kjo është e
+sigurt, por e vetme nuk e rrit saktësinë: thjesht i dërgon më shumë formularë
+te njeriu. Katër mekanizmat e këtij seksioni e ulin numrin e dyshimeve pa
+shtuar kuotë të panevojshme dhe pa i dhënë modelit të drejtën e fundit.
+Rendi i tyre është i qëllimshëm: mësimi dhe përputhja horizontale punojnë pa
+asnjë kërkesë, leximi i dytë shpenzon kuotë vetëm aty ku duhet, dhe kontrolli i
+orëve nuk shpenzon asgjë.
+
+### 12.1 Mësim nga korrigjimet njerëzore
+
+Çdo qelizë që njeriu e ndryshon pas leximit është një fakt i vërtetë për
+skanerin tonë: *"kjo pamje u lexua X, e sakta ishte Y"*. `learnRecord()` e
+regjistron në `localStorage` nën `biobes.learn.v1`, vetëm për fusha të
+lejuara nga `LEARN_PATHS` (numri, data, dhoma, komentet, përgjegjësja,
+asistentja, plani, peshimet, punonjësit) — jo për `attachments` ose fusha të
+panjohura, që një gabim të mos përhapet në gjendje që nuk duhet prekur.
+
+`learnApply()` e zbaton mësimin vetëm kur plotësohen tri kushte njëherësh: i
+njëjti gabim është korrigjuar të paktën **dy herë** (`LEARN_MIN=2`), vlera e
+lexuar përputhet saktësisht me gabimin e njohur, dhe korrigjimi nuk është
+thjesht ndryshim i shkronjave të mëdha (`fold`). Kështu një gabim i vetëm — që
+mund të ketë qenë gabimi i njeriut, jo i modelit — nuk bëhet rregull.
+
+Zbatimi nuk është i heshtur: `batchBuildItems()` shton paralajmërimin
+*"U korrigjua nga mësimi: «X» → «Y» (N herë më parë). Kontrolloje."* dhe ruan
+`autoOriginal` — gjendjen e formulës pikërisht ashtu siç u shfaq pas mësimit.
+Pa `autoOriginal`, korrigjimi i njeriut do të dukej si "asgjë nuk ndryshoi" dhe
+mësimi nuk do të mësonte kurrë nga veten. Paneli `learnPanelHTML()` shfaq
+modelet e përsëritura dhe një buton *"Fshi mësimin"* (`data-action="learn-clear"`).
+
+### 12.2 Lexim i dytë vetëm për qelizat e dyshimta
+
+`readingUncertainAreas()` mbledh zonat me `needsReview`, siguri < 0.8, ose të
+listuara në `reading.uncertain`. `autoSecondOpinion()` rikërkon vetëm grupet që
+kanë të paktën një zonë të tillë, dhe vetëm në rrugën e një kliku. `mergeSecondOpinion()`
+pranon një qelizë vetëm kur **të dy leximet përputhen plotësisht** (krahasim me
+`fold`, pa hapësira); atëherë vendos `confidence=0.99`, `needsReview=false` dhe
+`secondOpinion=true`, e heq nga lista e të paqartave dhe shton paralajmërimin
+*"N qeliza u verifikuan me lexim të dytë"*. Nëse leximet ndryshojnë, qeliza
+mbetet e dyshimtë — dy hamendje të ndryshme nuk janë provë.
+
+Dy kufizime të rëndësishme. Leximi i dytë kalon me `{noCache:true}`, sepse
+ndryshe `readCacheGet()` do të kthente të njëjtin lexim të parë të ruajtur dhe
+"leximi i dytë" do të ishte një mashtrim me veten. Dhe nëse kuota mbaron
+gjysmë rrugës (`e.quota`), cikli ndalon dhe leximi i parë mbetet ashtu siç
+është — pa e kthyer një sukses të pjesshëm në dështim.
+
+### 12.3 Përputhja horizontale brenda ditës
+
+Të njëjtët produkte, punonjës dhe paketime përsëriten në çdo formular të ditës.
+Nëse "Djathë" del "Djatht" në një rresht dhe "Djathë" në dymbëdhjetë të tjerë,
+e sakta dihet pa AI. `autoCandidateCounts()` numëron çdo vlerë (listat bazë +
+të gjitha vlerat e grupit që po ruhet) dhe `autoNormalizeNames()` ndërhyjnë në
+dy raste: përputhje e plotë me një emër të listës bazë ose me një vlerë që
+shfaqet të paktën dy herë (merret shkronja e saktë), dhe distancë Levenshtein e
+vogël me një kandidat të përsëritur (`autoCloseEnough`).
+
+Pragjet janë të qëllimshme: fjalë nën 5 shkronja nuk preken kurrë; deri 7
+shkronja lejohet vetëm një ndryshim; mbi 7, më së shumti dy. Fjala e vetme e
+vetes nuk është provë — prandaj përputhja e plotë kërkon `n>=2` ose ardhjen nga
+lista bazë. Pa këtë kusht, çdo vlerë "përputhej me veten" dhe asgjë nuk
+ndryshonte. Paralajmërimi shkon vetëm te formulari ku ndodhi ndryshimi
+(`it_notes_add`), jo te të gjithë grupi.
+
+### 12.4 Kontrolli i orëve
+
+Peshat kishin prej kohësh `KG − Ambalazhi = Shuma`. Orari nuk kishte asgjë
+ekuivalente, ndaj një "17:00" i lexuar "11:00" kalonte pa u vënë re. `hoursIssues()`
+kontrollon dy gjëra: për çdo punonjës `Mbarim − Fillim − Pushim = Orë` kundrejt
+orës së shtypur në formular, dhe shumën e orëve të punonjësve kundrejt
+`header.totalHours`. `hoursValue()` pranon `H:MM`, `H.MM`, `H,MM` dhe `H`, sepse
+formulari plotësohet me dorë dhe të tria format shfaqen. Toleranca është 0.01
+orë (36 sekonda), që rrumbullakimi i minutave të mos prodhojë alarm të rremë.
+
+Kontrolli është bllokues në `autoVerifyItem()`: një formular me orar të
+papërputhur nuk ruhet automatikisht, por hapet me listën e qelizave për sy
+njeriu. Kur formula e orës mungon (`hoursFor()` kthen `null`), kontrolli hesht
+— nuk shpik problem aty ku nuk ka çfarë të kontrollohet.
+
+### 12.5 Testet
+
+`tests/auto_learn.test.js` — 28 teste. Mësimi: fusha të palejuara,
+korrigjim pa ndryshim, numërimi i përsëritjeve, heshtja nën pragun dy,
+zbatimi me burim, mosndryshimi i vlerave të tjera, fushë që mungon, paneli dhe
+fshirja, dhe `batchBuildItems` që zbaton mësimin, paralajmëron dhe ruan
+`autoOriginal`. Përputhja: `editDistance`, pragjet e `autoCloseEnough`, shkronjat
+e listës bazë, gabimi i përsëritur, emri i vërtetë që nuk preket, punonjësi.
+Orët: format e shkruara, heshtja kur përputhet, ora e lexuar gabim, totali i
+ditës, formula që mungon, dhe bllokimi në `autoVerifyItem`. Leximi i dytë:
+zonat e dyshimta, pranimi vetëm i përputhjes së plotë, refuzimi i leximeve që
+ndryshojnë, moszbritja e besimit të qelizës së sigurt, heqja nga lista e të
+paqartave, dhe asnjë kërkesë kur nuk ka dyshime.
+
+`npm test` → 426 teste, zero dështime; `SHA256SUMS.txt` verifikohet pastër.
