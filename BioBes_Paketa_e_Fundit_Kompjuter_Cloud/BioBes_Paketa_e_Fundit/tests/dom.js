@@ -61,6 +61,7 @@ function loadApp(appOverride = null, customHook = null) {
   planReadingCalls, slicePdf, shiftPages, mergeReadingChunks, readFilesWithGemini,
   ocrHintsFromPageCounts, ocrHintsForFiles, geminiForParts, scannedPageWarning,
   readingRows, readingRiskRows, readingRiskHTML, readingReviewHTML,
+  batchEconomyGroups, batchEconomyOn, ECONOMY_PAGES,
   aiArea, aiAreaCode, readCacheKey, readCacheGet, readCacheSet, readCacheClear,
   wordForAI, fileKind, checkImportFiles, batchHTML, updateNav, render,
   state, db, cloud, batchState, importState,

@@ -1414,3 +1414,26 @@ e përmend më butonin e pabërë.
 
 **Testet.** `npm test` → 375 teste, zero dështime; `tests/ocr_prepass_test.py` → 14
 OK; `SHA256SUMS.txt` verifikohet pastër.
+
+### 10.4 "Kursim kuote": dy formularë në një kërkesë (18 nëntor 2026)
+
+Kuota e Free Tier shpenzohej një kërkesë për formular: 7 formularë = 7 kërkesa, dhe
+pas 3–4 kërkesave grupet mbeteshin "Nuk u lexua". Rruga e vetme e ofruar ishte
+*"Plotëso me dorë"*, që nuk lexon asgjë — prandaj "falas" dukej kot.
+
+`batchEconomyGroups` bashkon **feta vazhduese të të njëjtit PDF** deri në 4 faqe
+(dy formularë) për kërkesë, ndaj 7 formularë bëhen 4 kërkesa — kuota përgjysmohet.
+Kutia *"Kursim kuote"* është e shënuar si parazgjedhje dhe mund të hiqet për një
+kërkesë për formular (më e saktë, më shumë kuotë). Nuk bashkohen: grupet e
+pavaruara (PDF të ndryshëm), fetat jo vazhduese, grupet e lexuara, Excel-i, fotot
+dhe grupet me origjinale private. 4 faqe është brenda kufirit që aplikacioni
+pranonte edhe më parë për një PDF të vetëm, ndaj saktësia nuk bie.
+
+Butoni i rrugës manuale u quajt *"Plotëso me dorë (pa Gemini)"* dhe paralajmërimi
+thotë qartë *"Kjo rrugë NUK lexon vlera"*, me pikë referimi te "Kursim kuote" nëse
+problemi është kuota. Edhe mesazhi i 429-sës të çon te e njëjta zgjidhje.
+
+Testet: `tests/quota_economy.test.js` — 6 teste (7 formularë → 4 kërkesa, pa
+bashkim mes PDF-ve të ndryshëm, pa bashkim kur mungon faqja, grupi i lexuar i
+paprekur, Excel/foto të paprekura, origjinalet private të paprekura). `npm test` →
+381 teste, zero dështime.
