@@ -1562,8 +1562,14 @@ function batchGroupsHTML(){
  if(!batchState.groups.length)return '<div class="batch-empty">Asnjë skedar i zgjedhur.</div>';
  return batchState.groups.map((g,i)=>{const names=g.files.map((f,j)=>`<span>${g.files.length>1?`${j+1}. `:''}${esc(f.name)}</span>`).join('');const imageOnly=g.files.every(f=>fileKind(f).startsWith('image/'));const originalNames=(g.privateFiles||g.originalFiles||g.files).map(f=>esc(f.name)).join(' · ');const next=batchState.groups[i+1],join=next&&g.files.length===1&&next.files.length===1&&imageOnly&&fileKind(next.files[0]).startsWith('image/')&&g.status!=='ready'&&next.status!=='ready'&&!g.privateFiles&&!next.privateFiles;const lock=batchState.busy?'disabled':'';return `<div class="batch-group"><div><strong>Grupi ${i+1}</strong> <span class="batch-state ${g.status==='ready'?'good':g.status==='error'?'bad':''}">${esc(batchGroupStatus(g))}</span><div class="batch-file-names">${names}</div>${g.note?`<div class="small-note">${esc(g.note)}</div>`:''}<div class="small-note batch-private-names"><strong>Origjinale për ruajtje private:</strong> ${originalNames}</div><label class="batch-private-picker btn btn-small" for="batch-original-${esc(g.id)}">Zgjidh origjinale private</label><input class="sr-only" type="file" id="batch-original-${esc(g.id)}" data-batch-original="${esc(g.id)}" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx" ${lock}>${g.privateFiles?`<button type="button" class="btn btn-small" data-action="batch-original-reset" data-id="${esc(g.id)}" ${lock}>Përdor dokumentet e ngarkuara</button>`:''}<div class="small-note">${g.privateFiles?'Origjinalet e zgjedhura veçmas nuk dërgohen te Gemini.':'Si parazgjedhje ruhen dokumentet e ngarkuara, të cilat mund të dërgohen te Gemini.'}</div>${g.error?`<p class="batch-error-inline">${esc(g.error)}</p>`:''}</div><div class="batch-group-actions"><button type="button" class="btn btn-small" data-action="batch-up" data-index="${i}" ${i===0?'disabled':lock} aria-label="Lëviz grupin ${i+1} lart">↑</button><button type="button" class="btn btn-small" data-action="batch-down" data-index="${i}" ${i===batchState.groups.length-1?'disabled':lock} aria-label="Lëviz grupin ${i+1} poshtë">↓</button>${g.files.length===2&&imageOnly&&g.status!=='ready'&&!g.privateFiles?`<button type="button" class="btn btn-small" data-action="batch-swap" data-index="${i}" ${lock}>Ndërro faqet</button><button type="button" class="btn btn-small" data-action="batch-split" data-index="${i}" ${lock}>Ndaji</button>`:''}${join?`<button type="button" class="btn btn-small" data-action="batch-join" data-index="${i}" ${lock}>Bashko me tjetrin</button>`:''}<button type="button" class="btn btn-small" data-action="batch-remove" data-index="${i}" ${lock}>Hiq</button></div></div>`}).join('')
 }
- function batchHTML(){
- return `<div class="page-head"><div><div class="eyebrow">Regjistrim me 2 hapa</div><h1 class="page-title">1. Ngarko formularët</h1><p class="page-sub">Foto, PDF, Excel ose Word. Një formular ose deri në 10 bashkë.</p></div></div><div class="batch-steps"><span class="active">1 &nbsp; Ngarko dhe lexo</span><span>2 &nbsp; Kontrollo dhe ruaj</span></div><div class="import-grid batch-layout"><div class="card"><div class="card-head"><div><h2>Dokumentet</h2><p>Zgjidh skedarët, shtyp “Lexo formularët”, pastaj kontrollo dhe ruaj.</p></div></div><div class="card-body"><label class="upload-zone" for="batch-files">${icon('upload',21)}<strong>Zgjidh foto, PDF, Excel ose Word</strong><span>Deri në 10 formularë · 12 MB për skedar</span></label><input class="sr-only" type="file" id="batch-files" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><details class="batch-advanced"><summary>Si grupohen faqet (foto dhe PDF me disa faqe)</summary><p class="small-note">PDF-të me më shumë se 2 faqe ndahen automatikisht në çifte PARA/PAS. Çdo çift kontrollohet si formular më vete dhe ruan numrat realë të faqeve.</p><div class="field"><label for="batch-photo-mode">Kur zgjedh disa foto</label><select id="batch-photo-mode" class="input"><option value="pairs">Dy foto radhazi = një formular</option><option value="single">Çdo foto = një formular</option></select></div><div class="field"><label for="batch-pdf-mode">Nëse një PDF ka disa formularë</label><select id="batch-pdf-mode" class="input"><option value="pairs" selected>Ndaje: çdo 2 faqe = një formular</option><option value="whole">Çdo PDF = një formular</option><option value="pages">Ndaje: çdo faqe = një formular</option></select><span class="small-note">Për skanime si “7 formularë / 14 faqe”, përdor çiftet PARA/PAS.</span></div><label class="import-consent"><input id="batch-economy" type="checkbox" checked> <span>Kursim kuote: dy formularë (4 faqe) në një kërkesë me Gemini. Përgjysmon kërkesat, që kuota e pakët e Free Tier të mjaftojë për gjithë skanimin. Hiqe shenjën për një kërkesë për formular (më e saktë, më shumë kuotë).</span></label></details><div class="batch-list-head"><strong>Grupet e dokumenteve</strong><span>Kontrollo që faqet e secilit formular të jenë bashkë.</span></div><div id="batch-groups" aria-live="polite">${batchGroupsHTML()}</div><div class="head-actions batch-start-actions"><button type="button" class="btn btn-primary" data-action="batch-read">${icon('search',15)} Lexo formularët</button>${batchPendingCount()&&batchState.groups.some(g=>g.status==='ready')?`<button type="button" class="btn btn-soft" data-action="batch-read-pending">${icon('search',15)} Lexo vetëm ${batchPendingCount()} grupet e mbetura</button>`:''}<button type="button" class="btn" data-action="batch-cancel" hidden>Anulo leximin</button><button type="button" class="btn btn-soft" data-action="batch-manual" title="Pa Gemini, pa kuotë — por nuk lexon vlera: krijon formularët bosh, me numrin e datën e gjetura në emrin e skedarit">${icon('edit',15)} Plotëso me dorë (pa Gemini)</button><button type="button" class="btn" data-action="template-download" title="Shabllon Excel me formula: plotësohet vetë">${icon('download',15)} Shkarko shabllonin Excel</button><button type="button" class="btn" data-action="batch-review-ready" hidden>Kontrollo të lexuarit</button><button type="button" class="btn btn-quiet" data-action="batch-reset" ${batchState.groups.length?'':'hidden'}>Fillo nga e para</button><button type="button" class="btn btn-small" data-action="batch-raw" ${batchState.groups.some(g=>g.raw)?'':'hidden'}>Shkarko leximin JSON</button></div><div id="batch-error" class="import-error" role="alert" ${batchState.error?'':'hidden'}>${esc(batchState.error)}</div><div id="batch-progress" class="read-progress" role="status" aria-live="polite" hidden><span class="read-spinner" aria-hidden="true"></span><div><strong>Po përpunohen formularët</strong><span id="batch-progress-text"></span><small id="batch-elapsed" aria-hidden="true"></small></div></div></div></div><div class="card"><div class="card-head"><div><h2>Leximi me Gemini</h2><p>Për foto, PDF, Word dhe Excel-e të tjera. Çdo formular lexohet më vete; mund të zgjasë disa minuta.</p></div></div><div class="card-body"><div class="notice import-privacy">${icon('info',16)}<span>Excel-i i modelit të BioBes lexohet në këtë pajisje pa Gemini. Dokumentet ruhen privatisht në cloud vetëm kur konfirmon ruajtjen.</span></div><p class="small-note batch-key-field">Çelësi Gemini konfigurohet privatisht vetëm në server. Çdo grup ka mundësi të zgjedhë origjinalet për ruajtje private, veçmas nga kopjet që lexon AI.</p><label class="import-consent"><input id="batch-anonymous" type="checkbox"> <span>Konfirmoj se dokumentet që do të dërgohen nuk përmbajnë emra, firma, të dhëna personale ose konfidenciale, dhe se projekti i çelësit Gemini në server është Free Tier pa faturim të lidhur.</span></label><details class="batch-advanced"><summary>Privatësia dhe kostot – lexo një herë</summary><p class="small-note">Dokumentet nuk anonimizohen automatikisht: hiqi të dhënat, mos i mbulo vetëm në pamje, dhe kontrollo metadatat. Emrat e skedarëve zëvendësohen, por përmbajtja dhe metadatat mund të dërgohen. Google mund të përdorë dhe të shqyrtojë leximet falas. Aplikacioni nuk verifikon planin; projektet me faturim mund të kenë kosto. Në EEA, Zvicër dhe MB Google kërkon shërbime me pagesë kur aplikacionet API u ofrohen përdoruesve atje. <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">Kushtet e Google ↗</a></p></details><label class="import-consent"><input id="batch-catalog" type="checkbox"> <span>Pranoj shprehimisht dërgimin te Gemini të emrave në listat bazë më poshtë, vetëm nëse janë të anonimizuar dhe jokonfidencialë.</span></label><p class="small-note">Opsionale: listat bazë të përgjegjëseve, punonjësve, produkteve, paketimit, statuseve, njësive dhe burimeve. Mos e zgjidh nëse përmbajnë emra realë ose të dhëna konfidenciale.</p><label class="import-consent"><input id="batch-device-notice" type="checkbox" ${importState.notify?'checked':''}> <span>Më njofto kur të përfundojë leximi.</span></label></div></div></div>`
+ function autoPanelHTML(){
+ const s=autoSettings(),last=autoLastBatch();
+ const state=s.consent?`Pëlqimi u ruajt${s.responsible?` · përgjegjësja: ${esc(s.responsible)}`:' · përgjegjësja merret nga formulari'}`:'Kërkohet pëlqim një herë';
+ const undo=last.ids.length?`<button type="button" class="btn btn-small" data-action="auto-undo">Zhbëj ruajtjen e fundit (${last.ids.length})</button>`:'';
+ return `<div class="oneclick" id="oneclick"><div class="oneclick-head"><strong>Një klik</strong><span class="oneclick-state">${esc(state)}</span></div><p>Lexon, plotëson dhe ruan vetë: pa konfirmim në mes. Ruhen vetëm formularët ku çdo qelizë u lexua me siguri dhe shumat përputhen; të tjerët hapen me listën e saktë të qelizave që duhen parë.</p><div class="oneclick-actions"><button type="button" class="btn btn-primary" data-action="auto-run">${icon('check',15)} Një klik: lexo dhe ruaj</button>${undo}</div></div>`;
+}
+function batchHTML(){
+ return `<div class="page-head"><div><div class="eyebrow">Regjistrim me 2 hapa</div><h1 class="page-title">1. Ngarko formularët</h1><p class="page-sub">Foto, PDF, Excel ose Word. Një formular ose deri në 10 bashkë.</p></div></div><div class="batch-steps"><span class="active">1 &nbsp; Ngarko dhe lexo</span><span>2 &nbsp; Kontrollo dhe ruaj</span></div>${autoPanelHTML()}<div class="import-grid batch-layout"><div class="card"><div class="card-head"><div><h2>Dokumentet</h2><p>Zgjidh skedarët, shtyp “Lexo formularët”, pastaj kontrollo dhe ruaj.</p></div></div><div class="card-body"><label class="upload-zone" for="batch-files">${icon('upload',21)}<strong>Zgjidh foto, PDF, Excel ose Word</strong><span>Deri në 10 formularë · 12 MB për skedar</span></label><input class="sr-only" type="file" id="batch-files" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><details class="batch-advanced"><summary>Si grupohen faqet (foto dhe PDF me disa faqe)</summary><p class="small-note">PDF-të me më shumë se 2 faqe ndahen automatikisht në çifte PARA/PAS. Çdo çift kontrollohet si formular më vete dhe ruan numrat realë të faqeve.</p><div class="field"><label for="batch-photo-mode">Kur zgjedh disa foto</label><select id="batch-photo-mode" class="input"><option value="pairs">Dy foto radhazi = një formular</option><option value="single">Çdo foto = një formular</option></select></div><div class="field"><label for="batch-pdf-mode">Nëse një PDF ka disa formularë</label><select id="batch-pdf-mode" class="input"><option value="pairs" selected>Ndaje: çdo 2 faqe = një formular</option><option value="whole">Çdo PDF = një formular</option><option value="pages">Ndaje: çdo faqe = një formular</option></select><span class="small-note">Për skanime si “7 formularë / 14 faqe”, përdor çiftet PARA/PAS.</span></div><label class="import-consent"><input id="batch-economy" type="checkbox" checked> <span>Kursim kuote: dy formularë (4 faqe) në një kërkesë me Gemini. Përgjysmon kërkesat, që kuota e pakët e Free Tier të mjaftojë për gjithë skanimin. Hiqe shenjën për një kërkesë për formular (më e saktë, më shumë kuotë).</span></label></details><div class="batch-list-head"><strong>Grupet e dokumenteve</strong><span>Kontrollo që faqet e secilit formular të jenë bashkë.</span></div><div id="batch-groups" aria-live="polite">${batchGroupsHTML()}</div><div class="head-actions batch-start-actions"><button type="button" class="btn btn-primary" data-action="batch-read">${icon('search',15)} Lexo formularët</button>${batchPendingCount()&&batchState.groups.some(g=>g.status==='ready')?`<button type="button" class="btn btn-soft" data-action="batch-read-pending">${icon('search',15)} Lexo vetëm ${batchPendingCount()} grupet e mbetura</button>`:''}<button type="button" class="btn" data-action="batch-cancel" hidden>Anulo leximin</button><button type="button" class="btn btn-soft" data-action="batch-manual" title="Pa Gemini, pa kuotë — por nuk lexon vlera: krijon formularët bosh, me numrin e datën e gjetura në emrin e skedarit">${icon('edit',15)} Plotëso me dorë (pa Gemini)</button><button type="button" class="btn" data-action="template-download" title="Shabllon Excel me formula: plotësohet vetë">${icon('download',15)} Shkarko shabllonin Excel</button><button type="button" class="btn" data-action="batch-review-ready" hidden>Kontrollo të lexuarit</button><button type="button" class="btn btn-quiet" data-action="batch-reset" ${batchState.groups.length?'':'hidden'}>Fillo nga e para</button><button type="button" class="btn btn-small" data-action="batch-raw" ${batchState.groups.some(g=>g.raw)?'':'hidden'}>Shkarko leximin JSON</button></div><div id="batch-error" class="import-error" role="alert" ${batchState.error?'':'hidden'}>${esc(batchState.error)}</div><div id="batch-progress" class="read-progress" role="status" aria-live="polite" hidden><span class="read-spinner" aria-hidden="true"></span><div><strong>Po përpunohen formularët</strong><span id="batch-progress-text"></span><small id="batch-elapsed" aria-hidden="true"></small></div></div></div></div><div class="card"><div class="card-head"><div><h2>Leximi me Gemini</h2><p>Për foto, PDF, Word dhe Excel-e të tjera. Çdo formular lexohet më vete; mund të zgjasë disa minuta.</p></div></div><div class="card-body"><div class="notice import-privacy">${icon('info',16)}<span>Excel-i i modelit të BioBes lexohet në këtë pajisje pa Gemini. Dokumentet ruhen privatisht në cloud vetëm kur konfirmon ruajtjen.</span></div><p class="small-note batch-key-field">Çelësi Gemini konfigurohet privatisht vetëm në server. Çdo grup ka mundësi të zgjedhë origjinalet për ruajtje private, veçmas nga kopjet që lexon AI.</p><label class="import-consent"><input id="batch-anonymous" type="checkbox"> <span>Konfirmoj se dokumentet që do të dërgohen nuk përmbajnë emra, firma, të dhëna personale ose konfidenciale, dhe se projekti i çelësit Gemini në server është Free Tier pa faturim të lidhur.</span></label><details class="batch-advanced"><summary>Privatësia dhe kostot – lexo një herë</summary><p class="small-note">Dokumentet nuk anonimizohen automatikisht: hiqi të dhënat, mos i mbulo vetëm në pamje, dhe kontrollo metadatat. Emrat e skedarëve zëvendësohen, por përmbajtja dhe metadatat mund të dërgohen. Google mund të përdorë dhe të shqyrtojë leximet falas. Aplikacioni nuk verifikon planin; projektet me faturim mund të kenë kosto. Në EEA, Zvicër dhe MB Google kërkon shërbime me pagesë kur aplikacionet API u ofrohen përdoruesve atje. <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">Kushtet e Google ↗</a></p></details><label class="import-consent"><input id="batch-catalog" type="checkbox"> <span>Pranoj shprehimisht dërgimin te Gemini të emrave në listat bazë më poshtë, vetëm nëse janë të anonimizuar dhe jokonfidencialë.</span></label><p class="small-note">Opsionale: listat bazë të përgjegjëseve, punonjësve, produkteve, paketimit, statuseve, njësive dhe burimeve. Mos e zgjidh nëse përmbajnë emra realë ose të dhëna konfidenciale.</p><label class="import-consent"><input id="batch-device-notice" type="checkbox" ${importState.notify?'checked':''}> <span>Më njofto kur të përfundojë leximi.</span></label></div></div></div>`
  }
 function batchError(message){batchState.error=str(message,700);const el=document.getElementById('batch-error');if(el){el.textContent=batchState.error;el.hidden=!batchState.error}}
 function batchPaint(){const el=document.getElementById('batch-groups');if(el)el.innerHTML=batchGroupsHTML();const reset=view.querySelector('[data-action="batch-reset"]'),raw=view.querySelector('[data-action="batch-raw"]'),ready=view.querySelector('[data-action="batch-review-ready"]');if(reset)reset.hidden=!batchState.groups.length;if(raw)raw.hidden=!batchState.groups.some(g=>g.raw);if(ready)ready.hidden=!(batchState.groups.some(g=>g.status==='ready')&&batchState.groups.some(g=>g.status!=='ready'))}
@@ -1692,7 +1698,7 @@ function batchEconomyGroups(groups){
  return out;
 }
 function batchEconomyOn(){return !!document.getElementById('batch-economy')?.checked}
-async function batchRead(){
+async function batchRead(options={}){
  if(batchState.busy)return;batchError('');if(!batchState.groups.length){batchError('Zgjidh të paktën një dokument.');return}
  // Bashkimi bëhet para kontrollit të kufirit: 7 formularë bëhen 4 kërkesa.
  if(batchEconomyOn()){const merged=batchEconomyGroups(batchState.groups);if(merged.length!==batchState.groups.length){batchState.groups=merged;batchPaint()}}
@@ -1756,7 +1762,7 @@ async function batchRead(){
     }
    }
   }
-  if(run!==batchState.run)return;batchBeginReview();announceReading(true)
+  if(run!==batchState.run)return;if(options.auto)await batchAutoFinish();else batchBeginReview();announceReading(true)
  }catch(e){if(run!==batchState.run)return;if(e?.name==='AbortError')batchError(batchState.cancelled?'Leximi u anulua. Rezultatet e përfunduara ruhen për këtë sesion.':'Leximi kaloi kohën. Rezultatet e përfunduara ruhen për këtë sesion.');
    else if(e?.timeout)batchError(str(e.message,400));
  }finally{if(run===batchState.run){batchState.abort=null;batchSetBusy(false)}}
@@ -1767,9 +1773,30 @@ function batchAssignNumbers(items){
 }
 // Sa grupe mbeten pa u lexuar (për mesazhin e ndalesës dhe riprovimin).
 function batchPendingCount(){return batchState.groups.filter(g=>g.status!=='ready').length}
+// Artikujt e kontrollit ndërtohen një herë dhe përdoren nga të dyja rrugët:
+// kontrolli me dorë (batchBeginReview) dhe një kliku (batchAutoFinish).
+function batchBuildItems(groups){
+ const items=[];
+ for(const g of groups){
+  if(g.status!=='ready'||!g.results?.length)return {error:'Jo të gjitha grupet janë lexuar.'};
+  for(const result of g.results){
+   const record=normalizeRecord(result.record),warnings=[...new Set(result.warnings||[])];
+   if(record.attachments?.length)warnings.push('Lidhjet e vjetra të dokumenteve nuk importohen; do të ruhen origjinalet e zgjedhura këtu.');
+   record.attachments=[];record.id=uid();
+   const sources=g.files.map(f=>({name:f.name,url:URL.createObjectURL(f)}));
+   const originals=(g.privateFiles||g.originalFiles||g.files).map(f=>({name:f.name,file:f,uploaded:null,pendingPath:''}));
+   items.push({record,warnings,missingNumber:!!result.missingNumber,reading:result.reading||null,formNumber:result.formNumber||null,formCount:result.formCount||null,sources,originals,confirmedDigest:''});
+  }
+ }
+ return {items};
+}
+function batchTooMany(items){for(const it of items)for(const x of it.sources)URL.revokeObjectURL(x.url);batchError('Rezultati përmban më shumë se 10 formularë. Ndaji në grupe më të vogla.');return true}
 function batchBeginReview(){
- const items=[];for(const g of batchState.groups){if(g.status!=='ready'||!g.results?.length){batchError('Jo të gjitha grupet janë lexuar.');return}for(const result of g.results){const record=normalizeRecord(result.record),warnings=[...new Set(result.warnings||[])];if(record.attachments?.length)warnings.push('Lidhjet e vjetra të dokumenteve nuk importohen; do të ruhen origjinalet e zgjedhura këtu.');record.attachments=[];record.id=uid();const sources=g.files.map(f=>({name:f.name,url:URL.createObjectURL(f)}));const originals=(g.privateFiles||g.originalFiles||g.files).map(f=>({name:f.name,file:f,uploaded:null,pendingPath:''}));items.push({record,warnings,missingNumber:!!result.missingNumber,reading:result.reading||null,formNumber:result.formNumber||null,formCount:result.formCount||null,sources,originals,confirmedDigest:''})}}
- if(items.length>BATCH_MAX){for(const it of items)for(const x of it.sources)URL.revokeObjectURL(x.url);batchError('Rezultati përmban më shumë se 10 formularë. Ndaji në grupe më të vogla.');return}batchAssignNumbers(items);batchState.items=items;batchState.phase='review';batchOpen(0)
+ const built=batchBuildItems(batchState.groups);
+ if(built.error){batchError(built.error);return}
+ const items=built.items;
+ if(items.length>BATCH_MAX){batchTooMany(items);return}
+ batchAssignNumbers(items);batchState.items=items;batchState.phase='review';batchOpen(0)
 }
 // ---------------------------------------------------------------------------
 // “Kontrollo vetëm të lexuarit”, pa Gemini.
@@ -1986,12 +2013,174 @@ function batchRestore(parsed){
 }
 async function batchRemoveReview(){if(!batchIsReview())return;if(!await modal({title:'Hiq këtë formular nga grupi?',body:'Formulari hiqet nga lista e kontrollit. Regjistrimet e ruajtura nuk preken.',confirm:'Hiq',danger:true}))return;await batchCleanupCloud(db,[batchState.items[batchState.index]]);batchState.items.splice(batchState.index,1);if(!batchState.items.length){batchReset();state.route='batch';state.draft=null;state.dirty=false;render();return}batchOpen(Math.min(batchState.index,batchState.items.length-1))}
 async function batchReloadLatest(){await cloudKeepBatchAndRefresh()}
+// Ruajtja e përbashkët: verifikon, ngarkon origjinalet dhe shkruan në cloud.
+// Përdoret nga "Ruaj të gjitha" dhe nga një kliku, që të dyja rrugët të mos
+// ndryshojnë nga njëra-tjetra në asnjë kontroll.
+async function batchPersist(items){
+ const used=new Set();
+ for(let i=0;i<items.length;i++){
+  const r=items[i].record;
+  if(!str(r.responsible?.name).trim())return {error:'responsible',index:i};
+  if(db.records.some(x=>x.id===r.id))return {error:'exists',index:i};
+  const number=Number(r.nr);if(used.has(number))return {error:'duplicate',index:i};used.add(number);
+  resolveExactSources(r);const err=validateRecord(r);if(err)return {error:'invalid',index:i,detail:err};
+ }
+ cloudBusy(true,'Po ruhen formularët dhe dokumentet private në cloud…');
+ try{
+  const next=clone(db),ids=[];
+  for(const it of items){const r=clone(it.record);r.nr=String(Number(r.nr)).padStart(3,'0');r.attachments=[];for(const source of it.originals)r.attachments.push(await cloudUploadSource(source,r.id));ids.push(r.id);next.records.push(r);next.nextNr=Math.max(next.nextNr,Number(r.nr)+1)}
+  if(!await commit(next,{locked:true,kind:'batch-create',ids}))return {error:'commit'};
+  return {ids};
+ }catch(e){return {error:'thrown',message:str(e?.message||'Formularët nuk u ruajtën. Provo përsëri.',400)}}
+ finally{cloudBusy(false)}
+}
+function batchPersistMessage(res){
+ if(res.error==='responsible')return 'Zgjidh përgjegjësen për çdo formular.';
+ if(res.error==='exists')return 'Ky formular mund të jetë ruajtur tashmë. Kontrollo regjistrimet; nuk u ruajt përsëri.';
+ if(res.error==='duplicate')return 'Dy formularë kanë të njëjtin numër. Ndrysho njërin.';
+ if(res.error==='invalid')return res.detail?.message||'Formulari nuk është i plotë.';
+ if(res.error==='thrown')return res.message;
+ return 'Formularët nuk u ruajtën. Provo përsëri.';
+}
 async function batchSave(){
- if(!batchIsReview()||cloud.busy||cloud.uncertain||cloud.conflict)return;const items=batchState.items,unconfirmed=items.findIndex(it=>!batchReviewed(it));if(unconfirmed>=0){batchOpen(unconfirmed);toast('Kontrollo dhe konfirmo çdo formular përpara ruajtjes.','error');return}
- const used=new Set();for(let i=0;i<items.length;i++){const r=items[i].record;if(!str(r.responsible?.name).trim()){batchOpen(i);showValidation({tab:'details',path:'responsible.name',message:'Zgjidh përgjegjësen për çdo formular.'});return}if(db.records.some(x=>x.id===r.id)){batchOpen(i);toast('Ky formular mund të jetë ruajtur tashmë. Kontrollo regjistrimet; nuk u ruajt përsëri.','error');return}const number=Number(r.nr);if(used.has(number)){batchOpen(i);showValidation({tab:'details',path:'nr',message:'Dy formularë kanë të njëjtin numër. Ndrysho njërin.'});return}used.add(number);resolveExactSources(r);const err=validateRecord(r);if(err){batchOpen(i);showValidation(err);return}}
- cloudBusy(true,'Po ruhen formularët dhe dokumentet private në cloud…');try{const next=clone(db),ids=[];for(const it of items){const r=clone(it.record);r.nr=String(Number(r.nr)).padStart(3,'0');r.attachments=[];for(const source of it.originals)r.attachments.push(await cloudUploadSource(source,r.id));ids.push(r.id);next.records.push(r);next.nextNr=Math.max(next.nextNr,Number(r.nr)+1)}if(!await commit(next,{locked:true,kind:'batch-create',ids}))return;const count=items.length;await batchResetCloud(db);state.route='records';state.draft=null;state.editorBase=null;state.dirty=false;render();toast(`U ruajtën ${count} formularë në cloud.`)}catch(e){toast(str(e?.message||'Formularët nuk u ruajtën. Provo përsëri.',400),'error')}finally{cloudBusy(false)}
+ if(!batchIsReview()||cloud.busy||cloud.uncertain||cloud.conflict)return;
+ const items=batchState.items,unconfirmed=items.findIndex(it=>!batchReviewed(it));
+ if(unconfirmed>=0){batchOpen(unconfirmed);toast('Kontrollo dhe konfirmo çdo formular përpara ruajtjes.','error');return}
+ const res=await batchPersist(items);
+ if(res.error){batchOpen(Number.isInteger(res.index)?res.index:0);if(res.error==='invalid'&&res.detail)showValidation(res.detail);else toast(batchPersistMessage(res),'error');return}
+ const count=items.length;
+ await batchResetCloud(db);state.route='records';state.draft=null;state.editorBase=null;state.dirty=false;render();toast(`U ruajtën ${count} formularë në cloud.`)
 }
 
+// ---------------------------------------------------------------------------
+// Një klik: lexo → plotëso → ngarko → ruaj.
+//
+// Përdoruesi zgjedh skedarët dhe shtyp një buton; në mes nuk ka asnjë
+// konfirmim. Kjo është e sigurt vetëm sepse ruajtja kalon një portë verifikimi
+// deterministike: qelizat e dyshimta të AI-së, aritmetika KG − Ambalazhi =
+// Shuma, data, numri i formularit dhe përgjegjësja. Formulari që kalon ruhet
+// vetë; formulari që nuk kalon nuk ruhet kurrë në heshtje — hapet me listën e
+// saktë të qelizave që duhen parë. Kështu "pa ndërhyrje" nuk bëhet "pa kontroll".
+const AUTO_KEY='biobes.auto.v1',AUTO_LAST_KEY='biobes.auto.last';
+function autoSettings(){
+ try{const raw=JSON.parse(localStorage.getItem(AUTO_KEY)||'{}');return {consent:!!raw.consent,responsible:str(raw.responsible,120),at:str(raw.at,40)}}
+ catch(e){return {consent:false,responsible:'',at:''}}
+}
+function autoSaveSettings(patch){
+ const next={...autoSettings(),...patch,at:new Date().toISOString()};
+ try{localStorage.setItem(AUTO_KEY,JSON.stringify(next))}catch(e){}
+ return next
+}
+function autoLastBatch(){
+ try{const raw=JSON.parse(localStorage.getItem(AUTO_LAST_KEY)||'{}');return {ids:Array.isArray(raw.ids)?raw.ids.filter(x=>typeof x==='string'):[],at:str(raw.at,40),signature:str(raw.signature,600),count:Number(raw.count)||0}}
+ catch(e){return {ids:[],at:'',signature:'',count:0}}
+}
+function autoClearLast(){try{localStorage.removeItem(AUTO_LAST_KEY)}catch(e){}}
+// Signatura e skedarëve: e njëjta zgjedhje nuk ruhet dy herë pa u pyetur.
+function autoSignature(files){return (files||[]).map(f=>`${f.name}|${f.size}|${f.lastModified||0}`).join(';')}
+function autoRememberSaved(items,ids){
+ const files=items.flatMap(it=>it.originals.map(x=>x.file)).filter(Boolean);
+ try{localStorage.setItem(AUTO_LAST_KEY,JSON.stringify({ids:ids||[],at:new Date().toISOString(),signature:autoSignature(files),count:(ids||[]).length}))}catch(e){}
+}
+function autoDefaultResponsible(){
+ const settings=autoSettings();
+ if(settings.responsible)return settings.responsible;
+ const list=db.catalog.responsibles||[];
+ return list.length===1?list[0]:'';
+}
+// Porta e besimit. Sa më e rreptë, aq më e sigurt ruajtja automatike.
+function autoVerifyItem(item){
+ const blockers=[],r=item?.record||{};
+ if(item?.missingNumber)blockers.push('Numri i formularit nuk u lexua.');
+ if(!dateValid(str(r.date)))blockers.push('Data nuk u lexua.');
+ const risk=readingRiskRows(item);
+ if(risk.length){const names=risk.slice(0,3).map(x=>x.label).filter(Boolean).join(', ');blockers.push(`${risk.length} qeliza të dyshimta${names?': '+names:''}.`)}
+ for(let i=0;i<(r.weighings||[]).length;i++){
+  const g=r.weighings[i];
+  for(const w of weighCheckIssues(g.rows,g.printedTotal,`Peshimi ${i+1}`))blockers.push(w);
+ }
+ const hasPlan=(r.plan||[]).some(p=>nonempty(p.product)||nonempty(p.actual)||nonempty(p.planned));
+ const hasWeigh=(r.weighings||[]).some(g=>(g.rows||[]).some(row=>['bags','kg','packaging','sum'].some(k=>nonempty(row[k])))||Object.values(g.printedTotal||{}).some(nonempty));
+ const hasStaff=(r.employees||[]).some(e=>nonempty(e.name));
+ if(!hasPlan&&!hasWeigh&&!hasStaff)blockers.push('Formulari u lexua bosh.');
+ if(!str(r.responsible?.name).trim())blockers.push('Përgjegjësja nuk u lexua.');
+ const err=validateRecord(r);if(err&&!blockers.includes(err.message))blockers.push(err.message);
+ return {ok:blockers.length===0,blockers,risk:risk.length};
+}
+function autoConsentDialog(){
+ return new Promise(resolve=>{
+  const root=document.getElementById('dialog-root');
+  const options=(db.catalog.responsibles||[]).map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+  root.innerHTML=`<div class="modal-layer" role="presentation"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="auto-consent-title"><h2 id="auto-consent-title">Një klik: çfarë pranon</h2><p>Dokumentet dërgohen te Gemini për lexim. Aplikacioni ruan vetëm formularët ku çdo qelizë u lexua me siguri dhe shumat përputhen; të tjerët hapen për kontroll dhe nuk ruhen pa ty.</p><label class="import-consent"><input type="checkbox" id="auto-consent-ok"> <span>Konfirmoj se dokumentet që do të dërgohen nuk përmbajnë të dhëna që nuk lejohet të dërgohen, dhe se projekti Gemini është Free Tier pa faturim.</span></label><div class="field"><label for="auto-consent-responsible">Përgjegjësja e parazgjedhur (plotësohet kur nuk lexohet)</label><select id="auto-consent-responsible" class="input"><option value="">— zgjidh çdo herë —</option>${options}</select></div><div class="modal-actions"><button type="button" class="btn" data-modal="cancel">Anulo</button><button type="button" class="btn btn-primary" data-modal="confirm" disabled>Prano dhe vazhdo</button></div></div></div>`;
+  const ok=root.querySelector('#auto-consent-ok'),confirm=root.querySelector('[data-modal="confirm"]'),resp=root.querySelector('#auto-consent-responsible');
+  const done=v=>{root.innerHTML='';document.removeEventListener('keydown',onkey);resolve(v)};
+  const onkey=e=>{if(e.key==='Escape')done(false)};
+  ok.onchange=()=>{confirm.disabled=!ok.checked};
+  root.querySelector('[data-modal="cancel"]').onclick=()=>done(false);
+  confirm.onclick=()=>{if(!ok.checked)return;autoSaveSettings({consent:true,responsible:resp.value});done(true)};
+  root.querySelector('.modal-layer').onclick=e=>{if(e.target.classList.contains('modal-layer'))done(false)};
+  document.addEventListener('keydown',onkey);ok.focus();
+ });
+}
+async function autoRun(){
+ if(batchState.busy)return;
+ batchError('');
+ if(!batchState.groups.length){batchError('Zgjidh të paktën një dokument.');return}
+ if(!autoSettings().consent){if(!await autoConsentDialog())return}
+ const anon=document.getElementById('batch-anonymous');if(anon)anon.checked=true;
+ const signature=autoSignature(batchState.groups.flatMap(g=>g.files));
+ const last=autoLastBatch();
+ if(last.ids.length&&last.signature&&last.signature===signature){
+  const when=last.at?new Date(last.at).toLocaleString('sq-AL'):'më parë';
+  const again=await modal({title:'Ky dokument u ruajt tashmë',body:`Të njëjtët skedarë u ruajtën automatikisht më ${when} (${last.count} formularë). Nëse vazhdon, krijohen regjistrime të dyfishta.`,confirm:'Ruaj përsëri',danger:true});
+  if(!again)return;
+ }
+ await batchRead({auto:true});
+}
+async function batchAutoFinish(){
+ const built=batchBuildItems(batchState.groups);
+ if(built.error){batchError(built.error);return}
+ const items=built.items;
+ if(items.length>BATCH_MAX){batchTooMany(items);return}
+ batchAssignNumbers(items);
+ const fallback=autoDefaultResponsible();
+ for(const it of items)if(!str(it.record.responsible?.name).trim()&&fallback)it.record.responsible.name=fallback;
+ const clean=[],eyes=[];
+ for(const it of items){it.autoCheck=autoVerifyItem(it);(it.autoCheck.ok?clean:eyes).push(it)}
+ if(!clean.length){
+  batchState.items=items;batchState.phase='review';batchOpen(0);
+  batchError(`Asnjë formular nuk kaloi kontrollin automatik. ${eyes.length} u hapën për kontroll; çdo formular tregon qelizat e dyshimta.`);
+  return;
+ }
+ const res=await batchPersist(clean);
+ if(res.error){
+  batchState.items=items;batchState.phase='review';batchOpen(Number.isInteger(res.index)?res.index:0);
+  batchError(`${batchPersistMessage(res)} Asnjë formular nuk u ruajt automatikisht.`);
+  return;
+ }
+ autoRememberSaved(clean,res.ids);
+ const saved=clean.length;
+ for(const it of clean)for(const x of it.sources)URL.revokeObjectURL(x.url);
+ if(eyes.length){
+  batchState.items=eyes;batchState.phase='review';batchOpen(0);
+  batchError(`Një klik: u ruajtën ${saved} formularë automatikisht. ${eyes.length} nuk kaluan kontrollin dhe u hapën me qelizat e dyshimta.`);
+  toast(`U ruajtën ${saved} vetë. ${eyes.length} kërkojnë sy.`,'warn');
+  return;
+ }
+ batchReset();state.route='records';state.draft=null;state.editorBase=null;state.dirty=false;render();
+ toast(`Një klik: u lexuan dhe u ruajtën ${saved} formularë, pa kontroll manual.`);
+}
+async function autoUndoLast(){
+ const last=autoLastBatch();
+ if(!last.ids.length){toast('Nuk ka ruajtje automatike për të zhbërë.','warn');return}
+ if(!await modal({title:`Zhbëj ${last.ids.length} formularë?`,body:'Regjistrimet e ruajtura automatikisht në grupin e fundit fshihen përsëri, bashkë me dokumentet private në cloud.',confirm:'Zhbëj',danger:true}))return;
+ const ids=new Set(last.ids),paths=[];
+ for(const r of db.records)if(ids.has(r.id))for(const a of r.attachments||[])paths.push(a.path);
+ const next=clone(db);next.records=next.records.filter(r=>!ids.has(r.id));
+ if(!await commit(next,{locked:true,kind:'batch-undo',ids:[...ids]}))return;
+ if(paths.length)try{await cloudRemovePaths(paths)}catch(e){}
+ autoClearLast();render();toast(`U zhbënë ${ids.size} formularë.`,'warn');
+}
 function batchDownloadReadyFromSelect(){const records=batchState.groups.filter(g=>g.status==='ready').flatMap(g=>(g.results||[]).map(x=>{const r=clone(x.record);r.attachments=[];return {record:r,warnings:[...(x.warnings||[]),'Draft i rikuperuar; dokumentet origjinale nuk përfshihen. Kontrollo numrin.']}}));if(!records.length){toast('Nuk ka formularë të lexuar.','warn');return}download('BioBes_draftet.json',JSON.stringify({type:'BioBes-Batch-Draft',version:VERSION,records},null,2),'application/json;charset=utf-8');toast('Draftet u shkarkuan; dokumentet origjinale nuk përfshihen.','warn')}
 function importReviewHTML(){const r=importState.review;if(!r)return '';const links=r.sources.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.name)} ↗</a>`).join(' · '),warnings=r.warnings.length?`<ul>${r.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:'';return `<div class="review-panel" role="status"><strong>Kontrollo formularin e lexuar</strong><p>Krahaso të gjitha fushat dhe peshimet me dokumentin origjinal. ${links}</p>${docLinksHTML(docRegisterDocs('__import',docItemsFor(null,{sources:r.sources})))}${warnings}<label class="import-consent"><input type="checkbox" id="confirm-import-review" ${r.confirmed?'checked':''}> <span>Konfirmoj se i kam kontrolluar të dhënat.</span></label></div>`}
 async function clearImportReview(){const review=importState.review;if(!review)return;importState.review=null;for(const source of review.sources)URL.revokeObjectURL(source.url);try{await cloudCleanupUnsavedReview(review)}catch(e){cloudNotify('Disa dokumente të paruajtura mund të kenë mbetur në Storage privat. Kontrolloji në Supabase.')}}
@@ -4299,6 +4488,7 @@ document.addEventListener('click',async e=>{const suggestion=e.target.closest('[
  if(e.target.closest('#doc-search'))return;
  const dlib=e.target.closest('[data-doc-lib]');if(dlib){await docOpenLibrary(dlib.dataset.docLib,dlib.dataset.docName);return}
  const dopen=e.target.closest('[data-doc-open],[data-doc-record]');if(dopen){await docOpenFromClick(dopen);return}const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;const a=btn.dataset.action;if(a==='new')await newEditor();else if(a==='open-record')await openRecord(btn.dataset.id,false);else if(a==='edit-record')await openRecord(btn.dataset.id,true);else if(a==='delete-record')await deleteRecord(btn.dataset.id);else if(a==='print-record')await openPrintRecord(btn.dataset.id);else if(a==='print-mode'){state.print.mode=btn.dataset.mode;render()}else if(a==='print-select-all')selectVisiblePrint(true);else if(a==='print-select-none')selectVisiblePrint(false);else if(a==='print-pdf')await createPrintPDF();else if(a==='print-xlsx')await createPrintWorkbook();else if(a==='nav-back')await navBack();else if(a==='enable-edit'){state.mode='edit';render()}else if(a==='save')await saveRecord();else if(a==='save-next')await saveRecord(true);else if(a==='editor-tab'){state.tab=btn.dataset.tab;render()}else if(a==='use-shared-shift')applySharedShift();else if(a==='stop-shared-shift')stopSharedShift();else if(a==='use-shared-pack')applySharedPack(Number(btn.dataset.index));else if(a==='stop-shared-pack')stopSharedPack(Number(btn.dataset.index));else if(a==='staff-sign')await captureStaffSignature(Number(btn.dataset.index));else if(a==='staff-sign-clear')await clearStaffSignature(Number(btn.dataset.index));else if(a==='set-workday')setWorkday(Number(btn.dataset.minutes)/60);else if(a==='report-tab'){state.report.tab=btn.dataset.tab||'summary';navWrite(true);renderReportResults()}else if(a==='add-plan')addPlanProduct();else if(a==='add-interval')addInterval();else if(a==='del-interval')delInterval(Number(btn.dataset.emp),Number(btn.dataset.iv));else if(a==='add-weighing')addWeighing();else if(a==='add-weight-rows')addWeightRows(Number(btn.dataset.index),Number(btn.dataset.count));else if(a==='delete-weighing')await deleteWeighing(Number(btn.dataset.index));else if(a==='delete-weight-row')await deleteWeightRow(Number(btn.dataset.index),Number(btn.dataset.row));else if(a==='clear-filters'){state.report={from:'',to:'',product:'',packaging:'',status:'',client:'',employee:'',room:'',tab:state.report.tab||'summary',exportType:'products'};render()}else if(a==='export-report')exportReport(btn.dataset.type||'products');else if(a==='export-report-pro')await exportReportExcelPro();else if(a==='export-day-pdf')await exportDayPDF();else if(a==='export-report-xlsx')exportReportXlsx(btn.dataset.type||'products');else if(a==='attendance-pdf')await exportAttendancePDF();else if(a==='attendance-xlsx')await exportAttendanceXlsx();else if(a==='timecard-select'){const name=timecardNames()[Number(btn.dataset.index)];if(name){state.report.employee=name;render()}}else if(a==='export-timecard')exportTimecard();else if(a==='timecard-xlsx')await exportTimecardXlsx();else if(a==='timecard-pdf')await exportTimecardPDF();else if(a==='export-all')exportAll();else if(a==='recalc-all-weights')await recalcAllWeights();else if(a==='catalog-template')exportCatalogTemplate();else if(a==='catalog-import-add')document.getElementById('catalog-import-add-file').click();else if(a==='catalog-import-replace')document.getElementById('catalog-import-replace-file').click();else if(a==='backup-export')exportBackup();else if(a==='backup-import')document.getElementById('import-file').click();else if(a==='batch-read')await batchRead()
+  else if(a==='auto-run')await autoRun();else if(a==='auto-undo')await autoUndoLast()
   else if(a==='batch-read-pending')await batchReadPending()
   else if(a==='batch-manual')await batchManualReview();else if(a==='batch-cancel')batchCancel();else if(a==='batch-review-ready')await batchReviewCompleted();else if(a==='batch-reset')await batchStartOver();else if(a==='batch-raw')batchRawDownload();else if(a==='batch-up')batchMove(Number(btn.dataset.index),-1);else if(a==='batch-down')batchMove(Number(btn.dataset.index),1);else if(a==='batch-swap')batchSwap(Number(btn.dataset.index));else if(a==='batch-split')batchSplit(Number(btn.dataset.index));else if(a==='batch-join')batchJoin(Number(btn.dataset.index));else if(a==='batch-remove')await batchRemove(Number(btn.dataset.index));else if(a==='batch-original-reset')batchPrivateReset(btn.dataset.id);else if(a==='batch-open')batchOpen(Number(btn.dataset.index));else if(a==='batch-remove-review')await batchRemoveReview();else if(a==='batch-draft')batchDraftDownload();else if(a==='batch-save')await batchSave();else if(a==='cloud-open-original')await cloudOpenOriginal(Number(btn.dataset.index));else if(a==='sample')await sample();else if(a==='clear-demo')await clearDemo();else if(a==='template-download')exportTemplateXlsx();else if(a==='template-upload')document.getElementById('template-upload-file').click();else if(a==='catalog-import')document.getElementById('catalog-import-file').click();else if(a==='catalog-add')await addCatalog(btn.dataset.kind);else if(a==='catalog-edit')await editCatalog(btn.dataset.kind,Number(btn.dataset.index));else if(a==='catalog-delete')await deleteCatalog(btn.dataset.kind,Number(btn.dataset.index))});
 document.addEventListener('input',e=>{const el=e.target;if(el.dataset.combo==='sources'&&state.route==='editor'){setPath(state.draft,el.dataset.bind.replace(/sourceLabel$/,'source'),'')}if(el.dataset.combo)showCombo(el);
