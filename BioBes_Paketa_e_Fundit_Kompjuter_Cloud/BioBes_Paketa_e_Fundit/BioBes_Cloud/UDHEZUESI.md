@@ -243,6 +243,14 @@ Për Gemini, fotot përgatiten në pajisje me orientimin e dekoderit, maksimum 2
 
 Katalogu i listave bazë nuk dërgohet pa zgjedhjen e checkbox-it të tij të veçantë. Zgjidhe vetëm nëse **të gjitha** listat bazë janë anonime dhe jokonfidenciale; ato mund të përmbajnë emra njerëzish. Aplikacioni nuk i anonimizon. Kufiri është 20 KiB dhe nuk përfshihet historiku i regjistrimeve. Kontrollo të gjitha paralajmërimet dhe vlerat përpara ruajtjes. Datat lexohen si ditë/muaj (`6.11.26` është 6 nëntor); kur data mund të lexohet në dy mënyra dhe në letër nuk ka ditë jave, del një paralajmërim për ta kontrolluar. Në OCR `1.250` do të thotë një mijë e dyqind e pesëdhjetë, ndërsa `1,250` është 1,25; kjo është një paqartësi që duhet kontrolluar në dokument.
 
+### Cila teknologji lexon dhe pse
+
+Vlerat i lexon **Gemini Flash** në server, me skemë JSON të detyruar: shkrimi me
+dorë në shqip është pjesa që asnjë OCR i lirë nuk e zgjidh sot. Parapranuesi lokal
+(RapidOCR) jep vetëm strukturën — faqet, çiftin PARA/PAS, etiketat e shtypura —
+dhe nuk shkruan kurrë vlera. Kontrolli aritmetik bëhet në pajisje, dhe njeriu
+kontrollon vetëm qelizat e dyshimta, të listuara mbi tabelën e leximit.
+
 ### Parapranuesi lokal OCR (ndihmë, jo zëvendësim)
 
 Para se të niset leximi, aplikacioni mbledh në pajisje një listë të shkurtër

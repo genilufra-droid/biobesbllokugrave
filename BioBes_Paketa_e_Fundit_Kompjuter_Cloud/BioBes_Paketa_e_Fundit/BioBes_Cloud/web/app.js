@@ -1908,6 +1908,31 @@ function readingRows(item){
  }
  return rows;
 }
+// Qelizat që meritojnë sy njeriu, të renditura sipas rrezikut. Leximi i një
+// formulari jep dhjetëra vlera; vetëm disa janë të dyshimta, dhe ato duhet të
+// bien në sy para tabelës së plotë, që kontrolli të zgjasë sekonda jo minuta.
+function readingRiskRows(item){
+ const rows=readingRows(item),uncertain=(item?.reading?.uncertain||[]).map(x=>String(x?.formArea||''));
+ const riskOf=row=>{
+  const field=row.field,value=field.value,text=value==null?'':String(value);
+  const unclear=value==null||AI_UNCLEAR.test(text)||/paqart/i.test(text);
+  const low=field.confidence!=null&&Number(field.confidence)<0.8;
+  const listed=!!field.formArea&&uncertain.includes(field.formArea);
+  return field.needsReview||unclear?2:low||listed?1:0;
+ };
+ return rows.map(row=>({...row,risk:riskOf(row)})).filter(row=>row.risk>0).sort((a,b)=>b.risk-a.risk);
+}
+function readingRiskHTML(item){
+ const pages=item?.reading?.pages||{},risk=readingRiskRows(item);
+ if(!risk.length)return '<p class="small-note reading-risk-ok">Asnjë qelizë e dyshimtë: të gjitha vlerat u lexuan me siguri.</p>';
+ const pageOf=row=>row.section==='front'&&pages.front?String(pages.front):row.section==='back'&&pages.back?String(pages.back):(row.field.page||'—');
+ const items=risk.slice(0,12).map(row=>{
+  const value=row.field.value==null?'[e paqartë]':String(row.field.value);
+  return '<li'+(row.risk===2?' class="reading-risk-high"':'')+'><strong>'+esc(row.label)+'</strong> · '+esc(value)+' · faqja '+esc(pageOf(row))+' · <code>'+esc(row.field.formArea||'—')+'</code></li>';
+ }).join('');
+ const more=risk.length>12?'<p class="small-note">Dhe '+(risk.length-12)+' qeliza të tjera më poshtë në tabelë.</p>':'';
+ return '<div class="reading-risk"><strong>Kontrollo vetëm këto '+risk.length+' qeliza</strong><ul>'+items+'</ul>'+more+'</div>';
+}
 function readingReviewHTML(item){
  const reading=item?.reading;if(!reading)return '';
  const formCount=item.formCount||batchState.items.length,multi=formCount>1;
@@ -1922,7 +1947,7 @@ function readingReviewHTML(item){
  const uncertain=(reading.uncertain||[]).length?'<p class="small-note">Të paqarta: '+reading.uncertain.map(x=>esc(x.readAs||x.formArea||'—')).join(' · ')+'</p>':'';
  const formLine=multi?'<span>Formulari <strong>'+(reading.formNumber||item.formNumber||'—')+'/'+formCount+'</strong> në dokument</span>':'';
  return '<details class="reading-panel" open><summary>Vendndodhja e çdo vlere · '+status+(flagged?' · '+flagged+' për kontroll':'')+'</summary>'
-  +'<div class="reading-meta"><span>Faqja PARA: <strong>'+(pages.front||'—')+'</strong></span><span>Faqja PAS: <strong>'+(pages.back||'—')+'</strong></span>'+formLine+'</div>'
+  +'<div class="reading-meta"><span>Faqja PARA: <strong>'+(pages.front||'—')+'</strong></span><span>Faqja PAS: <strong>'+(pages.back||'—')+'</strong></span>'+formLine+'</div>'+readingRiskHTML(item)
   +'<div class="table-wrap"><table class="table reading-table"><thead><tr><th>Fusha</th><th>Vlera e lexuar</th><th>Faqja</th><th>Zona e formularit</th><th>Siguria</th><th>needsReview</th></tr></thead><tbody>'+cells+'</tbody></table></div>'+uncertain+'</details>';
 }
 function batchReviewPanel(){const it=batchState.items[batchState.index],links=it.sources.length?it.sources.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.name)} ↗</a>`).join(' · '):'Dokumentet origjinale nuk përfshihen në draftin JSON.',warnings=it.warnings.length?`<ul>${it.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:'';return `<div class="review-panel batch-review-panel" role="status"><div class="batch-review-heading"><strong>Formulari ${batchState.index+1} nga ${batchState.items.length}</strong><span id="batch-review-count">${batchState.items.filter(batchReviewed).length}/${batchState.items.length} të kontrolluar</span></div><p>Krahasoje me dokumentin e lexuar: ${links}</p>${docLinksHTML(docRegisterDocs('__review',docItemsFor(null,it)))}<p>Origjinale për ruajtje private: ${it.originals.length?it.originals.map(x=>esc(x.name)).join(' · '):'Nuk ka dokumente në këtë draft.'}</p><label for="batch-review-original" class="btn btn-small batch-private-picker">Zgjidh origjinalet private për këtë formular</label><input class="sr-only" type="file" id="batch-review-original" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.xlsx,.xltx,.xlsm,.xltm,.xls,.xlt,.docx,.docm,.dotx"><div class="small-note">Këta skedarë nuk dërgohen te Gemini.</div>${warnings}${readingReviewHTML(it)}<label class="import-consent"><input type="checkbox" id="batch-reviewed" ${batchReviewed(it)?'checked':''}> <span>Konfirmoj që e kontrollova këtë formular.</span></label><div class="batch-pages">${batchState.items.map((x,i)=>`<button type="button" class="btn btn-small ${i===batchState.index?'btn-primary':''}" data-action="batch-open" data-index="${i}" aria-current="${i===batchState.index?'step':'false'}">${i+1}${batchReviewed(x)?' ✓':''}</button>`).join('')}</div></div>`}
@@ -2069,13 +2094,15 @@ async function prepareOCRPhoto(file,signal,warnings){
   if(signal.aborted)throw new DOMException('aborted','AbortError');
   const width=bitmap.width,height=bitmap.height;if(!width||!height||width*height>100000000)throw new Error('Fotoja ka përmasa të pavlefshme ose tepër të mëdha.');
   if(Math.min(width,height)<1200)warnings.push(`Fotoja “${file.name}” ka rezolucion të ulët (${width} × ${height}); kontrollo leximin ose fotografoje më qartë.`);
-  const scale=Math.min(1,2400/Math.max(width,height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
+  // 3000 piksela në anën më të gjatë ≈ 260 DPI për A4: shifrat e shkruara me dorë
+  // (1/7, 4/9, 5/6) dallohen, ndërsa skedari mbetet brenda kufirit të kërkesës.
+  const scale=Math.min(1,3000/Math.max(width,height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
   const context=canvas.getContext('2d',{willReadFrequently:true});if(!context)throw new Error('Përgatitja e fotos nuk mbështetet në këtë shfletues.');
   context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(bitmap,0,0,canvas.width,canvas.height);const image=context.getImageData(0,0,canvas.width,canvas.height),pixels=image.data,hist=new Uint32Array(256);
   for(let i=0;i<pixels.length;i+=4){const v=Math.round(.299*pixels[i]+.587*pixels[i+1]+.114*pixels[i+2]);pixels[i]=pixels[i+1]=pixels[i+2]=v;hist[v]++}
   const cutoff=pixels.length/4*.01;let low=0,high=255,count=0;while(low<255&&(count+=hist[low])<cutoff)low++;count=0;while(high>0&&(count+=hist[high])<cutoff)high--;
   if(high>low+10)for(let i=0;i<pixels.length;i+=4){const v=Math.max(0,Math.min(255,Math.round((pixels[i]-low)*255/(high-low))));pixels[i]=pixels[i+1]=pixels[i+2]=v}
-  context.putImageData(image,0,0);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.9));if(!blob)throw new Error('Fotoja nuk u konvertua në JPEG.');
+  context.putImageData(image,0,0);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.85));if(!blob)throw new Error('Fotoja nuk u konvertua në JPEG.');
   if(signal.aborted)throw new DOMException('aborted','AbortError');return new File([blob],file.name.replace(/\.[^.]+$/,'.jpg'),{type:'image/jpeg'});
  }finally{bitmap.close?.()}
 }

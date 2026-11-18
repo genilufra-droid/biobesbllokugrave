@@ -84,7 +84,9 @@ test('mesazhi i kuotës tregon si të vazhdohet menjëherë, jo vetëm se mbaroi
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'BioBes_Cloud/web/cloud.js'), 'utf8');
   assert.match(src, /Rinovohet pas mesnate/);
   // Duhet të tregojë edhe rrugën e menjëhershme, jo vetëm të presësh nesër.
-  assert.match(src, /Lexo në pajisje/);
+  assert.match(src, /Kontrollo pa Gemini/);
+  // Dhe nuk duhet të premtojë një buton që nuk ekziston në aplikacion.
+  assert.doesNotMatch(src, /Lexo në pajisje/);
 });
 
 run();
