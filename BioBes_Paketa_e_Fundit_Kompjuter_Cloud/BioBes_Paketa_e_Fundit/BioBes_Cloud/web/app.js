@@ -1671,7 +1671,7 @@ if(!names.length||!names.every(name=>looksLikeApproved(wb.Sheets[name])||(/^NR_\
 function batchWait(ms,signal){return new Promise((resolve,reject)=>{if(signal.aborted){reject(new DOMException('aborted','AbortError'));return}const timer=setTimeout(()=>{signal.removeEventListener('abort',cancel);resolve()},ms);function cancel(){clearTimeout(timer);reject(new DOMException('aborted','AbortError'))}signal.addEventListener('abort',cancel,{once:true})})}
 async function batchRead(){
  if(batchState.busy)return;batchError('');const groups=batchState.groups;if(!groups.length){batchError('Zgjidh të paktën një dokument.');return}try{if(groups.length>BATCH_MAX)throw new Error('Maksimumi është 10 grupe.');for(const g of groups)checkImportFiles(g.files)}catch(e){batchError(e.message);return}
- const anonymous=!!document.getElementById('batch-anonymous')?.checked,controller=new AbortController(),run=++batchState.run;batchState.abort=controller;batchState.cancelled=false;let began=false;
+ cloudQuotaReset();const anonymous=!!document.getElementById('batch-anonymous')?.checked,controller=new AbortController(),run=++batchState.run;batchState.abort=controller;batchState.cancelled=false;let began=false;
  batchSetBusy(true,'Po kontrollohen dokumentet…');try{
   for(let i=0;i<groups.length;i++){const g=groups[i];if(g.status==='ready')continue;
    // Grupi që dështoi më parë riprovohet i pastër; të lexuarit nuk preken.
@@ -1692,7 +1692,7 @@ async function batchRead(){
      try{g.results=await batchGemini(g,controller.signal,catalog);if(controller.signal.aborted)throw new DOMException('aborted','AbortError');g.status='ready';g.error='';batchPaint()}
      catch(e){
       if(e?.name==='AbortError')throw e;
-      g.status='error';g.error=str(e?.message||'Leximi nuk përfundoi.',500);errors.push(e);batchPaint();
+      g.status='error';g.error=str(e?.message||'Leximi nuk përfundoi.',500);g.quotaError=!!e?.quota;errors.push(e);batchPaint();
       // Kuota e shpenzuar vlen për të gjithë llogarinë: grupet e tjera nuk
       // provohen, që të mos humbasë koha dhe të mos shpenzohet më kot.
       if(e?.quota){quotaHit=true;break}
@@ -1700,9 +1700,23 @@ async function batchRead(){
     }
    };
    await Promise.all(Array.from({length:Math.min(BATCH_WORKERS,queue.length)},worker));
+   // Riprovim automatik: një gabim i përkohshëm (503 UNAVAILABLE, rrjet) nuk
+   // duhet t'i mbetet përdoruesit si “Nuk u lexua”. Grupet e dështuara provohen
+   // edhe një herë, një nga një, vetëm kur gabimi nuk është kuotë e shpenzuar.
+   const retryable=groups.filter(g=>g.status==='error'&&!g.quotaError);
+   if(retryable.length&&!controller.signal.aborted){
+    for(let i=0;i<retryable.length;i++){
+     if(controller.signal.aborted)throw new DOMException('aborted','AbortError');
+     const g=retryable[i];g.status='pending';g.error='';batchPaint();
+     batchSetBusy(true,`Riprovim automatik (${i+1} nga ${retryable.length}) me Gemini…`);
+     try{g.results=await batchGemini(g,controller.signal,catalog);if(controller.signal.aborted)throw new DOMException('aborted','AbortError');g.status='ready';g.error='';g.quotaError=false}
+     catch(e){if(e?.name==='AbortError')throw e;g.status='error';g.error=str(e?.message||'Leximi nuk përfundoi.',500);g.quotaError=!!e?.quota;if(e?.quota)quotaHit=true}
+     batchPaint();
+    }
+   }
    // Grupet e përfunduara ruhen. Kur kuota mbaron, nuk hidhet gjithçka: thuhet
    // sa grupe u lexuan dhe sa mbeten, dhe ato mbeten gati për riprovim.
-   if(errors.length&&quotaHit){
+   if(groups.some(g=>g.status==='error')&&quotaHit){
     // Grupet që nuk u provuan fare mbeten “në pritje” (jo “gabim”), që përdoruesi
     // ta shohë qartë se çfarë mbetet dhe riprovimi të mos duket si dështim i tyre.
     const untried=new Set(queue);

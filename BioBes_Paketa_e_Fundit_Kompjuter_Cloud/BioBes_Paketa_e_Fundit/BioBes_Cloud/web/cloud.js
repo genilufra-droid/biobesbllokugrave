@@ -296,6 +296,22 @@ async function cloudFetchOriginal(path){
  if(error||!data)throw new Error('Dokumenti nuk u gjet.');
  return data;
 }
+// Radha e kërkesave AI. Katër leximë të mëdha njëherësh mbi Gemini Free Tier
+// kthejnë 503 UNAVAILABLE (modeli i mbingarkuar); radha e mban ritmin të
+// qëndrueshëm dhe asnjë grup nuk humbet. Përgatitja e skedarëve (ndarja e
+// PDF-së, kodimi i fotove) mbetet paralele — vetëm thirrja e modelit pret.
+let cloudAiTail=Promise.resolve();
+// Kur kuota e llogarisë është shpenzuar, asnjë kërkesë tjetër nuk niset: pritja nuk
+// e mbush kuotën, dhe kërkesat e radhës vetëm humbin kohë. Flamuri pastrohet
+// kur nis një lexim i re ose kur një përgjigje vjen me sukses.
+let cloudQuotaStop=null;
+function cloudQuotaReset(){cloudQuotaStop=null}
+function cloudAiTurn(){
+ const previous=cloudAiTail;
+ let release;
+ cloudAiTail=new Promise(resolve=>{release=resolve});
+ return previous.then(()=>release,()=>release);
+}
 // Hapja e dokumenteve ndodh në app.js (docOpen), që përdor cloudFetchOriginal.
 async function cloudGemini(parts,signal,budgetMs=120000,ocrHints=null){
  // Buxheti i kohës për të gjithë thirrjen (përfshirë pritjet). Pa të, pritjet e
@@ -322,12 +338,15 @@ async function cloudGemini(parts,signal,budgetMs=120000,ocrHints=null){
    error.quota=Boolean(isQuota);
    return error;
  };
- for(let attempt=0;attempt<4;attempt++){
+ const release=await cloudAiTurn();
+ try{
+ if(cloudQuotaStop)throw cloudQuotaStop;
+ for(let attempt=0;attempt<5;attempt++){
   let response,result={};
   try{response=await fetch(`${cloud.config.url}/functions/v1/biobes-read-form`,{method:'POST',headers:{'Content-Type':'application/json',apikey:cloud.config.key,Authorization:`Bearer ${data.session.access_token}`},body,signal,credentials:'omit',referrerPolicy:'no-referrer'});}
   catch(e){if(signal.aborted||e?.name==='AbortError')throw e;if(!(e instanceof TypeError))throw e;lastError=e;}
   if(response){
-   if(response.ok)return await response.json();
+   if(response.ok){cloudQuotaStop=null;return await response.json()}
    try{result=await response.json()}catch(_){}
    const providerDetail=result.providerStatus?` (${result.providerStatus}${result.providerCode?` #${result.providerCode}`:''})`:'';
    lastError=new Error(str(result.error||'Shërbimi Gemini nuk u përgjigj.',300)+providerDetail);
@@ -335,15 +354,18 @@ async function cloudGemini(parts,signal,budgetMs=120000,ocrHints=null){
    // Kuota e shpenzuar nuk rregullohet duke pritur 5 sekonda: ndalet menjëherë,
    // që të mos harxhohen pesë kërkesa për asnjë rezultat.
    const quota=quotaError(status,result);
-   if(quota&&quota.quota)throw quota;
+   if(quota&&quota.quota){cloudQuotaStop=quota;throw quota}
    if(quota)lastError=quota;
    if(status!==408&&status!==429&&(status<500||status>599))throw lastError;
   }
-  if(attempt<3){
+  if(attempt<4){
    const header=Number(response?.headers?.get('retry-after'));
    // 429 do të thotë "prit", dhe Google e thotë sa: Retry-After kur vjen.
-   // Pritja nuk e kalon buxhetin: mbetet gjithmonë kohë për një provë të fundit.
-   const wanted=Number.isFinite(header)&&header>0?header*1000:(429===Number(response?.status)?15000*(attempt+1):5000*(attempt+1));
+   // 5xx është mbingarkesë e përkohshme: pritja dyfishohet (3, 6, 12, 24 s) dhe
+   // merr dridhje të rastësishme, që disa pajisje të mos godasin të njëjtën
+   // çast. Pritja nuk e kalon buxhetin: mbetet gjithmonë kohë për provën e fundit.
+   const base=429===Number(response?.status)?15000*(attempt+1):3000*Math.pow(2,attempt);
+   const wanted=Number.isFinite(header)&&header>0?header*1000:Math.round(base*(0.75+Math.random()*0.5));
    const wait=Math.min(wanted,Math.max(0,remaining()-KEEP_MS));
    // Nuk ka kohë për të pritur: kthe gabimin e vërtetë, mos e lër kufirin e
    // jashtëm ta presë si "leximi kaloi kohën".
@@ -352,6 +374,7 @@ async function cloudGemini(parts,signal,budgetMs=120000,ocrHints=null){
    await batchWait(wait,signal);
   }
  }
+ }finally{release()}
  throw lastError;
 }
 cloudStart();

@@ -53,8 +53,10 @@ function loadApp(appOverride = null, customHook = null) {
   const hook = `
 ;globalThis.__BIOBES__ = {
   aiRecord, aiReadings, parseAIJson, batchResultsFromWorkbook, batchSplitPdf, prepareGeminiParts, prepareOCRPhoto, optionalCatalog, parseAlNumber, dateFromImport, timeFromImport, fmt,
-  setFastWait: () => { batchWait = async (_ms, signal) => { if(signal.aborted) throw new DOMException('aborted','AbortError'); }; cloudLastAiStart=0; },
-  cloudForgotShow, cloudForgotRequest, generatePrintablePDF, editorHTML, batchEditorHTML, cloudGemini, readApprovedExcel, blankRecord,
+  // Ndihmës testesh: pritjet bëhen të menjëhershme, pritjet regjistrohen dhe
+  // gjendja e kuotës pastrohet, që testet të mos trashëgojnë flamurin e njëri-tjetrit.
+  setFastWait: () => { globalThis.__BIOBES_WAITS__=[]; batchWait = async (ms, signal) => { if(signal.aborted) throw new DOMException('aborted','AbortError'); globalThis.__BIOBES_WAITS__.push(ms); }; cloudLastAiStart=0; cloudQuotaReset(); },
+  cloudForgotShow, cloudForgotRequest, generatePrintablePDF, editorHTML, batchEditorHTML, cloudGemini, cloudQuotaReset, readApprovedExcel, blankRecord,
   normalizeRecord, generateFormWorkbook, planPrintPages,
   planReadingCalls, slicePdf, shiftPages, mergeReadingChunks, readFilesWithGemini,
   ocrHintsFromPageCounts, ocrHintsForFiles, geminiForParts, scannedPageWarning,

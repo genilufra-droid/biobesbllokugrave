@@ -27,7 +27,7 @@ const quotaBody = { error: 'Gemini nuk e përfundoi kërkesën.', httpStatus: 42
 const rateBody = { error: 'Gemini nuk e përfundoi kërkesën.', httpStatus: 429, providerStatus: 'RATE_LIMIT_EXCEEDED' };
 
 test('kuota e shpenzuar ndalon menjëherë, pa riprovuar', async () => {
-  api.setFastWait();
+  api.setFastWait(); api.cloudQuotaReset();
   let calls = 0;
   dom.window.fetch = async () => { calls += 1; return reply(429, quotaBody); };
   await assert.rejects(() => api.cloudGemini([{ text: 'x' }], signal()), /kuota.*shpenzuar/i);
@@ -35,7 +35,7 @@ test('kuota e shpenzuar ndalon menjëherë, pa riprovuar', async () => {
 });
 
 test('gabimi i kuotës shënohet si quota për t’i ndalur grupet e tjera', async () => {
-  api.setFastWait();
+  api.setFastWait(); api.cloudQuotaReset();
   dom.window.fetch = async () => reply(429, quotaBody);
   try {
     await api.cloudGemini([{ text: 'x' }], signal());
@@ -46,7 +46,7 @@ test('gabimi i kuotës shënohet si quota për t’i ndalur grupet e tjera', asy
 });
 
 test('429 e zakonshme (jo kuotë) riprovohet dhe ka mesazh tjetër', async () => {
-  api.setFastWait();
+  api.setFastWait(); api.cloudQuotaReset();
   let calls = 0;
   dom.window.fetch = async () => { calls += 1; return calls < 2 ? reply(429, rateBody) : reply(200, { ok: true }); };
   const result = await api.cloudGemini([{ text: 'x' }], signal());
@@ -55,13 +55,13 @@ test('429 e zakonshme (jo kuotë) riprovohet dhe ka mesazh tjetër', async () =>
 });
 
 test('429 e zakonshme që vazhdon: mesazhi flet për kërkesa, jo për kuotë', async () => {
-  api.setFastWait();
+  api.setFastWait(); api.cloudQuotaReset();
   dom.window.fetch = async () => reply(429, rateBody);
   await assert.rejects(() => api.cloudGemini([{ text: 'x' }], signal()), /Shumë kërkesa/i);
 });
 
 test('kuota nuk shënohet si gabim i përgjithshëm i shërbimit', async () => {
-  api.setFastWait();
+  api.setFastWait(); api.cloudQuotaReset();
   // 503 mbetet i riprovueshëm; nuk duhet të ndalet si kuotë.
   let calls = 0;
   dom.window.fetch = async () => { calls += 1; return calls < 2 ? reply(503, { error: 'unavailable' }) : reply(200, { ok: true }); };
@@ -71,7 +71,7 @@ test('kuota nuk shënohet si gabim i përgjithshëm i shërbimit', async () => {
 });
 
 test('mesazhi i kuotës thotë qartë që dokumentet nuk humbën', async () => {
-  api.setFastWait();
+  api.setFastWait(); api.cloudQuotaReset();
   dom.window.fetch = async () => reply(429, quotaBody);
   try {
     await api.cloudGemini([{ text: 'x' }], signal());
@@ -81,7 +81,7 @@ test('mesazhi i kuotës thotë qartë që dokumentet nuk humbën', async () => {
 });
 
 test('401 nuk riprovohet dhe nuk shënohet si kuotë', async () => {
-  api.setFastWait();
+  api.setFastWait(); api.cloudQuotaReset();
   let calls = 0;
   dom.window.fetch = async () => { calls += 1; return reply(401, { error: 'unauthorized' }); };
   await assert.rejects(() => api.cloudGemini([{ text: 'x' }], signal()), /unauthorized/);
