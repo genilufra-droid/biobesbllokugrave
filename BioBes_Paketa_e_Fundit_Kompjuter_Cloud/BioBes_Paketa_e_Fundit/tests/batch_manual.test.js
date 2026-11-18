@@ -106,7 +106,9 @@ test('paralajmërimet thonë qartë se formulari u krijua bosh dhe pse', () => {
   const item = api.batchManualItem(fakeGroup('pagina.pdf'), 0, 1);
   const text = item.warnings.join(' | ');
   assert.match(text, /u krijua BOSH për t’u plotësuar me dorë/);
-  assert.match(text, /0\/10 saktë në dorëshkrim/);
+  assert.match(text, /NUK lexon vlera/);
+  assert.match(text, /0\/10 saktë/, 'prova e OCR-së lokal tregohet');
+  assert.match(text, /Kursim kuote/, 'tregohet rruga që e kursen kuotën');
   assert.match(text, /Numri i formularit nuk u gjet/);
 });
 

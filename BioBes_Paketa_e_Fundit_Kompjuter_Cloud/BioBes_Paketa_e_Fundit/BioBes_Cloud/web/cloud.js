@@ -333,7 +333,7 @@ async function cloudGemini(parts,signal,budgetMs=120000,ocrHints=null){
    const provider=str(result?.providerStatus||'',80).toUpperCase();
    const isQuota=provider.includes('RESOURCE_EXHAUSTED')||provider.includes('QUOTA');
    const error=new Error(isQuota
-     ?'Kuota e leximit me Gemini për sot është shpenzuar (RESOURCE_EXHAUSTED). Rinovohet pas mesnate me orën e Paqësorit, rreth orës 09:00 me orën e Shqipërisë. Ndërkohë: shtyp «Kontrollo pa Gemini» dhe plotëso formularin me dorë, ose prit rinovimin — dokumentet nuk humbin dhe mund të rilexohen. Për skanime të tëra pa kuotë, parapranuesi lokal (tools/ocr_prepass.py) nxjerr faqet dhe etiketat e shtypura në kompjuterin tënd.'
+     ?'Kuota e leximit me Gemini për sot është shpenzuar (RESOURCE_EXHAUSTED). Rinovohet pas mesnate me orën e Paqësorit, rreth orës 09:00 me orën e Shqipërisë. Ndërkohë: kthehu te ngarkimi dhe lërë shenjën te «Kursim kuote» (dy formularë në një kërkesë) — kërkesat përgjysmohen, ndaj kuota e nesërme mjafton për gjithë skanimin; ose shtyp «Plotëso me dorë (pa Gemini)». Dokumentet nuk humbin dhe mund të rilexohen.'
      :'Shumë kërkesa njëherësh te Gemini; prit pak dhe provo përsëri.');
    error.quota=Boolean(isQuota);
    return error;
