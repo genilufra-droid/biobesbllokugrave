@@ -265,6 +265,32 @@ krijojë regjistrime të dyfishta. Butoni **Zhbëj ruajtjen e fundit** i fshin
 regjistrimet e grupit të fundit automatik, bashkë me dokumentet private në
 cloud.
 
+### Katër ndihmës që e rrisin saktësinë pa kuotë shtesë
+
+**Mësim nga korrigjimet.** Kur e ndryshon një vlerë që erdhi nga leximi,
+aplikacioni e mban mend. Nëse i njëjti gabim korrigjohet të paktën dy herë, ai
+zbatohet vetë në leximet e reja dhe shfaqet si paralajmërim *"U korrigjua nga
+mësimi"*. Një gabim i vetëm nuk bëhet rregull, sepse mund të ketë qenë gabim i
+njeriut. Mësimi ruhet vetëm në këtë pajisje; paneli *"Mësimi nga korrigjimet"*
+tregon modelet dhe ka butonin **Fshi mësimin**.
+
+**Lexim i dytë vetëm për qelizat e dyshimta.** Në rrugën e një kliku, qelizat
+me siguri të ulë ose të shënuara si të paqarta rilexohen një herë. Pranimi
+bëhet vetëm kur **të dy leximet përputhen plotësisht**; nëse ndryshojnë, qeliza
+mbetet për sy njeriu. Kërkesa shtesë bëhet vetëm për grupet që kanë dyshime, dhe
+ndalon menjëherë kur kuota mbaron.
+
+**Përputhje horizontale brenda ditës.** Të njëjtët produkte, punonjës dhe
+paketime përsëriten në çdo formular. Kur një emër është një shkronjë larg
+një emri që shfaqet të paktën dy herë në dokument ose në listat bazë,
+korrigjohet vetë dhe shënohet *"U përputh me listën"*. Fjalët nën pesë shkronja
+nuk preken kurrë, që një emër i vërtetë të mos ndryshohet rastësisht.
+
+**Kontrolli i orëve.** Përveç peshave, kontrollohet edhe orari: `Mbarim −
+Fillim − Pushim = Orë` për çdo punonjës, dhe shuma e orëve kundrejt totalit të
+ditës. Një "17:00" i lexuar "11:00" tani kapet; më parë kalonte pa u vënë re.
+Formulari me orar të papërputhur nuk ruhet automatikisht, por hapet për kontroll.
+
 ### Cila teknologji lexon dhe pse
 
 Vlerat i lexon **Gemini Flash** në server, me skemë JSON të detyruar: shkrimi me
