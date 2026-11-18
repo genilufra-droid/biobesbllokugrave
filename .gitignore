@@ -2,3 +2,7 @@
 # klientë, pesha). Mbahen vetëm lokalisht; nuk hyjnë në repo publik.
 leximet/
 LEXIM_SKANIM_REAL.md
+
+# Kesh i Python-it: nuk hyn në repo.
+__pycache__/
+*.pyc
