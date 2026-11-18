@@ -35,9 +35,17 @@ test('PDF objects are cached and not parsed twice', () => {
   assert.match(app, /pdfCache\.set\(file,pdf\)/);
 });
 
-test('client retries four times with a bounded wait', () => {
-  assert.match(cloud, /for\(let attempt=0;attempt<4;attempt\+\+\)/);
-  assert.match(cloud, /if\(attempt<3\)/);
+test('client retries five times with a bounded wait', () => {
+  // Pesë prova: 503 UNAVAILABLE i Gemini-t zgjat më shumë se tri pritje të shkurtra.
+  assert.match(cloud, /for\(let attempt=0;attempt<5;attempt\+\+\)/);
+  assert.match(cloud, /if\(attempt<4\)/);
+  // Pritja nuk e kalon buxhetin: mbetet kohë për provën e fundit.
+  assert.match(cloud, /remaining\(\)-KEEP_MS/);
+});
+
+test('client serialises AI calls so the free tier is not bursted', () => {
+  assert.match(cloud, /let cloudAiTail=Promise\.resolve\(\)/);
+  assert.match(cloud, /const release=await cloudAiTurn\(\)/);
 });
 
 test('Edge Function can fall back across models for transient errors', () => {

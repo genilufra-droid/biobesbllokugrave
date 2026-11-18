@@ -1326,3 +1326,35 @@ peshimet 4–6 të formularit të fundit.”* Një foto e vetme dhe një çift f
 paralajmërohen; një PDF që nuk hapet kthen 0 dhe nuk e bllokon leximin. Testet:
 `tests/ocr_hints.test.js` (4 teste të reja, 17 gjithsej). `npm test` → 362 teste,
 zero dështime.
+
+### 9.2 `UNAVAILABLE #503` nuk shfaqet më si "Nuk u lexua" (18 nëntor 2026)
+
+Në leximin me grupe, katër punëtorë (`BATCH_WORKERS=4`) nisnin katër kërkesa të
+mëdha njëherësh. Gemini Free Tier e kthen këtë si `503 UNAVAILABLE` (modeli i
+mbingarkuar). Kërkesa riprovohej vetëm katër herë me pritje lineare 5 s, dhe
+grupi që dështonte **nuk riprovohej më** — përdoruesi shihte tre rreshta
+"Nuk u lexua" me `UNAVAILABLE #503`, ndonëse asgjë nuk kishte humbur.
+
+Katër ndryshime, të gjitha pa prekur skemën e JSON-it:
+
+1. **Radhë e vetme AI.** `cloudAiTurn()` në `cloud.js` lejon vetëm një thirrje
+   modeli në fluturim; përgatitja e skedarëve (ndarja e PDF-së, kodimi i fotove)
+   mbetet paralele. Katër kërkesa njëherësh bëhen katër kërkesa me radhë.
+2. **Pesë provime me pritje eksponenciale.** 3 s, 6 s, 12 s, 24 s (±25 %
+   rastësi) për 5xx; `Retry-After` respektohet kur vjen; pritja nuk e kalon
+   buxhetin e mbetur të kërkesës.
+3. **Riprovim automatik i grupeve.** Pas valës së parë, çdo grup në `error` që
+   nuk është kuotë e shpenzuar provohet edhe një herë, një nga një, me mesazhin
+   "Riprovim automatik (i nga N) me Gemini…".
+4. **Ndalim pas kuote.** `cloudQuotaStop` mbahet mend pas një `429
+   RESOURCE_EXHAUSTED`, ndaj kërkesat e radhës dështojnë menjëherë pa e
+   shpenzuar kot kuotën; pastrohet kur nis një lexim i re ose kur një përgjigje
+   vjen me sukses.
+
+**Testet.** `tests/cloud_gemini.test.js` — 10 teste (shpërthim 503 që
+rikuperohet, vetëm një kërkesë në fluturim, pritje që rriten, ndalim pas kuote,
+pastrim i ndalimit). `tests/auto_retry.test.js` — 5 teste të reja (503 i
+përkohshëm riprovohet, suksesi i parë nuk riprovohet, dështim i vazhdueshëm = 2
+provime, kuota nuk riprovohet, grupi i lexuar nuk preket). `tests/quota_429.test.js`
+dhe `tests/dom.js` u përshtatën me flamurin e re. `npm test` → 373 teste, zero
+dështime; `tests/ocr_prepass_test.py` → 14 teste, OK.
