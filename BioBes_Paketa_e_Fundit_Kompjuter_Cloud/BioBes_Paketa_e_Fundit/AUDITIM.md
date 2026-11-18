@@ -1315,3 +1315,14 @@ kërkesës, mosprania e fushës kur lista është bosh). `tests/ocr_prepass_test
 teste për normalizimin, njohjen e etiketave, klasifikimin, grupimin dhe hintet.
 `npm test` → zero dështime. `hintsSafe`/`hintsText` u kontrolluan me
 `tsc --noEmit --strict`.
+
+### 9.1 Faqja që mungon paralajmërohet para leximit (18 nëntor 2026)
+
+Një skanim me numër **tek** faqesh do të thotë që një formular ka mbetur pa faqen
+PAS. Leximi nuk dështon, por peshimet 4–6 humbin në heshtje. `scannedPageWarning`
+numëron faqet e PDF-ve dhe fotove përpara se të niset kërkesa dhe shton një
+paralajmërim të dukshëm te rezultati: *“Dokumenti ka N faqe (numër tek) … kontrollo
+peshimet 4–6 të formularit të fundit.”* Një foto e vetme dhe një çift fotosh nuk
+paralajmërohen; një PDF që nuk hapet kthen 0 dhe nuk e bllokon leximin. Testet:
+`tests/ocr_hints.test.js` (4 teste të reja, 17 gjithsej). `npm test` → 362 teste,
+zero dështime.

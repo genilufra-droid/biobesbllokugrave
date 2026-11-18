@@ -140,4 +140,36 @@ test('a document that cannot be opened yields no hints instead of failing', asyn
   assert.deepEqual(plain(hints), []);
 });
 
+test('an odd number of scanned pages warns the user before reading', async () => {
+  const warnings = [];
+  const broken = new dom.window.File([new Uint8Array([1, 2, 3])], 'x.pdf', { type: 'application/pdf' });
+  // A PDF that cannot be opened is silent: the warning must never block reading.
+  assert.equal(await api.scannedPageWarning([broken], warnings), 0);
+  assert.deepEqual(warnings, []);
+});
+
+test('a single image is not reported as an odd scan', async () => {
+  const warnings = [];
+  const photo = new dom.window.File([new Uint8Array([1])], 'foto.jpg', { type: 'image/jpeg' });
+  assert.equal(await api.scannedPageWarning([photo], warnings), 1);
+  assert.deepEqual(warnings, []);
+});
+
+test('two photos are a complete form and stay silent', async () => {
+  const warnings = [];
+  const a = new dom.window.File([new Uint8Array([1])], 'a.jpg', { type: 'image/jpeg' });
+  const b = new dom.window.File([new Uint8Array([2])], 'b.jpg', { type: 'image/jpeg' });
+  assert.equal(await api.scannedPageWarning([a, b], warnings), 2);
+  assert.deepEqual(warnings, []);
+});
+
+test('three photos warn about the missing PAS page', async () => {
+  const warnings = [];
+  const files = ['a.jpg', 'b.jpg', 'c.jpg'].map((name, i) => new dom.window.File([new Uint8Array([i])], name, { type: 'image/jpeg' }));
+  assert.equal(await api.scannedPageWarning(files, warnings), 3);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /3 faqe/);
+  assert.match(warnings[0], /PARA dhe PAS/);
+});
+
 run();
