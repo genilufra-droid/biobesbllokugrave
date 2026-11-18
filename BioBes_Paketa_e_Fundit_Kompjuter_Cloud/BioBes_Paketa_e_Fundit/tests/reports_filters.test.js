@@ -338,4 +338,24 @@ test('intervali i ruajtur: punonjësi pa emër merr emrin e intervalit në gjurm
   assert.equal(segs[0].room, 'Dhoma A');
 });
 
+// Shiriti i shkarkimit shfaqej DY herë në tab-in e përmbledhjes: një herë si `${bar}`
+// pas tab-eve dhe një herë me një thirrje të dytë `reportExportBar(rs.length)` pas
+// kartave statistikore. Përdoruesi shihte të njëjtat 11 butona dy herë.
+test('shiriti i shkarkimit shfaqet një herë, në çdo tab', () => {
+  fixture();
+  const tabs = ['summary', 'duration', 'plan', 'tracking', 'check', 'comments'];
+  for (const tab of tabs) {
+    reset({ tab });
+    api.state.route = 'reports';
+    api.render();
+    const root = w.document.getElementById('report-results');
+    assert.equal(root.querySelectorAll('.list-tools').length, 1,
+      `tab-i ${tab} duhet të ketë saktësisht një shirit shkarkimi`);
+    assert.equal(root.querySelectorAll('[data-action="export-report-pro"]').length, 1,
+      `tab-i ${tab} duhet të ketë vetëm një buton "Të gjitha"`);
+    assert.equal(root.querySelectorAll('.pill-tab').length, 6,
+      `tab-i ${tab} duhet t'i mbajë gjashtë tab-et`);
+  }
+});
+
 run();

@@ -1595,3 +1595,19 @@ ndryshojnë, moszbritja e besimit të qelizës së sigurt, heqja nga lista e të
 paqartave, dhe asnjë kërkesë kur nuk ka dyshime.
 
 `npm test` → 426 teste, zero dështime; `SHA256SUMS.txt` verifikohet pastër.
+
+## Shiriti i shkarkimit shfaqej dy herë (kërkesa 22)
+
+Në **Raportet** shiriti me 11 butonat Excel shfaqej dy herë: një herë nën tab-e
+dhe një herë nën kartat statistikore. Shkaku ishte brenda `reportResultsHTML`:
+shiriti ndërtohej si `${bar}` pas tab-eve **dhe** thirrej edhe një herë me
+`reportExportBar(rs.length)` pas kartave. Në degën aktuale, shiriti i dytë u hoq;
+filtri i parë mbetet i vetmi, ndaj butonat janë të njëjtë në çdo tab.
+
+**Prova para rregullimit** (jsdom): 2 shirita `.list-tools` brenda
+`#report-results`, 3 në gjithë dokumentin, 2 butona *Të gjitha*.
+**Pas:** 1 shirit brenda `#report-results` dhe vetëm 1 buton *Të gjitha*.
+
+**Test i ri** në `reports_filters.test.js`: për secilin nga gjashtë tab-et
+kontrollon një shirit shkarkimi, një buton *Të gjitha* dhe gjashtë tab-e.
+**`npm test` → 20 suite, 427 teste, zero dështime** (pas bashkimit me `main`).
