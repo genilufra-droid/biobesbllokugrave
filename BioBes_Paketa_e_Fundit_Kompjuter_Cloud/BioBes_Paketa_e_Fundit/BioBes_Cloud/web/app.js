@@ -2273,8 +2273,22 @@ async function geminiForParts(parts,signal,ocrHints=null){
  }
  finally{clearTimeout(timer)}
 }
+// Çdo formular ka faqe PARA dhe faqe PAS, prandaj një skanim i plotë ka numër
+// çift faqesh. Një faqe që mungon nuk e ndal leximin, por humb peshimet 4–6
+// pa u vënë re; prandaj paralajmërohet para se njeriu të kontrollojë.
+async function scannedPageWarning(files,warnings){
+ let total=0,scanned=false;
+ for(const file of files){
+  const kind=fileKind(file);
+  if(kind==='application/pdf'){try{total+=(await loadPdf(file)).getPageCount()}catch(e){return 0}scanned=true}
+  else if(kind&&kind.startsWith('image/')){total+=1;scanned=true}
+ }
+ if(scanned&&total>1&&total%2===1)warnings.push(`Dokumenti ka ${total} faqe (numër tek). Çdo formular ka faqe PARA dhe PAS, ndaj mund të mungojë një faqe; kontrollo peshimet 4–6 të formularit të fundit.`);
+ return total;
+}
 // Lexon një grup skedarësh; PDF-të e gjata ndahen dhe ribashkohen vetë.
 async function readFilesWithGemini(files,signal,catalog,warnings=[],cache=new Map()){
+ await scannedPageWarning(files,warnings);
  const calls=await planReadingCalls(files);
  const single=calls.length===1&&!calls[0].offset;
  const chunks=[];
