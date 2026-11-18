@@ -1,6 +1,15 @@
 name: BioBes Pages
 
+# Publikimi bëhet vetvetiu sa herë që main merr një ndryshim në aplikacionin web.
+# Më parë kishte vetëm workflow_dispatch, ndaj faqja live mund të mbetej pas kodit
+# pa u vënë re. Tani çdo merge në main e publikon menjëherë; workflow_dispatch
+# mbetet për ripublikim manual.
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'BioBes_Paketa_e_Fundit_Kompjuter_Cloud/BioBes_Paketa_e_Fundit/BioBes_Cloud/web/**'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
