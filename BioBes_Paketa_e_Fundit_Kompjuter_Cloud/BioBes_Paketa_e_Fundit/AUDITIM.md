@@ -1272,3 +1272,46 @@ përditësua për gjashtë.
 
 **Testet.** `plan_planning.test.js` — 12 teste të reja. **`npm test` → 35 suite,
 345 teste, zero dështime.**
+
+## 9. Parapranuesi lokal OCR — ndihmë për leximin (18 nëntor 2026)
+
+**Problemi.** Një skanim i vërtetë (14 faqe, 7 formularë, RICOH Aficio MP C3002) nuk
+ka shtresë teksti: `pdftotext` kthen faqe bosh. Modeli e merr dokumentin si imazh dhe
+duhet ta kuptojë vetë strukturën — sa faqe, cila është PARA dhe cila PAS, a është
+skanimi i pjerrët ose i turbullt. Kur numri i formularëve është i madh, kjo është pika
+ku modeli gabon më shpesh: bashkon dy formularë ose shpik një të tretë.
+
+**Zgjidhja.** U shtua një parapranues **lokal, në CPU, pa internet** dhe një kanal i
+ri, plotësisht opsional, drejt Edge Function-it. Asgjë nuk u zëvendësua: Gemini
+mbetet lexuesi i vetëm dhe skema e përgjigjes nuk ndryshoi.
+
+- `tools/ocr_prepass.py` — RapidOCR (model-et PP-OCRv5 përmes ONNX Runtime, ~15 MB,
+  pa Torch dhe pa Paddle). Rasterizon PDF-në me `pdftoppm`, njeh etiketat e shtypura
+  (30 në faqen PARA, 13 në faqen PAS), klasifikon faqet, grupon çiftet në formulare,
+  mat DPI, pjerrësinë, turbullirën dhe mbushjen me bojë, dhe shkruan `ocrHints`.
+  Nuk dërgon asgjë jashtë kompjuterit dhe hintet nuk përmbajnë vlera të lexuara.
+- `BioBes_Cloud/supabase/functions/biobes-read-form/index.ts` — pranon fushën
+  opsionale `ocrHints`, e validon (max 30 faqe, `page` numër i plotë, `type` vetëm
+  `front|back|unknown`, `quality` 0–100, `labels` ≤14×40, `issues` ≤5×60) dhe e shton
+  te prompti si bllok tekstual i shënuar si **i pabesueshëm**. Hint i keqformuar
+  kthen **400**; nuk anashkalohet në heshtje.
+- `BioBes_Cloud/web/cloud.js` — `cloudGemini` e kalon `ocrHints` në trupin e kërkesës
+  vetëm kur lista nuk është bosh; kufiri 19 MB dhe rrjedha e riprovimit mbeten të
+  paprekura.
+- `BioBes_Cloud/web/app.js` — `ocrHintsFromPageCounts` / `ocrHintsForFiles` numërojnë
+  faqet e PDF-së dhe supozojnë rendin PARA/PAS **vetëm** kur faqet janë çift (ose kur
+  zgjidhen dy foto bashkë); përndryshe faqja shënohet `unknown`. Nëse PDF-ja nuk
+  hapet, kthehet listë bosh — ndihma nuk e bllokon kurrë leximin.
+
+**Prova në skanimin real.** `python3 tools/ocr_prepass.py AMBRA_JAVA_46.pdf --verbose`
+→ *14 faqe, 7 formulare, 48,04 s* (~3,4 s/faqe), alternim i përsosur PARA/PAS, zero
+paralajmërime, DPI 200, pjerrësi 0,0°. RapidOCR njohu 26 nga 29 etiketa të shtypura
+(90 %) kundrejt 25 nga 29 (86 %) për Tesseract 5.3; të dyja dështojnë te shkrimi me
+dorë, prandaj vlerat mbeten punë e Gemini-t dhe e kontrollit njerëzor.
+
+**Testet.** `tests/ocr_hints.test.js` — 13 teste të reja (numërimi i faqeve, çifti
+PARA/PAS, faqja tek, kufiri 30, mospasja e vlerave, kalimi i fushës në trupin e
+kërkesës, mosprania e fushës kur lista është bosh). `tests/ocr_prepass_test.py` — 14
+teste për normalizimin, njohjen e etiketave, klasifikimin, grupimin dhe hintet.
+`npm test` → zero dështime. `hintsSafe`/`hintsText` u kontrolluan me
+`tsc --noEmit --strict`.
