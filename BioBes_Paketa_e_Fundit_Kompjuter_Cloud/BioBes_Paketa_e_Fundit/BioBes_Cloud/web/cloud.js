@@ -297,14 +297,18 @@ async function cloudFetchOriginal(path){
  return data;
 }
 // Hapja e dokumenteve ndodh në app.js (docOpen), që përdor cloudFetchOriginal.
-async function cloudGemini(parts,signal,budgetMs=120000){
+async function cloudGemini(parts,signal,budgetMs=120000,ocrHints=null){
  // Buxheti i kohës për të gjithë thirrjen (përfshirë pritjet). Pa të, pritjet e
  // riprovimit mund të kalonin kufirin e jashtëm dhe leximi të aborterohej
  // si "kaloi kohën", edhe pse asnjë kërkesë nuk ishte e dështuar përfundimisht.
  const startedAt=Date.now(),KEEP_MS=15000;
  const remaining=()=>budgetMs-(Date.now()-startedAt);
  const {data,error}=await cloud.client.auth.getSession();if(error||!data.session?.access_token)throw new Error('Sesioni ka përfunduar. Hyr përsëri.');
- const body=JSON.stringify({parts,consent:true,anonymous:true,freeTier:true});if(new Blob([body]).size>19000000)throw new Error('Dokumentet janë shumë të mëdha për lexim në cloud. Ndaji në skedarë më të vegjël.');
+ // `ocrHints` (opsionale) jane njoftime te shkurtra nga parapranuesi lokal OCR:
+ // numri i faqes, lloji PARA/PAS dhe cilesia e skanimit. Nuk permbajne vlera te
+ // lexuara dhe nuk e zevendesojne kurre dokumentin; sherbejne vetem si ndihme.
+ const hintList=Array.isArray(ocrHints)&&ocrHints.length?ocrHints.slice(0,30):null;
+ const body=JSON.stringify({parts,consent:true,anonymous:true,freeTier:true,...(hintList?{ocrHints:hintList}:{})});if(new Blob([body]).size>19000000)throw new Error('Dokumentet janë shumë të mëdha për lexim në cloud. Ndaji në skedarë më të vegjël.');
  const pause=cloudLastAiStart?Math.max(0,BATCH_AI_GAP_MS-(Date.now()-cloudLastAiStart)):0;if(pause){if(batchState.busy)batchSetBusy(true,'Pauzë për kufirin falas; leximet vazhdojnë së shpejti…');await batchWait(pause,signal)}if(signal.aborted)throw new DOMException('aborted','AbortError');cloudLastAiStart=Date.now();
  let lastError=null;
  // Kodi i ofruesit: 429 + RESOURCE_EXHAUSTED = kuota mbaroi, jo radhë.

@@ -117,7 +117,49 @@ të mos ngatërrohet me peshimin 1 të faqes PARA.
 - Ndarja me dorë (“çdo 2 faqe = një formular” ose “çdo faqe = një formular”) mbetet
   vetëm si mundësi e veçantë; ajo bëhet në pajisje, para leximit.
 
-## 6. Kufijtë
+## 6. Ndihma e parapranuesit lokal OCR (`ocrHints`)
+
+Kërkesa drejt Edge Function-it `biobes-read-form` pranon një fushë **opsionale**
+`ocrHints`: një listë e shkurtër njoftimesh për faqet, të prodhuar në pajisje para
+dërgimit. Ajo nuk zëvendëson leximin dhe nuk përmban asnjë vlerë të lexuar.
+
+```json
+{
+  "parts": [ "…" ],
+  "consent": true, "anonymous": true, "freeTier": true,
+  "ocrHints": [
+    { "page": 1, "type": "front", "quality": 92, "labels": ["PLANI I PUNES"], "issues": [] },
+    { "page": 2, "type": "back",  "quality": 88, "labels": ["KOMENTE"],        "issues": ["skanim i pjerrët"] }
+  ]
+}
+```
+
+| Fusha | Kuptimi |
+|---|---|
+| `page` | Numri i faqes brenda kërkesës (1 … 30). Numër i plotë, i detyrueshëm. |
+| `type` | `front`, `back` ose `unknown`. Çdo vlerë tjetër bëhet `unknown`. |
+| `quality` | Vlerësim 0–100 i cilësisë së skanimit; `null` kur nuk matet. Kufizohet në interval. |
+| `labels` | Deri në 14 etiketa të shtypura të njohura në faqe (max 40 karaktere secila). |
+| `issues` | Deri në 5 shënime të shkurtra për cilësinë (max 60 karaktere secila). |
+
+Rregullat e pranimit: lista lejohet vetëm me deri në 30 elemente; çdo element duhet
+të jetë objekt me `page` të vlefshme. Nëse `ocrHints` është i keqformuar, kërkesa
+refuzohet me **400** (nuk anashkalohet në heshtje). Njoftimet i shtohen promptit si
+një bllok tekstual që fillon me “PARAPRANUES LOKAL OCR (i pabesueshëm: vetëm
+ndihmë, jo burim i vërtetë)” dhe mbaron me “Lexo gjithmonë vetë dokumentin; nëse
+hints kundërshton figures, beso figures”. Modeli udhëzohet të verifikojë
+përmbajtjen, prandaj një hint i gabuar nuk e prish leximin.
+
+Dy prodhues e mbushin këtë fushë:
+
+- **Në shfletues** (`ocrHintsFromPageCounts` në `web/app.js`): numëron faqet e PDF-së
+  dhe supozon rendin PARA/PAS vetëm kur numri i faqeve është çift (ose kur zgjidhen
+  dy foto bashkë). Nuk lexon tekst, nuk mat cilësi, nuk dërgon vlera.
+- **Në pajisje, me CLI** (`tools/ocr_prepass.py`): RapidOCR/PP-OCRv5, pa internet,
+  në CPU. Njeh etiketat e shtypura, mat DPI, pjerrësinë, turbullirën dhe
+  mbushjen me bojë, grupo faqet në formulare dhe shkruan `ocrHints` me `--hints-only`.
+
+## 7. Kufijtë
 
 - Deri në 10 formularë për dokument; më shumë ndahet në përpunime të veçanta.
 - Për një formular: 3 produkte, 12 punonjës, 6 tabela peshimi (25 rreshta secila).

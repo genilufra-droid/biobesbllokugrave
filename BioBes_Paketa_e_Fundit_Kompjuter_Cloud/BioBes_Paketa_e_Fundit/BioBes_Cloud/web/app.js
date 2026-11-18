@@ -2221,13 +2221,49 @@ function mergeReadingChunks(chunks,totalPages){
  }
  return {document:{fileName:'',pageCount:totalPages,page_count:totalPages,formCount:forms.length},forms};
 }
+// Parapranues i lehtë në shfletues: nuk lexon tekst, vetëm numëron faqet dhe
+// supozon rendin PARA/PAS. Nuk përmban asnjë vlerë të lexuar dhe nuk e
+// zëvendëson dokumentin; Gemini e merr si ndihmë dhe e verifikon vetë.
+function ocrHintsFromPageCounts(counts){
+ const total=counts.reduce((n,c)=>n+Math.max(0,Math.floor(Number(c)||0)),0);
+ if(!total)return [];
+ // Dy foto të zgjedhura bashkë janë çifti PARA/PAS i të njëjtit formular.
+ const pair=counts.length===2&&counts[0]===1&&counts[1]===1;
+ const hints=[];
+ for(const raw of counts){
+  const pages=Math.max(0,Math.floor(Number(raw)||0));
+  for(let i=0;i<pages;i++){
+   if(hints.length>=30)return hints;
+   // Numërimi është i vazhdueshëm në të gjithë skedarët, jo për çdo skedar veç.
+   const index=hints.length,issues=[];
+   // Rendi supozohet vetëm kur faqet janë çift: PARA, PAS, PARA, PAS …
+   const alternating=pair||(pages>=2&&pages%2===0)||(pages>=3&&i<pages-1);
+   const type=alternating?(index%2===0?'front':'back'):'unknown';
+   if(pages>1&&pages%2===1&&i===pages-1)issues.push('numri i faqeve është tek; mund të mungojë një faqe');
+   if(alternating&&index===0)issues.push('rendi PARA/PAS u supozua nga numri i faqeve');
+   hints.push({page:index+1,type,quality:null,labels:[],issues});
+  }
+ }
+ return hints;
+}
+// Ndihma nuk e bllokon kurrë leximin: nëse faqet nuk numërohen, kthehet listë bosh.
+async function ocrHintsForFiles(files){
+ try{
+  const counts=[];
+  for(const file of files){
+   if(fileKind(file)==='application/pdf')counts.push((await loadPdf(file)).getPageCount());
+   else counts.push(1);
+  }
+  return ocrHintsFromPageCounts(counts);
+ }catch(e){return []}
+}
 // Një thirrje Gemini me kufi kohor, si më parë.
-async function geminiForParts(parts,signal){
+async function geminiForParts(parts,signal,ocrHints=null){
  // Kufiri i jashtëm mbetet, por gabimi që shihet nuk duhet të jetë "kaloi kohën"
  // kur diçka tjetër dështoi më parë: ruhet arsyeja e vërtetë.
  const outer=new AbortController(),combined=AbortSignal.any?AbortSignal.any([signal,outer.signal]):signal;
  const timer=setTimeout(()=>outer.abort(),140000);
- try{return await cloudGemini(parts,combined,125000)}
+ try{return await cloudGemini(parts,combined,125000,ocrHints)}
  catch(e){
   if(outer.signal.aborted&&!signal.aborted){
    const error=new Error('Leximi zgjati mbi 2 minuta. Provo me më pak faqe njëherësh ose përsëri.');
@@ -2248,7 +2284,8 @@ async function readFilesWithGemini(files,signal,catalog,warnings=[],cache=new Ma
   // I njëjti skanim nuk dërgohet dy herë: hash-i i përmbajtjes e gjen në pajisje.
   const cacheKey=await readCacheKey(call.files[0]);
   const cached=cacheKey?readCacheGet(cacheKey):null;
-  const data=cached||parseAIJson(await geminiForParts(parts,signal));
+  const hints=cached?[]:await ocrHintsForFiles(call.files);
+  const data=cached||parseAIJson(await geminiForParts(parts,signal,hints));
   if(!cached&&cacheKey)readCacheSet(cacheKey,data);
   if(single)return data;
   chunks.push({data,offset:call.offset});

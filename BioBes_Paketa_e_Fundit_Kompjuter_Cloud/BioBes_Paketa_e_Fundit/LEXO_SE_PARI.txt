@@ -4,7 +4,7 @@ BIOBES — BLLOKU DITOR (VERSIONI I VETËM)
 2. BioBes_Cloud/supabase/ — Edge Function "biobes-read-form" (leximi me Gemini) dhe SQL-ja e bazës. Ndryshimet këtu hyjnë në fuqi vetëm pas deploy-it në Supabase.
 3. BioBes_Cloud/UDHEZUESI.md — udhëzuesi i plotë i përdorimit dhe i vendosjes.
 4. Modele_Bosh/ — modeli bosh i miratuar (PDF dhe Excel). Të njëjtat kopje janë brenda web/index.html.
-5. tools/ — skriptet që rindërtojnë modelin. tests/ — testet (nga dosja tests: npm ci, pastaj npm test).
+5. tools/ — skriptet që rindërtojnë modelin dhe parapranuesi lokal OCR (tools/ocr_prepass.py; varësitë në tools/requirements-ocr.txt). Ai punon në CPU, pa internet, dhe prodhon vetëm njoftime strukturore (faqe PARA/PAS, cilësi, etiketa) — asnjë vlerë e lexuar nuk del nga kompjuteri. tests/ — testet (nga dosja tests: npm ci, pastaj npm test).
 6. AUDITIM.md — auditimi i fundit: çfarë u fshi, çfarë u ndryshua, çfarë mbetet për t'u bërë.
 7. SKEMA.md — si ndahet një dokument me disa formularë (faqja PARA/PAS) dhe çfarë do të thotë vlera, faqja, zona, siguria dhe needsReview.
 8. tests/fixtures/scan_14_pages.json — skanim real (14 faqe, 7 formularë) i anonimizuar, i përdorur nga tests/skanim_real.test.js. tests/large_pdf.test.js provon që një PDF i gjatë ndahet, lexohet dhe ribashkohet si një dokument (pa kufi 6 faqesh).

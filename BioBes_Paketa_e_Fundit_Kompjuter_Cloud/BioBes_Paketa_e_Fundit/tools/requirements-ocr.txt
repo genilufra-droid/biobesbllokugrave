@@ -1,0 +1,12 @@
+# Varësi për parapranuesin lokal OCR (tools/ocr_prepass.py).
+#
+# Instalimi:  pip install -r tools/requirements-ocr.txt
+# Sistemi:    sudo apt-get install -y poppler-utils   (komanda pdftoppm)
+#
+# Gjithçka punon në CPU, pa internet dhe pa llogari. Model-et PP-OCRv5 vijnë
+# brenda paketës rapidocr_onnxruntime (~15 MB) dhe nuk kërkojnë Torch ose
+# PaddlePaddle.
+
+rapidocr_onnxruntime>=1.3,<2
+opencv-python-headless>=4.8
+numpy>=1.24

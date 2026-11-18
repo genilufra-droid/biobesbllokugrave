@@ -243,6 +243,35 @@ Për Gemini, fotot përgatiten në pajisje me orientimin e dekoderit, maksimum 2
 
 Katalogu i listave bazë nuk dërgohet pa zgjedhjen e checkbox-it të tij të veçantë. Zgjidhe vetëm nëse **të gjitha** listat bazë janë anonime dhe jokonfidenciale; ato mund të përmbajnë emra njerëzish. Aplikacioni nuk i anonimizon. Kufiri është 20 KiB dhe nuk përfshihet historiku i regjistrimeve. Kontrollo të gjitha paralajmërimet dhe vlerat përpara ruajtjes. Datat lexohen si ditë/muaj (`6.11.26` është 6 nëntor); kur data mund të lexohet në dy mënyra dhe në letër nuk ka ditë jave, del një paralajmërim për ta kontrolluar. Në OCR `1.250` do të thotë një mijë e dyqind e pesëdhjetë, ndërsa `1,250` është 1,25; kjo është një paqartësi që duhet kontrolluar në dokument.
 
+### Parapranuesi lokal OCR (ndihmë, jo zëvendësim)
+
+Para se të niset leximi, aplikacioni mbledh në pajisje një listë të shkurtër
+“hintësh”: sa faqe ka dokumenti, cilat janë PARA dhe cilat PAS, dhe — kur i prodhon
+mjeti lokal — cilësia e skanimit dhe etiketat e shtypura të njohura. Kjo listë
+dërgohet si fushë opsionale `ocrHints` bashkë me kërkesën, prandaj Gemini e merr
+strukturën e dokumentit pa e zëvendësuar leximin.
+
+Hintet **nuk përmbajnë asnjë vlerë të lexuar**, nuk përmbajnë emra dhe nuk
+përmbajnë tekst të lirë: vetëm numra faqesh, llojin PARA/PAS, një vlerësim
+cilësie dhe etiketa të shtypura të formularit. Prompti e shënon shprehimisht që
+ato janë të pabesueshme dhe që, kur kundërshtojnë dokumentin, fiton dokumenti.
+Në shfletues rendi PARA/PAS supozohet vetëm kur faqet janë çift; përndryshe faqja
+shënohet `unknown` dhe paralajmërohet.
+
+Për skanime të vështira mund të prodhosh hinte më të pasura në pajisje, pa
+internet dhe pa Gemini, me `tools/ocr_prepass.py` (RapidOCR/PP-OCRv5 në CPU):
+
+```
+pip install -r tools/requirements-ocr.txt
+sudo apt-get install -y poppler-utils
+python3 tools/ocr_prepass.py skanimi.pdf --hints-only --out hints.json
+python3 tools/ocr_prepass.py skanimi.pdf --verbose      # faqe, formulare, cilësi
+```
+
+Mjeti shkruan vetëm njoftime strukturore; vlerat e lexuara nuk dalin nga kompjuteri.
+Nëse `rapidocr_onnxruntime` ose `poppler-utils` mungojnë, mjeti e thotë qartë dhe
+ndalet — leximi në aplikacion nuk varet prej tij.
+
 Për testet aktuale përdor Node 24 (`cd tests && npm ci && npm test`) dhe për testet Edge offline `deno test --allow-env --allow-read tests/edge_function.test.ts` nga rrënja e paketës. Pretendimet historike për 49 teste apo mungesën e testit Deno më sipër i referohen auditimit të mëparshëm, jo kësaj dege. Ndryshimet e kësaj dege nuk janë vendosur live; duhen deploy i ndërgjegjshëm i web-it dhe Edge Function-it dhe test integrimi pas bashkimit të varësisë.
 
 
